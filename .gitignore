@@ -1,0 +1,4 @@
+/bin
+/cert
+.DS_STORE
+.env
