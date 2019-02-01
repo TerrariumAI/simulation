@@ -20,19 +20,15 @@ func main() {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
-	pb.RegisterDatacomServer(s, &Server{})
+	pb.RegisterSimulationServer(s, &Server{})
 	reflection.Register(s)
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}
 }
 
-func (s *Server) Execute(ctx context.Context, in *pb.ExecuteMessage) (*pb.Empty, error) {
-	log.Printf("Receive execution %s", in.Execution)
-	return &pb.Empty{}, nil
-}
-
-func (s *Server) Query(ctx context.Context, in *pb.QueryMessage) (*pb.QueryResponseMessage, error) {
-	log.Printf("Receive query %s", in.Query)
-	return &pb.QueryResponseMessage{Response: "bar"}, nil
+func (s *Server) SpawnAgent(ctx context.Context, in *pb.SpawnAgentMessage) (*pb.SpawnAgentResultMessage, error) {
+	log.Printf("Receive spawn agent message %s", in.X)
+	log.Printf("Receive spawn agent message %s", in.Y)
+	return &pb.SpawnAgentResultMessage{Status: "success"}, nil
 }

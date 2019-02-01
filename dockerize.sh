@@ -1,7 +1,7 @@
 echo "[Building docker image]"
-docker build -t datacom .
+docker build -t simulation .
 
 echo "[Publishing docker image]"
 docker login
-docker tag datacom olamai/datacom:0.0.1
-docker push olamai/datacom:0.0.1
+docker tag simulation olamai/simulation:0.0.1
+docker push olamai/simulation:0.0.1
