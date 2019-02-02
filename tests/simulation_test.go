@@ -36,4 +36,11 @@ func TestSimulation(t *testing.T) {
 		t.Errorf("error when calling SpawnAgent: %s", err)
 	}
 	println("Agent Observation: ", obsvResp.Entities[0].Id)
+
+	// Test Action
+	actionResp, err := c.AgentAction(context.Background(), &pb.AgentActionRequest{Id: agentId, Action: "UP"})
+	if err != nil {
+		t.Errorf("error when calling SpawnAgent: %s", err)
+	}
+	println("Agent Observation: ", actionResp.Successful)
 }

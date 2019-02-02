@@ -27,6 +27,8 @@ type EntityUpdate struct {
 	Entity Entity
 }
 
+// Create an abstraction around pb.SpawnAgentRequest that has a channel
+//  where the new agent's id can be sent back
 type SpawnAgentWithNewAgentIdChan struct {
 	// The message that was sent to spawn the agent
 	msg pb.SpawnAgentRequest
@@ -36,8 +38,9 @@ type SpawnAgentWithNewAgentIdChan struct {
 
 // Server represents the gRPC server
 type Server struct {
-	agents       map[int32]*Entity
-	chSpawnAgent chan SpawnAgentWithNewAgentIdChan
+	agents        map[int32]*Entity
+	chAgentSpawn  chan SpawnAgentWithNewAgentIdChan
+	chAgentAction chan pb.AgentActionRequest
 
 	// Observer id to use for next observer
 	observerId int32
@@ -52,7 +55,8 @@ func main() {
 	// Initialize server obj
 	var simulationServer = Server{
 		agents:                make(map[int32]*Entity),
-		chSpawnAgent:          make(chan SpawnAgentWithNewAgentIdChan, 3),
+		chAgentSpawn:          make(chan SpawnAgentWithNewAgentIdChan, 3),
+		chAgentAction:         make(chan pb.AgentActionRequest, 3),
 		observerationChannels: make(map[int32]chan EntityUpdate),
 	}
 

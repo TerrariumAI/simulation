@@ -9,11 +9,11 @@ func (s *Server) startSimulation() {
 	for {
 
 		// Check if there is anything in the channel
-		if len(s.chSpawnAgent) > 0 {
+		if len(s.chAgentSpawn) > 0 {
 			// Handle every element that is currently in the channel
-			for i := 0; i < len(s.chSpawnAgent); i++ {
+			for i := 0; i < len(s.chAgentSpawn); i++ {
 				// Get the SpawnAgentWithResultChan object from channel
-				spawnAgentWithResultChan := <-s.chSpawnAgent
+				spawnAgentWithResultChan := <-s.chAgentSpawn
 				// Parse out the message that was sent
 				spawnAgentMsg := spawnAgentWithResultChan.msg
 				chNewAgentId := spawnAgentWithResultChan.chNewAgentId
@@ -25,10 +25,27 @@ func (s *Server) startSimulation() {
 			}
 		}
 
+		// Go through agent actions and perform each one
+		if len(s.chAgentAction) > 0 {
+			for i := 0; i < len(s.chAgentAction); i++ {
+				// Pop message
+				agentSpawnMsg := <-s.chAgentAction
+				id := agentSpawnMsg.Id
+				action := agentSpawnMsg.Action
+				println("Action: ", action, "ID: ", id)
+				// Get agent
+				agent := s.agents[id]
+				// Perform action
+				switch action {
+				case "UP":
+					agent.Pos.Y += 1
+				}
+			}
+		}
+
 		// Perform Agent actions
 		for _, agent := range s.agents {
-			// TODO - change this to send to a channel
-			agent.Pos.X += 1
+			// agent.Pos.X += 1
 			println("Sending to clients: ", agent.Pos.X, agent.Pos.Y)
 			for _, obsvChan := range s.observerationChannels {
 				obsvChan <- EntityUpdate{Action: "update", Entity: *agent}

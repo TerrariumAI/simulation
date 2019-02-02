@@ -10,11 +10,10 @@ import (
 
 // Create a new agent and return the new agent's id
 func (s *Server) SpawnAgent(ctx context.Context, in *pb.SpawnAgentRequest) (*pb.SpawnAgentResult, error) {
-	log.Printf("Receive spawn Entity message %s", in.X)
-	log.Printf("Receive spawn Entity message %s", in.Y)
+	log.Printf("SpawnAgent(): %s", in.X, in.Y)
 
 	chNewAgentId := make(chan int32)
-	s.chSpawnAgent <- SpawnAgentWithNewAgentIdChan{msg: *in, chNewAgentId: chNewAgentId}
+	s.chAgentSpawn <- SpawnAgentWithNewAgentIdChan{msg: *in, chNewAgentId: chNewAgentId}
 	// Wait for the resulting new agent id
 	newAgentId := <-chNewAgentId
 	return &pb.SpawnAgentResult{Id: newAgentId}, nil
@@ -54,7 +53,15 @@ func (s *Server) AgentObservation(ctx context.Context, in *pb.AgentObservationRe
 	}
 }
 
-func (s *Server) Spectate(ctx context.Context, obsvRequest *pb.SpectateRequest, stream pb.Simulation_SpectateServer) error {
+func (s *Server) AgentAction(ctx context.Context, actionReq *pb.AgentActionRequest) (*pb.AgentActionResult, error) {
+	log.Printf("AgentAction()")
+	// Send action to server channel
+	s.chAgentAction <- *actionReq
+
+	return &pb.AgentActionResult{Successful: true, Done: false}, nil
+}
+
+func (s *Server) Spectate(req *pb.SpectateRequest, stream pb.Simulation_SpectateServer) error {
 	observerId := s.GetObserverId()
 	// Create observation channel for this observer
 	s.observerationChannels[observerId] = make(chan EntityUpdate)
