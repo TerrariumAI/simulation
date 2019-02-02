@@ -27,5 +27,5 @@ func TestSimulation(t *testing.T) {
 	if err != nil {
 		t.Errorf("error when calling SpawnAgent: %s", err)
 	}
-	log.Println(resp)
+	println("Spawned new agent with ID: ", resp.Id)
 }
