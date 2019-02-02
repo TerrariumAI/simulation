@@ -22,10 +22,18 @@ func TestSimulation(t *testing.T) {
 
 	c := pb.NewSimulationClient(conn)
 
-	// Test Execution
-	resp, err := c.SpawnAgent(context.Background(), &pb.SpawnAgentRequest{X: 0, Y: 0})
+	// Test Spawn
+	spawnResp, err := c.SpawnAgent(context.Background(), &pb.SpawnAgentRequest{X: 0, Y: 0})
 	if err != nil {
 		t.Errorf("error when calling SpawnAgent: %s", err)
 	}
-	println("Spawned new agent with ID: ", resp.Id)
+	println("Spawned new agent with ID: ", spawnResp.Id)
+	agentId := spawnResp.Id
+
+	// Test Observation
+	obsvResp, err := c.AgentObservation(context.Background(), &pb.AgentObservationRequest{Id: agentId})
+	if err != nil {
+		t.Errorf("error when calling SpawnAgent: %s", err)
+	}
+	println("Agent Observation: ", obsvResp.Entities[0].Id)
 }

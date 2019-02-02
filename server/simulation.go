@@ -19,7 +19,7 @@ func (s *Server) startSimulation() {
 				chNewAgentId := spawnAgentWithResultChan.chNewAgentId
 				// Create the new entity
 				id := s.GetEntityId()
-				s.agents = append(s.agents, &Entity{Id: id, Class: "agent", Pos: vec2{X: spawnAgentMsg.X, Y: spawnAgentMsg.Y}})
+				s.agents[id] = &Entity{Id: id, Class: "agent", Pos: vec2{X: spawnAgentMsg.X, Y: spawnAgentMsg.Y}}
 				// Send the new id to the channel
 				chNewAgentId <- id
 			}

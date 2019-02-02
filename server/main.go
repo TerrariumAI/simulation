@@ -36,7 +36,7 @@ type SpawnAgentWithNewAgentIdChan struct {
 
 // Server represents the gRPC server
 type Server struct {
-	agents       []*Entity
+	agents       map[int32]*Entity
 	chSpawnAgent chan SpawnAgentWithNewAgentIdChan
 
 	// Observer id to use for next observer
@@ -51,6 +51,7 @@ type Server struct {
 func main() {
 	// Initialize server obj
 	var simulationServer = Server{
+		agents:                make(map[int32]*Entity),
 		chSpawnAgent:          make(chan SpawnAgentWithNewAgentIdChan, 3),
 		observerationChannels: make(map[int32]chan EntityUpdate),
 	}
