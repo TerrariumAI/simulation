@@ -25,6 +25,7 @@ func (s *Server) startSimulation() {
 			}
 		}
 
+		// TODO - make this only run in dev mode
 		// Go through agent actions and perform each one
 		if len(s.chAgentAction) > 0 {
 			for i := 0; i < len(s.chAgentAction); i++ {
@@ -39,13 +40,18 @@ func (s *Server) startSimulation() {
 				switch action {
 				case "UP":
 					agent.Pos.Y += 1
+				case "DOWN":
+					agent.Pos.Y -= 1
+				case "RIGHT":
+					agent.Pos.X += 1
+				case "LEFT":
+					agent.Pos.X -= 1
 				}
 			}
 		}
 
 		// Perform Agent actions
 		for _, agent := range s.agents {
-			// agent.Pos.X += 1
 			println("Sending to clients: ", agent.Pos.X, agent.Pos.Y)
 			for _, obsvChan := range s.observerationChannels {
 				obsvChan <- EntityUpdate{Action: "update", Entity: *agent}
