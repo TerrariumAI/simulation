@@ -15,7 +15,7 @@ type vec2 struct {
 }
 
 type Entity struct {
-	Id    int32
+	Id    string
 	Class string
 	Pos   vec2
 }
@@ -33,16 +33,16 @@ type SpawnAgentWithNewAgentIdChan struct {
 	// The message that was sent to spawn the agent
 	msg pb.SpawnAgentRequest
 	// Channel to send the result to
-	chNewAgentId chan int32
+	chNewAgentId chan string
 }
 
 func main() {
 	// Initialize server obj
 	var simulationServer = Server{
-		agents:                make(map[int32]*Entity),
+		agents:                make(map[string]*Entity),
 		chAgentSpawn:          make(chan SpawnAgentWithNewAgentIdChan, 3),
 		chAgentAction:         make(chan pb.AgentActionRequest, 3),
-		observerationChannels: make(map[int32]chan EntityUpdate),
+		observerationChannels: make(map[string]chan EntityUpdate),
 	}
 
 	// Start the simulation on another thread

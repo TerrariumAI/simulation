@@ -2,6 +2,8 @@ package main
 
 import (
 	"time"
+
+	uuid "github.com/satori/go.uuid"
 )
 
 func (s *Server) startSimulation() {
@@ -18,7 +20,7 @@ func (s *Server) startSimulation() {
 				spawnAgentMsg := spawnAgentWithResultChan.msg
 				chNewAgentId := spawnAgentWithResultChan.chNewAgentId
 				// Create the new entity
-				id := s.GetEntityId()
+				id := uuid.Must(uuid.NewV4()).String()
 				s.agents[id] = &Entity{Id: id, Class: "agent", Pos: vec2{X: spawnAgentMsg.X, Y: spawnAgentMsg.Y}}
 				// Send the new id to the channel
 				chNewAgentId <- id

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"log"
 
+	uuid "github.com/satori/go.uuid"
+
 	pb "github.com/olamai/proto"
 )
 
@@ -12,7 +14,7 @@ import (
 func (s *Server) SpawnAgent(ctx context.Context, in *pb.SpawnAgentRequest) (*pb.SpawnAgentResult, error) {
 	log.Printf("SpawnAgent(): %s", in.X, in.Y)
 
-	chNewAgentId := make(chan int32)
+	chNewAgentId := make(chan string)
 	s.chAgentSpawn <- SpawnAgentWithNewAgentIdChan{msg: *in, chNewAgentId: chNewAgentId}
 	// Wait for the resulting new agent id
 	newAgentId := <-chNewAgentId
@@ -62,7 +64,7 @@ func (s *Server) AgentAction(ctx context.Context, actionReq *pb.AgentActionReque
 }
 
 func (s *Server) Spectate(req *pb.SpectateRequest, stream pb.Simulation_SpectateServer) error {
-	observerId := s.GetObserverId()
+	observerId := uuid.Must(uuid.NewV4()).String()
 	// Create observation channel for this observer
 	s.observerationChannels[observerId] = make(chan EntityUpdate)
 	// Listen for updates and send them to the client
