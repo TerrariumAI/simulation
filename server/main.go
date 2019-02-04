@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-type vec2 struct {
+type Vec2 struct {
 	X int32
 	Y int32
 }
@@ -17,7 +17,7 @@ type vec2 struct {
 type Entity struct {
 	Id    string
 	Class string
-	Pos   vec2
+	Pos   Vec2
 }
 
 // Update message for an entity. Can either be an update or a message
