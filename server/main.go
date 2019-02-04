@@ -9,22 +9,12 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-type vec2 struct {
-	X int32
-	Y int32
-}
-
-type Entity struct {
-	Id    int32
-	Class string
-	Pos   vec2
-}
-
 // Update message for an entity. Can either be an update or a message
 //  saying the entity has died or been removed (i.e. food being eaten).
-type EntityUpdate struct {
-	Action string
-	Entity Entity
+type CellUpdate struct {
+	X        int32
+	Y        int32
+	Occupant string
 }
 
 // Create an abstraction around pb.SpawnAgentRequest that has a channel
@@ -34,21 +24,6 @@ type SpawnAgentWithNewAgentIdChan struct {
 	msg pb.SpawnAgentRequest
 	// Channel to send the result to
 	chNewAgentId chan int32
-}
-
-// Server represents the gRPC server
-type Server struct {
-	agents        map[int32]*Entity
-	chAgentSpawn  chan SpawnAgentWithNewAgentIdChan
-	chAgentAction chan pb.AgentActionRequest
-
-	// Observer id to use for next observer
-	observerId int32
-	// Entity id to use for next entity
-	entityId int32
-
-	// Map from observer id to their observation channel
-	observerationChannels map[int32]chan EntityUpdate
 }
 
 func main() {

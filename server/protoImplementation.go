@@ -12,7 +12,7 @@ import (
 func (s *Server) SpawnAgent(ctx context.Context, in *pb.SpawnAgentRequest) (*pb.SpawnAgentResult, error) {
 	log.Printf("SpawnAgent(): %s", in.X, in.Y)
 
-	chNewAgentId := make(chan int32)
+	chNewAgentId := make(chan string)
 	s.chAgentSpawn <- SpawnAgentWithNewAgentIdChan{msg: *in, chNewAgentId: chNewAgentId}
 	// Wait for the resulting new agent id
 	newAgentId := <-chNewAgentId
@@ -25,19 +25,13 @@ func (s *Server) AgentObservation(ctx context.Context, in *pb.AgentObservationRe
 	// Parse id from message
 	id := in.Id
 
-	if _, ok := s.agents[id]; ok {
+	if _, ok := s.agentPositions; ok {
 		var entities []*pb.Entity
 		// Loop over agents and add to entities
 		// TODO - only return agent's close to this agent rather than all of them
 		for id, otherAgent := range s.agents {
 			// Add agent's data to a PB message
-			e := &pb.Entity{
-				Id:    id,
-				Class: otherAgent.Class,
-				X:     otherAgent.Pos.X,
-				Y:     otherAgent.Pos.Y,
-			}
-			entities = append(entities, e)
+			entities = append(entities, otherAgent)
 		}
 
 		// TODO - loop over other entities such as food and also add
@@ -70,12 +64,7 @@ func (s *Server) Spectate(req *pb.SpectateRequest, stream pb.Simulation_Spectate
 		update := <-s.observerationChannels[observerId]
 		updateMessage := pb.EntityUpdate{
 			Action: update.Action,
-			Entity: &pb.Entity{
-				Id:    update.Entity.Id,
-				Class: update.Entity.Class,
-				X:     update.Entity.Pos.X,
-				Y:     update.Entity.Pos.Y,
-			},
+			Entity: &update.Entity,
 		}
 		stream.Send(&updateMessage)
 	}
