@@ -67,6 +67,22 @@ func (w *World) MoveEntity(id string, pos Vec2) bool {
 }
 
 func (w *World) ObserveFromPosition(pos Vec2) []string {
+	var observation []string
 	// TODO - implement this
-	return make([]string, 8)
+	for x := pos.X - 1; x < pos.X+2; x++ {
+		for y := pos.Y + 1; y > pos.Y-2; y-- {
+			var posToObserve = Vec2{x, y}
+			// Make sure we don't observe ourselves
+			if posToObserve == pos {
+				continue
+			}
+			// Add observation from cell
+			if entity, ok := w.posEntityMatrix[posToObserve]; ok {
+				observation = append(observation, entity.Class)
+			} else {
+				observation = append(observation, "EMPTY")
+			}
+		}
+	}
+	return observation
 }
