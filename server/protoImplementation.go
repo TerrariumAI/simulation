@@ -12,11 +12,18 @@ import (
 func (s *Server) SpawnAgent(ctx context.Context, in *pb.SpawnAgentRequest) (*pb.SpawnAgentResult, error) {
 	log.Printf("SpawnAgent(): %s", in.X, in.Y)
 
-	chNewAgentId := make(chan string)
-	s.chAgentSpawn <- SpawnAgentWithNewAgentIdChan{msg: *in, chNewAgentId: chNewAgentId}
-	// Wait for the resulting new agent id
-	newAgentId := <-chNewAgentId
-	return &pb.SpawnAgentResult{Id: newAgentId}, nil
+	// Attempt to spawn the agent
+	success, id := s.world.SpawnAgent(Vec2{in.X, in.Y})
+
+	// If unsuccessful, throw an error
+	if !success {
+		// Throw error if the agent couldn't spawn
+		err := errors.New("SpawnAgent(): Agent couldn't spawn in that position")
+		return nil, err
+	}
+
+	// If succesful, return the agent's id
+	return &pb.SpawnAgentResult{Id: id}, nil
 }
 
 func (s *Server) AgentObservation(ctx context.Context, in *pb.AgentObservationRequest) (*pb.AgentObservationResult, error) {
@@ -24,52 +31,49 @@ func (s *Server) AgentObservation(ctx context.Context, in *pb.AgentObservationRe
 
 	// Parse id from message
 	id := in.Id
+	pos := s.world.entities[id].Pos
+	observation := s.world.ObserveFromPosition(pos)
+	println(id)
 
-	if _, ok := s.agentPositions; ok {
-		var entities []*pb.Entity
-		// Loop over agents and add to entities
-		// TODO - only return agent's close to this agent rather than all of them
-		for id, otherAgent := range s.agents {
-			// Add agent's data to a PB message
-			entities = append(entities, otherAgent)
-		}
+	return &pb.AgentObservationResult{Cells: observation}, nil
 
-		// TODO - loop over other entities such as food and also add
+	// if _, ok := s.agentPositions; ok {
+	// 	var entities []*pb.Entity
+	// 	// Loop over agents and add to entities
+	// 	// TODO - only return agent's close to this agent rather than all of them
+	// 	for id, otherAgent := range s.agents {
+	// 		// Add agent's data to a PB message
+	// 		entities = append(entities, otherAgent)
+	// 	}
 
-		// Return the observation data
-		return &pb.AgentObservationResult{
-			Entities: entities,
-		}, nil
-	} else {
-		// Throw error if the agent doesn't exist
-		err := errors.New("AgentObservation(): Agent with that Id doesn't exist")
-		return nil, err
-	}
+	// 	// TODO - loop over other entities such as food and also add
+
+	// 	// Return the observation data
+	// 	return &pb.AgentObservationResult{
+	// 		Entities: entities,
+	// 	}, nil
+	// } else {
+	// 	// Throw error if the agent doesn't exist
+	// 	err := errors.New("AgentObservation(): Agent with that Id doesn't exist")
+	// 	return nil, err
+	// }
 }
 
 func (s *Server) AgentAction(ctx context.Context, actionReq *pb.AgentActionRequest) (*pb.AgentActionResult, error) {
 	log.Printf("AgentAction()")
-	// Send action to server channel
-	s.chAgentAction <- *actionReq
 
-	return &pb.AgentActionResult{Successful: true, Done: false}, nil
+	return &pb.AgentActionResult{Successful: false}, nil
 }
 
 func (s *Server) Spectate(req *pb.SpectateRequest, stream pb.Simulation_SpectateServer) error {
-	observerId := s.GetObserverId()
-	// Create observation channel for this observer
-	s.observerationChannels[observerId] = make(chan EntityUpdate)
+	id := s.world.AddObservationChannel()
 	// Listen for updates and send them to the client
 	for {
-		update := <-s.observerationChannels[observerId]
-		updateMessage := pb.EntityUpdate{
-			Action: update.Action,
-			Entity: &update.Entity,
-		}
-		stream.Send(&updateMessage)
+		cellUpdate := <-s.world.observerationChannels[id]
+		stream.Send(&cellUpdate)
 	}
 
 	// Remove the observation channel
-	delete(s.observerationChannels, observerId)
+	s.world.RemoveObservationChannel(id)
 	return nil
 }
