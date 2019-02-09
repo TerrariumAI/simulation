@@ -39,6 +39,7 @@ func (w *World) SpawnAgent(pos Vec2) (success bool, id string) {
 
 	// Create the entity and add to entities map AND position matrix
 	e := NewEntity("AGENT", pos)
+	println("New Agent with id: ", e.Id)
 	w.entities[e.Id] = &e
 	w.posEntityMatrix[pos] = &e
 
@@ -66,7 +67,7 @@ func (w *World) MoveEntity(id string, pos Vec2) bool {
 	return true
 }
 
-func (w *World) ObserveFromPosition(pos Vec2) []string {
+func (w *World) ObserveByPosition(pos Vec2) []string {
 	var observation []string
 	// TODO - implement this
 	for x := pos.X - 1; x < pos.X+2; x++ {
@@ -85,4 +86,13 @@ func (w *World) ObserveFromPosition(pos Vec2) []string {
 		}
 	}
 	return observation
+}
+
+func (w *World) ObserveById(id string) (success bool, observation []string) {
+	// If entity exists, return true success and the observation
+	if e, ok := w.entities[id]; ok {
+		return true, w.ObserveByPosition(e.Pos)
+	}
+	// Return false for success and empty slice
+	return false, make([]string, 0)
 }

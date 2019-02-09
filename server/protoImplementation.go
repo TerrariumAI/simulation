@@ -31,9 +31,12 @@ func (s *Server) AgentObservation(ctx context.Context, in *pb.AgentObservationRe
 
 	// Parse id from message
 	id := in.Id
-	pos := s.world.entities[id].Pos
-	observation := s.world.ObserveFromPosition(pos)
-	println(id)
+	success, observation := s.world.ObserveById(id)
+
+	if !success {
+		err := errors.New("AgentObservation(): Something went wrong while trying to get that agent's observation data")
+		return nil, err
+	}
 
 	return &pb.AgentObservationResult{Cells: observation}, nil
 
