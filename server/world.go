@@ -17,7 +17,7 @@ type World struct {
 	observerationChannels map[string]chan pb.CellUpdate
 }
 
-const agent_living_energy_cost = 10
+const agent_living_energy_cost = 5
 
 func NewWorld() World {
 	// Seed random
@@ -161,6 +161,8 @@ func (w *World) EntityConsume(id string, targetPos Vec2) bool {
 }
 
 func (w *World) PerformEntityAction(id string, direction string, action string) bool {
+	var actionSuccess bool
+
 	e, ok := w.entities[id]
 	if !ok {
 		return false
@@ -182,13 +184,18 @@ func (w *World) PerformEntityAction(id string, direction string, action string) 
 
 	switch action {
 	case "MOVE":
-		return w.EntityMove(id, targetPos)
+		actionSuccess = w.EntityMove(id, targetPos)
 	case "CONSUME":
-		return w.EntityConsume(id, targetPos)
+		actionSuccess = w.EntityConsume(id, targetPos)
+	default:
+		return false
 	}
 
+	// Take off living expense
+	e.Energy -= agent_living_energy_cost
+
 	// Action not identified
-	return false
+	return actionSuccess
 }
 
 func (w *World) GetObservationCellsForPosition(pos Vec2) []string {
