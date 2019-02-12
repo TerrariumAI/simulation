@@ -2,6 +2,7 @@ package main
 
 import (
 	"math/rand"
+	"time"
 
 	pb "github.com/olamai/proto"
 	uuid "github.com/satori/go.uuid"
@@ -16,7 +17,12 @@ type World struct {
 	observerationChannels map[string]chan pb.CellUpdate
 }
 
+const agent_living_energy_cost = 10
+
 func NewWorld() World {
+	// Seed random
+	rand.Seed(time.Now().UnixNano())
+	// Create world
 	w := World{
 		entities:              make(map[string]*Entity),
 		posEntityMatrix:       make(map[Vec2]*Entity),
@@ -32,6 +38,9 @@ func NewWorld() World {
 	return w
 }
 
+// -------------------
+// --- Observation ---
+// -------------------
 func (w *World) AddObservationChannel() string {
 	id := uuid.Must(uuid.NewV4()).String()
 	w.observerationChannels[id] = make(chan pb.CellUpdate)
@@ -48,6 +57,9 @@ func (w *World) BroadcastCellUpdate(pos Vec2, occupant string) {
 	}
 }
 
+// -------------------
+// ----- Agents ------
+// -------------------
 func (w *World) SpawnAgent(pos Vec2) (success bool, id string) {
 	// Check to see if there is already an entity in that position
 	// If so, return false and don't spawn
@@ -63,6 +75,9 @@ func (w *World) SpawnAgent(pos Vec2) (success bool, id string) {
 	return true, e.Id
 }
 
+// -------------------
+// ---- Entities -----
+// -------------------
 func (w *World) SpawnEntity(pos Vec2, class string) (success bool, id string) {
 	// Check to see if there is already an entity in that position
 	// If so, return false and don't spawn
@@ -76,6 +91,25 @@ func (w *World) SpawnEntity(pos Vec2, class string) (success bool, id string) {
 	w.posEntityMatrix[pos] = &e
 
 	return true, e.Id
+}
+
+func (w *World) RemoveEntityById(id string) (success bool) {
+	e, ok := w.entities[id]
+	// Check to see if the entity exists
+	// If not, return false
+	if !ok {
+		return false
+	}
+
+	pos := e.Pos
+	// Make sure nothing points to the Entity anymore so it can be thrown out
+	w.entities[id] = nil
+	w.posEntityMatrix[pos] = nil
+	// Remove keys from maps
+	delete(w.entities, id)
+	delete(w.posEntityMatrix, pos)
+
+	return true
 }
 
 func (w *World) MoveEntity(id string, pos Vec2) bool {
@@ -92,40 +126,69 @@ func (w *World) MoveEntity(id string, pos Vec2) bool {
 	}
 	// [End Checkss]
 
-	// All checks have passed, move the entity
+	// Remove entity from current position
+	delete(w.posEntityMatrix, e.Pos)
+	// Move the entity to new position
 	e.Pos = pos
 	w.posEntityMatrix[pos] = e
 
 	return true
 }
 
-func (w *World) ObserveByPosition(pos Vec2) []string {
-	var observation []string
+func (w *World) PerformEntityAction(id string, targetId string, action string) bool {
+	e, ok := w.entities[id]
+	if !ok {
+		return false
+	}
+
+	switch action {
+	case "UP":
+		newPos := Vec2{e.Pos.X, e.Pos.Y + 1}
+		return w.MoveEntity(id, newPos)
+	case "DOWN":
+		newPos := Vec2{e.Pos.X, e.Pos.Y - 1}
+		return w.MoveEntity(id, newPos)
+	case "LEFT":
+		newPos := Vec2{e.Pos.X - 1, e.Pos.Y}
+		return w.MoveEntity(id, newPos)
+	case "RIGHT":
+		newPos := Vec2{e.Pos.X + 1, e.Pos.Y}
+		return w.MoveEntity(id, newPos)
+	}
+
+	// Action not identified
+	return false
+}
+
+func (w *World) GetObservationCellsByPosition(pos Vec2) []string {
+	var cells []string
 	// TODO - implement this
-	for x := pos.X - 1; x <= pos.X+1; x++ {
-		for y := pos.Y + 1; y >= pos.Y-1; y-- {
+	for y := pos.Y + 1; y >= pos.Y-1; y-- {
+		for x := pos.X - 1; x <= pos.X+1; x++ {
 			var posToObserve = Vec2{x, y}
 			// Make sure we don't observe ourselves
 			if posToObserve == pos {
 				continue
 			}
-			println("Observing: ", x, y)
-			// Add observation from cell
+			// Add value from cell
 			if entity, ok := w.posEntityMatrix[posToObserve]; ok {
-				observation = append(observation, entity.Class)
+				cells = append(cells, entity.Class)
 			} else {
-				observation = append(observation, "EMPTY")
+				cells = append(cells, "EMPTY")
 			}
 		}
 	}
-	return observation
+	return cells
 }
 
-func (w *World) ObserveById(id string) (success bool, observation []string) {
+func (w *World) ObserveById(id string) (success bool, observation *pb.AgentObservationResult) {
+	var cells []string
 	// If entity exists, return true success and the observation
-	if e, ok := w.entities[id]; ok {
-		return true, w.ObserveByPosition(e.Pos)
+	e, ok := w.entities[id]
+	if ok {
+		cells = w.GetObservationCellsByPosition(e.Pos)
+	} else {
+		return false, nil
 	}
-	// Return false for success and empty slice
-	return false, make([]string, 0)
+	return true, &pb.AgentObservationResult{Cells: cells, Energy: e.Energy}
 }

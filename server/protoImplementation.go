@@ -46,7 +46,7 @@ func (s *Server) AgentObservation(ctx context.Context, in *pb.AgentObservationRe
 		return nil, err
 	}
 
-	return &pb.AgentObservationResult{Cells: observation}, nil
+	return observation, nil
 
 	// if _, ok := s.agentPositions; ok {
 	// 	var entities []*pb.Entity
@@ -77,7 +77,9 @@ func (s *Server) AgentAction(ctx context.Context, actionReq *pb.AgentActionReque
 		return nil, errors.New("ERROR: Action not allowed on this server")
 	}
 
-	return &pb.AgentActionResult{Successful: false}, nil
+	success := s.world.PerformEntityAction(actionReq.Id, "", actionReq.Action)
+
+	return &pb.AgentActionResult{Successful: success}, nil
 }
 
 func (s *Server) Spectate(req *pb.SpectateRequest, stream pb.Simulation_SpectateServer) error {
