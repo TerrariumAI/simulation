@@ -77,7 +77,7 @@ func (s *Server) AgentAction(ctx context.Context, actionReq *pb.AgentActionReque
 		return nil, errors.New("ERROR: Action not allowed on this server")
 	}
 
-	success := s.world.PerformEntityAction(actionReq.Id, "", actionReq.Action)
+	success := s.world.PerformEntityAction(actionReq.Id, actionReq.Direction, actionReq.Action)
 
 	return &pb.AgentActionResult{Successful: success}, nil
 }

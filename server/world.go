@@ -112,7 +112,7 @@ func (w *World) RemoveEntityById(id string) (success bool) {
 	return true
 }
 
-func (w *World) MoveEntity(id string, pos Vec2) bool {
+func (w *World) EntityMove(id string, targetPos Vec2) bool {
 	e, ok := w.entities[id]
 
 	// [Start Checks]
@@ -121,46 +121,77 @@ func (w *World) MoveEntity(id string, pos Vec2) bool {
 		return false
 	}
 	// Make sure space is empty
-	if _, ok := w.posEntityMatrix[pos]; ok {
+	if _, ok := w.posEntityMatrix[targetPos]; ok {
 		return false
 	}
-	// [End Checkss]
+	// [End Checks]
 
 	// Remove entity from current position
 	delete(w.posEntityMatrix, e.Pos)
 	// Move the entity to new position
-	e.Pos = pos
-	w.posEntityMatrix[pos] = e
+	e.Pos = targetPos
+	w.posEntityMatrix[targetPos] = e
 
 	return true
 }
 
-func (w *World) PerformEntityAction(id string, targetId string, action string) bool {
+func (w *World) EntityConsume(id string, targetPos Vec2) bool {
+	e, ok := w.entities[id]
+
+	// [Start Checks]
+	// Make sure the entity exists
+	if !ok {
+		return false
+	}
+	// Make sure space is empty
+	targetEntity, ok := w.posEntityMatrix[targetPos]
+	if !ok {
+		if e.Class != "FOOD" {
+			return false
+		}
+	}
+	// [End Checks]
+
+	// Remove food entity
+	w.RemoveEntityById(targetEntity.Id)
+	// Add to current entity's energy
+	e.Energy += 10
+
+	return true
+}
+
+func (w *World) PerformEntityAction(id string, direction string, action string) bool {
 	e, ok := w.entities[id]
 	if !ok {
 		return false
 	}
 
-	switch action {
+	var targetPos Vec2
+	switch direction {
 	case "UP":
-		newPos := Vec2{e.Pos.X, e.Pos.Y + 1}
-		return w.MoveEntity(id, newPos)
+		targetPos = Vec2{e.Pos.X, e.Pos.Y + 1}
 	case "DOWN":
-		newPos := Vec2{e.Pos.X, e.Pos.Y - 1}
-		return w.MoveEntity(id, newPos)
+		targetPos = Vec2{e.Pos.X, e.Pos.Y - 1}
 	case "LEFT":
-		newPos := Vec2{e.Pos.X - 1, e.Pos.Y}
-		return w.MoveEntity(id, newPos)
+		targetPos = Vec2{e.Pos.X - 1, e.Pos.Y}
 	case "RIGHT":
-		newPos := Vec2{e.Pos.X + 1, e.Pos.Y}
-		return w.MoveEntity(id, newPos)
+		targetPos = Vec2{e.Pos.X + 1, e.Pos.Y}
+	default: // Direction not correct
+		return false
+	}
+
+	switch action {
+	case "MOVE":
+		return w.EntityMove(id, targetPos)
+	case "CONSUME":
+		return w.EntityConsume(id, targetPos)
 	}
 
 	// Action not identified
 	return false
 }
 
-func (w *World) GetObservationCellsByPosition(pos Vec2) []string {
+func (w *World) GetObservationCellsForPosition(pos Vec2) []string {
 	var cells []string
 	// TODO - implement this
 	for y := pos.Y + 1; y >= pos.Y-1; y-- {
@@ -186,7 +217,7 @@ func (w *World) ObserveById(id string) (success bool, observation *pb.AgentObser
 	// If entity exists, return true success and the observation
 	e, ok := w.entities[id]
 	if ok {
-		cells = w.GetObservationCellsByPosition(e.Pos)
+		cells = w.GetObservationCellsForPosition(e.Pos)
 	} else {
 		return false, nil
 	}
