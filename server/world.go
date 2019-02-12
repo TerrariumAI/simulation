@@ -1,6 +1,8 @@
 package main
 
 import (
+	"math/rand"
+
 	pb "github.com/olamai/proto"
 	uuid "github.com/satori/go.uuid"
 )
@@ -12,6 +14,22 @@ type World struct {
 	posEntityMatrix map[Vec2]*Entity
 	// Map from observer id to their observation channel
 	observerationChannels map[string]chan pb.CellUpdate
+}
+
+func NewWorld() World {
+	w := World{
+		entities:              make(map[string]*Entity),
+		posEntityMatrix:       make(map[Vec2]*Entity),
+		observerationChannels: make(map[string]chan pb.CellUpdate),
+	}
+	w.SpawnEntity(Vec2{0, 1}, "FOOD")
+	// Spawn food randomly
+	for i := 0; i < 3000; i++ {
+		x := int32(rand.Intn(200) - 100)
+		y := int32(rand.Intn(200) - 100)
+		w.SpawnEntity(Vec2{x, y}, "FOOD")
+	}
+	return w
 }
 
 func (w *World) AddObservationChannel() string {
@@ -39,7 +57,21 @@ func (w *World) SpawnAgent(pos Vec2) (success bool, id string) {
 
 	// Create the entity and add to entities map AND position matrix
 	e := NewEntity("AGENT", pos)
-	println("New Agent with id: ", e.Id)
+	w.entities[e.Id] = &e
+	w.posEntityMatrix[pos] = &e
+
+	return true, e.Id
+}
+
+func (w *World) SpawnEntity(pos Vec2, class string) (success bool, id string) {
+	// Check to see if there is already an entity in that position
+	// If so, return false and don't spawn
+	if _, ok := w.posEntityMatrix[pos]; ok {
+		return false, ""
+	}
+
+	// Create the entity and add to entities map AND position matrix
+	e := NewEntity(class, pos)
 	w.entities[e.Id] = &e
 	w.posEntityMatrix[pos] = &e
 
@@ -70,13 +102,14 @@ func (w *World) MoveEntity(id string, pos Vec2) bool {
 func (w *World) ObserveByPosition(pos Vec2) []string {
 	var observation []string
 	// TODO - implement this
-	for x := pos.X - 1; x < pos.X+2; x++ {
-		for y := pos.Y + 1; y > pos.Y-2; y-- {
+	for x := pos.X - 1; x <= pos.X+1; x++ {
+		for y := pos.Y + 1; y >= pos.Y-1; y-- {
 			var posToObserve = Vec2{x, y}
 			// Make sure we don't observe ourselves
 			if posToObserve == pos {
 				continue
 			}
+			println("Observing: ", x, y)
 			// Add observation from cell
 			if entity, ok := w.posEntityMatrix[posToObserve]; ok {
 				observation = append(observation, entity.Class)

@@ -8,9 +8,13 @@ import (
 	pb "github.com/olamai/proto"
 )
 
+// --- DEV ONLY ---
 // Create a new agent and return the new agent's id
 func (s *Server) SpawnAgent(ctx context.Context, in *pb.SpawnAgentRequest) (*pb.SpawnAgentResult, error) {
 	log.Printf("SpawnAgent(): %s", in.X, in.Y)
+	if s.env == "prod" {
+		return nil, errors.New("ERROR: Action not allowed on this server")
+	}
 
 	// Attempt to spawn the agent
 	success, id := s.world.SpawnAgent(Vec2{in.X, in.Y})
@@ -26,8 +30,12 @@ func (s *Server) SpawnAgent(ctx context.Context, in *pb.SpawnAgentRequest) (*pb.
 	return &pb.SpawnAgentResult{Id: id}, nil
 }
 
+// --- DEV ONLY ---
 func (s *Server) AgentObservation(ctx context.Context, in *pb.AgentObservationRequest) (*pb.AgentObservationResult, error) {
 	log.Printf("AgentObservation()")
+	if s.env == "prod" {
+		return nil, errors.New("ERROR: Action not allowed on this server")
+	}
 
 	// Parse id from message
 	id := in.Id
@@ -62,8 +70,12 @@ func (s *Server) AgentObservation(ctx context.Context, in *pb.AgentObservationRe
 	// }
 }
 
+// --- DEV ONLY ---
 func (s *Server) AgentAction(ctx context.Context, actionReq *pb.AgentActionRequest) (*pb.AgentActionResult, error) {
 	log.Printf("AgentAction()")
+	if s.env == "prod" {
+		return nil, errors.New("ERROR: Action not allowed on this server")
+	}
 
 	return &pb.AgentActionResult{Successful: false}, nil
 }
