@@ -18,6 +18,7 @@ type World struct {
 }
 
 const agent_living_energy_cost = 5
+const agent_no_energy_health_cost = 10
 
 func NewWorld() World {
 	// Seed random
@@ -163,11 +164,24 @@ func (w *World) EntityConsume(id string, targetPos Vec2) bool {
 func (w *World) PerformEntityAction(id string, direction string, action string) bool {
 	var actionSuccess bool
 
+	// Get the entity by id
 	e, ok := w.entities[id]
 	if !ok {
 		return false
 	}
 
+	// Don't do anything if you don't have energy left
+	if e.Energy == 0 {
+		e.Health -= 10
+	}
+
+	// If it's health is 0, remove (kill) the entity and return false
+	if e.Health <= 0 {
+		RemoveEntityById(id)
+		return false
+	}
+
+	// Get the target position from the given direction
 	var targetPos Vec2
 	switch direction {
 	case "UP":
@@ -182,17 +196,19 @@ func (w *World) PerformEntityAction(id string, direction string, action string) 
 		return false
 	}
 
+	// Perform the action
 	switch action {
 	case "MOVE":
 		actionSuccess = w.EntityMove(id, targetPos)
 	case "CONSUME":
 		actionSuccess = w.EntityConsume(id, targetPos)
-	default:
-		return false
 	}
 
 	// Take off living expense
 	e.Energy -= agent_living_energy_cost
+	if e.Energy < 0 {
+		e.Energy = 0
+	}
 
 	// Action not identified
 	return actionSuccess
