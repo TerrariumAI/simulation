@@ -34,6 +34,10 @@ func NewWorld() World {
 	for i := 0; i < 50; i++ {
 		x := int32(rand.Intn(50) - 25)
 		y := int32(rand.Intn(50) - 25)
+		// Don't put anything at 0,0
+		if x == 0 || y == 0 {
+			continue
+		}
 		w.SpawnEntity(Vec2{x, y}, "FOOD")
 	}
 	return w
@@ -74,9 +78,7 @@ func (w *World) SpawnAgent(pos Vec2) (success bool, id string) {
 	w.posEntityMatrix[pos] = &e
 
 	// Send to observation
-	for _, obsvChan := range w.observerationChannels {
-		obsvChan <- pb.CellUpdate{X: pos.X, Y: pos.Y, Occupant: e.Class}
-	}
+	w.BroadcastCellUpdate(pos, e.Class)
 
 	return true, e.Id
 }
@@ -97,9 +99,7 @@ func (w *World) SpawnEntity(pos Vec2, class string) (success bool, id string) {
 	w.posEntityMatrix[pos] = &e
 
 	// Send to observation
-	for _, obsvChan := range w.observerationChannels {
-		obsvChan <- pb.CellUpdate{X: pos.X, Y: pos.Y, Occupant: class}
-	}
+	w.BroadcastCellUpdate(pos, class)
 
 	return true, e.Id
 }
@@ -113,17 +113,12 @@ func (w *World) RemoveEntityById(id string) (success bool) {
 	}
 
 	pos := e.Pos
-	// Make sure nothing points to the Entity anymore so it can be thrown out
-	w.entities[id] = nil
-	w.posEntityMatrix[pos] = nil
 	// Remove keys from maps
 	delete(w.entities, id)
 	delete(w.posEntityMatrix, pos)
 
 	// Send to observation
-	for _, obsvChan := range w.observerationChannels {
-		obsvChan <- pb.CellUpdate{X: pos.X, Y: pos.Y, Occupant: "EMPTY"}
-	}
+	w.BroadcastCellUpdate(pos, "EMPTY")
 
 	return true
 }
@@ -145,17 +140,13 @@ func (w *World) EntityMove(id string, targetPos Vec2) bool {
 	// Remove entity from current position
 	delete(w.posEntityMatrix, e.Pos)
 	// Send to observation
-	for _, obsvChan := range w.observerationChannels {
-		obsvChan <- pb.CellUpdate{X: e.Pos.X, Y: e.Pos.Y, Occupant: "EMPTY"}
-	}
+	w.BroadcastCellUpdate(e.Pos, "EMPTY")
 
 	// Move the entity to new position
 	e.Pos = targetPos
 	w.posEntityMatrix[targetPos] = e
 	// Send to observation
-	for _, obsvChan := range w.observerationChannels {
-		obsvChan <- pb.CellUpdate{X: e.Pos.X, Y: e.Pos.Y, Occupant: e.Class}
-	}
+	w.BroadcastCellUpdate(e.Pos, e.Class)
 
 	return true
 }
@@ -171,7 +162,9 @@ func (w *World) EntityConsume(id string, targetPos Vec2) bool {
 	// Make sure space is empty
 	targetEntity, ok := w.posEntityMatrix[targetPos]
 	if !ok {
-		if e.Class != "FOOD" {
+		return false
+	} else {
+		if targetEntity.Class != "FOOD" {
 			return false
 		}
 	}

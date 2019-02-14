@@ -82,6 +82,25 @@ func (s *Server) AgentAction(ctx context.Context, actionReq *pb.AgentActionReque
 	return &pb.AgentActionResult{Successful: success}, nil
 }
 
+func (s *Server) ResetWorld(ctx context.Context, req *pb.ResetWorldRequest) (*pb.ResetWorldResult, error) {
+	// reset the world, preserving observation channels
+	osvChans := s.world.observerationChannels
+	s.world = NewWorld()
+	s.world.observerationChannels = osvChans
+
+	// Broadcast a reset message
+	s.world.BroadcastCellUpdate(Vec2{0, 0}, "WORLD_RESET")
+
+	// Broadcast all the new cells
+	for pos, e := range s.world.posEntityMatrix {
+		s.world.BroadcastCellUpdate(pos, e.Class)
+	}
+
+	return &pb.ResetWorldResult{}, nil
+}
+
+// --- END DEV ONLY ---
+
 func (s *Server) Spectate(req *pb.SpectateRequest, stream pb.Simulation_SpectateServer) error {
 	log.Printf("Spectate()")
 	log.Printf("Spectator joined...")
