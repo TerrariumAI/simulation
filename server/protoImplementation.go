@@ -11,7 +11,6 @@ import (
 // --- DEV ONLY ---
 // Create a new agent and return the new agent's id
 func (s *Server) SpawnAgent(ctx context.Context, in *pb.SpawnAgentRequest) (*pb.SpawnAgentResult, error) {
-	log.Printf("SpawnAgent(): %s", in.X, in.Y)
 	if s.env == "prod" {
 		return nil, errors.New("ERROR: SpawnAgent not allowed on production server")
 	}
@@ -32,19 +31,13 @@ func (s *Server) SpawnAgent(ctx context.Context, in *pb.SpawnAgentRequest) (*pb.
 
 // --- DEV ONLY ---
 func (s *Server) AgentObservation(ctx context.Context, in *pb.AgentObservationRequest) (*pb.AgentObservationResult, error) {
-	log.Printf("AgentObservation()")
 	if s.env == "prod" {
 		return nil, errors.New("ERROR: AgentObservation not allowed on production server")
 	}
 
 	// Parse id from message
 	id := in.Id
-	success, observation := s.world.ObserveById(id)
-
-	if !success {
-		err := errors.New("AgentObservation(): Something went wrong while trying to get that agent's observation data")
-		return nil, err
-	}
+	observation := s.world.ObserveById(id)
 
 	return observation, nil
 
@@ -72,7 +65,6 @@ func (s *Server) AgentObservation(ctx context.Context, in *pb.AgentObservationRe
 
 // --- DEV ONLY ---
 func (s *Server) AgentAction(ctx context.Context, actionReq *pb.AgentActionRequest) (*pb.AgentActionResult, error) {
-	log.Printf("AgentAction()")
 	if s.env == "prod" {
 		return nil, errors.New("ERROR: Action not allowed on this server")
 	}

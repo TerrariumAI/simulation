@@ -252,14 +252,13 @@ func (w *World) GetObservationCellsForPosition(pos Vec2) []string {
 	return cells
 }
 
-func (w *World) ObserveById(id string) (success bool, observation *pb.AgentObservationResult) {
-	var cells []string
+func (w *World) ObserveById(id string) (observation *pb.AgentObservationResult) {
 	// If entity exists, return true success and the observation
 	e, ok := w.entities[id]
 	if ok {
-		cells = w.GetObservationCellsForPosition(e.Pos)
+		cells := w.GetObservationCellsForPosition(e.Pos)
+		return &pb.AgentObservationResult{Alive: true, Cells: cells, Energy: e.Energy, Health: e.Health}
 	} else {
-		return false, nil
+		return &pb.AgentObservationResult{Alive: false, Cells: []string{}, Energy: 0, Health: 0}
 	}
-	return true, &pb.AgentObservationResult{Cells: cells, Energy: e.Energy, Health: e.Health}
 }
