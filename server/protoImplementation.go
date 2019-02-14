@@ -13,7 +13,7 @@ import (
 func (s *Server) SpawnAgent(ctx context.Context, in *pb.SpawnAgentRequest) (*pb.SpawnAgentResult, error) {
 	log.Printf("SpawnAgent(): %s", in.X, in.Y)
 	if s.env == "prod" {
-		return nil, errors.New("ERROR: Action not allowed on this server")
+		return nil, errors.New("ERROR: SpawnAgent not allowed on production server")
 	}
 
 	// Attempt to spawn the agent
@@ -34,7 +34,7 @@ func (s *Server) SpawnAgent(ctx context.Context, in *pb.SpawnAgentRequest) (*pb.
 func (s *Server) AgentObservation(ctx context.Context, in *pb.AgentObservationRequest) (*pb.AgentObservationResult, error) {
 	log.Printf("AgentObservation()")
 	if s.env == "prod" {
-		return nil, errors.New("ERROR: Action not allowed on this server")
+		return nil, errors.New("ERROR: AgentObservation not allowed on production server")
 	}
 
 	// Parse id from message
@@ -83,13 +83,21 @@ func (s *Server) AgentAction(ctx context.Context, actionReq *pb.AgentActionReque
 }
 
 func (s *Server) Spectate(req *pb.SpectateRequest, stream pb.Simulation_SpectateServer) error {
+	log.Printf("Spectate()")
+	log.Printf("Spectator joined...")
 	id := s.world.AddObservationChannel()
+	// Send initial world state
+	for pos, entity := range s.world.posEntityMatrix {
+		stream.Send(&pb.CellUpdate{X: pos.X, Y: pos.Y, Occupant: entity.Class})
+	}
+
 	// Listen for updates and send them to the client
 	for {
 		cellUpdate := <-s.world.observerationChannels[id]
 		stream.Send(&cellUpdate)
 	}
 
+	log.Printf("Spectator left...")
 	// Remove the observation channel
 	s.world.RemoveObservationChannel(id)
 	return nil

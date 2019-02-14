@@ -31,9 +31,9 @@ func NewWorld() World {
 	}
 	w.SpawnEntity(Vec2{0, 1}, "FOOD")
 	// Spawn food randomly
-	for i := 0; i < 3000; i++ {
-		x := int32(rand.Intn(200) - 100)
-		y := int32(rand.Intn(200) - 100)
+	for i := 0; i < 50; i++ {
+		x := int32(rand.Intn(50) - 25)
+		y := int32(rand.Intn(50) - 25)
 		w.SpawnEntity(Vec2{x, y}, "FOOD")
 	}
 	return w
@@ -73,6 +73,11 @@ func (w *World) SpawnAgent(pos Vec2) (success bool, id string) {
 	w.entities[e.Id] = &e
 	w.posEntityMatrix[pos] = &e
 
+	// Send to observation
+	for _, obsvChan := range w.observerationChannels {
+		obsvChan <- pb.CellUpdate{X: pos.X, Y: pos.Y, Occupant: e.Class}
+	}
+
 	return true, e.Id
 }
 
@@ -90,6 +95,11 @@ func (w *World) SpawnEntity(pos Vec2, class string) (success bool, id string) {
 	e := NewEntity(class, pos)
 	w.entities[e.Id] = &e
 	w.posEntityMatrix[pos] = &e
+
+	// Send to observation
+	for _, obsvChan := range w.observerationChannels {
+		obsvChan <- pb.CellUpdate{X: pos.X, Y: pos.Y, Occupant: class}
+	}
 
 	return true, e.Id
 }
@@ -110,6 +120,11 @@ func (w *World) RemoveEntityById(id string) (success bool) {
 	delete(w.entities, id)
 	delete(w.posEntityMatrix, pos)
 
+	// Send to observation
+	for _, obsvChan := range w.observerationChannels {
+		obsvChan <- pb.CellUpdate{X: pos.X, Y: pos.Y, Occupant: "EMPTY"}
+	}
+
 	return true
 }
 
@@ -129,9 +144,18 @@ func (w *World) EntityMove(id string, targetPos Vec2) bool {
 
 	// Remove entity from current position
 	delete(w.posEntityMatrix, e.Pos)
+	// Send to observation
+	for _, obsvChan := range w.observerationChannels {
+		obsvChan <- pb.CellUpdate{X: e.Pos.X, Y: e.Pos.Y, Occupant: "EMPTY"}
+	}
+
 	// Move the entity to new position
 	e.Pos = targetPos
 	w.posEntityMatrix[targetPos] = e
+	// Send to observation
+	for _, obsvChan := range w.observerationChannels {
+		obsvChan <- pb.CellUpdate{X: e.Pos.X, Y: e.Pos.Y, Occupant: e.Class}
+	}
 
 	return true
 }
@@ -177,7 +201,7 @@ func (w *World) PerformEntityAction(id string, direction string, action string) 
 
 	// If it's health is 0, remove (kill) the entity and return false
 	if e.Health <= 0 {
-		RemoveEntityById(id)
+		w.RemoveEntityById(id)
 		return false
 	}
 
@@ -244,5 +268,5 @@ func (w *World) ObserveById(id string) (success bool, observation *pb.AgentObser
 	} else {
 		return false, nil
 	}
-	return true, &pb.AgentObservationResult{Cells: cells, Energy: e.Energy}
+	return true, &pb.AgentObservationResult{Cells: cells, Energy: e.Energy, Health: e.Health}
 }
