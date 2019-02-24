@@ -64,21 +64,23 @@ func (s *Server) AgentObservation(ctx context.Context, in *pb.AgentObservationRe
 }
 
 // --- DEV ONLY ---
-func (s *Server) AgentAction(ctx context.Context, actionReq *pb.AgentActionRequest) (*pb.AgentActionResult, error) {
+func (s *Server) AgentAction(ctx context.Context, req *pb.AgentActionRequest) (*pb.AgentActionResult, error) {
 	if s.env == "prod" {
 		return nil, errors.New("ERROR: Action not allowed on this server")
 	}
 
-	success := s.world.PerformEntityAction(actionReq.Id, actionReq.Direction, actionReq.Action)
+	success := s.world.PerformEntityAction(req.Id, req.Direction, req.Action)
 
 	return &pb.AgentActionResult{Successful: success}, nil
 }
 
 func (s *Server) ResetWorld(ctx context.Context, req *pb.ResetWorldRequest) (*pb.ResetWorldResult, error) {
 	// reset the world, preserving spectator channels
-	osvChans := s.world.spectatorChannels
+	spectatorChans := s.world.spectatorChannels
+	regionSubs := s.world.regionSubs
 	s.world = NewWorld()
-	s.world.spectatorChannels = osvChans
+	s.world.spectatorChannels = spectatorChans
+	s.world.regionSubs = regionSubs
 
 	// Broadcast a reset message
 	s.world.BroadcastCellUpdate(Vec2{0, 0}, "WORLD_RESET")
@@ -96,20 +98,43 @@ func (s *Server) ResetWorld(ctx context.Context, req *pb.ResetWorldRequest) (*pb
 func (s *Server) Spectate(req *pb.SpectateRequest, stream pb.Simulation_SpectateServer) error {
 	log.Printf("Spectate()")
 	log.Printf("Spectator joined...")
-	id := s.world.AddSpectatorChannel()
-	// Send initial world state
-	for pos, entity := range s.world.posEntityMatrix {
-		stream.Send(&pb.CellUpdate{X: pos.X, Y: pos.Y, Occupant: entity.Class})
-	}
+	// // Get info about the client
+	// client, ok := peer.FromContext(stream.Context())
+	// if !ok {
+	// 	return errors.New("ERROR: Couldn't get info about peer")
+	// }
+	// addr := client.Addr.String()
+
+	// Create a spectator id
+	// For now it is just the ip of the client
+	spectatorId := req.Id
+	s.world.AddSpectatorChannel(spectatorId)
+	println("Specator Id: ", spectatorId)
 
 	// Listen for updates and send them to the client
 	for {
-		cellUpdate := <-s.world.spectatorChannels[id]
+		cellUpdate := <-s.world.spectatorChannels[spectatorId]
 		stream.Send(&cellUpdate)
 	}
 
 	log.Printf("Spectator left...")
 	// Remove the spectator channel
-	s.world.RemoveSpectatorChannel(id)
+	s.world.RemoveSpectatorChannel(spectatorId)
 	return nil
+}
+
+func (s *Server) SubscribeToRegion(ctx context.Context, req *pb.SubscribeToRegionRequest) (*pb.SubscribeToRegionResult, error) {
+	// // Get info about the client
+	// client, ok := peer.FromContext(ctx)
+	// if !ok {
+	// 	return nil, errors.New("ERROR: Couldn't get info about peer")
+	// }
+	// addr := client.Addr.String()
+
+	// Get spectator id
+	// For now it is just the ip of the client
+	spectatorId := req.Id
+
+	s.world.SubscribeToRegion(spectatorId, Vec2{req.X, req.Y})
+	return &pb.SubscribeToRegionResult{}, nil
 }

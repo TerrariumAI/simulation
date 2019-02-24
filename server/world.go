@@ -5,7 +5,6 @@ import (
 	"time"
 
 	pb "github.com/olamai/proto"
-	uuid "github.com/satori/go.uuid"
 )
 
 type World struct {
@@ -15,10 +14,13 @@ type World struct {
 	posEntityMatrix map[Vec2]*Entity
 	// Map from observer id to their observation channel
 	spectatorChannels map[string]chan pb.CellUpdate
+	// Specators subscribe to regions
+	regionSubs map[Vec2][]string
 }
 
 const agent_living_energy_cost = 5
 const agent_no_energy_health_cost = 10
+const region_size = 10
 
 func NewWorld() World {
 	// Seed random
@@ -28,6 +30,7 @@ func NewWorld() World {
 		entities:          make(map[string]*Entity),
 		posEntityMatrix:   make(map[Vec2]*Entity),
 		spectatorChannels: make(map[string]chan pb.CellUpdate),
+		regionSubs:        make(map[Vec2][]string),
 	}
 	w.SpawnEntity(Vec2{0, 1}, "FOOD")
 	// Spawn food randomly
@@ -46,20 +49,69 @@ func NewWorld() World {
 // -------------------
 // --- Spectation ---
 // -------------------
-func (w *World) AddSpectatorChannel() string {
-	id := uuid.Must(uuid.NewV4()).String()
-	w.spectatorChannels[id] = make(chan pb.CellUpdate)
+func (w *World) AddSpectatorChannel(id string) string {
+	// id := uuid.Must(uuid.NewV4()).String()
+	w.spectatorChannels[id] = make(chan pb.CellUpdate, 100)
 	return id
 }
 
 func (w *World) RemoveSpectatorChannel(id string) {
+	// Loop over regions
+	for region, spectatorIds := range w.regionSubs {
+		// If the user is subscribed to this region, remove their subscription
+		for i, spectatorId := range spectatorIds {
+			if spectatorId == id {
+				w.regionSubs[region] = append(spectatorIds[:i], spectatorIds[i+1:]...)
+				break
+			}
+		}
+	}
 	delete(w.spectatorChannels, id)
 }
 
 func (w *World) BroadcastCellUpdate(pos Vec2, occupant string) {
-	for _, channel := range w.spectatorChannels {
+	// Get region for this position
+	region := pos.GetRegion()
+	// Get subs for this region
+	subs := w.regionSubs[region]
+	// Loop over and send to channel
+	for _, spectatorId := range subs {
+		channel := w.spectatorChannels[spectatorId]
 		channel <- pb.CellUpdate{X: pos.X, Y: pos.Y, Occupant: occupant}
 	}
+}
+
+func (w *World) isSpectatorAlreadySubscribedToRegion(spectatorId string, region Vec2) bool {
+	// Get subs for this region
+	subs := w.regionSubs[region]
+	// Loop over and send to channel
+	for _, _spectatorId := range subs {
+		if _spectatorId == spectatorId {
+			return true
+		}
+	}
+	return false
+}
+
+func (w *World) SubscribeToRegion(spectatorId string, region Vec2) bool {
+	if w.isSpectatorAlreadySubscribedToRegion(spectatorId, region) {
+		return false
+	}
+	// Add spectator id to subscription slice
+	w.regionSubs[region] = append(w.regionSubs[region], spectatorId)
+	// Get spectator channel
+	channel := w.spectatorChannels[spectatorId]
+	// Send initial world state
+	xs, ys := region.GetPositionsInRegion()
+	for _, x := range xs {
+		for _, y := range ys {
+			pos := Vec2{x, y}
+			if entity, ok := w.posEntityMatrix[pos]; ok {
+				channel <- pb.CellUpdate{X: pos.X, Y: pos.Y, Occupant: entity.Class}
+			}
+		}
+	}
+	return true
 }
 
 // -------------------
