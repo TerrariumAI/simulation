@@ -6,6 +6,8 @@ import (
 	"log"
 
 	pb "github.com/olamai/proto"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 )
 
 // --- DEV ONLY ---
@@ -94,6 +96,37 @@ func (s *Server) ResetWorld(ctx context.Context, req *pb.ResetWorldRequest) (*pb
 }
 
 // --- END DEV ONLY ---
+func connectionOnState(ctx context.Context, conn *grpc.ClientConn, states ...connectivity.State) <-chan struct{} {
+	done := make(chan struct{})
+
+	go func() {
+		// any return from this func will close the channel
+		defer close(done)
+
+		// continue checking for state change
+		// until one of break states is found
+		for {
+			change := conn.WaitForStateChange(ctx, conn.GetState())
+			if !change {
+				// ctx is done, return
+				// something upstream is cancelling
+				return
+			}
+
+			currentState := conn.GetState()
+
+			for _, s := range states {
+				if currentState == s {
+					// matches one of the states passed
+					// return, closing the done channel
+					return
+				}
+			}
+		}
+	}()
+
+	return done
+}
 
 func (s *Server) Spectate(req *pb.SpectateRequest, stream pb.Simulation_SpectateServer) error {
 	log.Printf("Spectate()")
@@ -114,12 +147,16 @@ func (s *Server) Spectate(req *pb.SpectateRequest, stream pb.Simulation_Spectate
 	// Listen for updates and send them to the client
 	for {
 		cellUpdate := <-s.world.spectatorChannels[spectatorId]
-		stream.Send(&cellUpdate)
+		if err := stream.Send(&cellUpdate); err != nil {
+			// Break the sending loop
+			break
+		}
 	}
 
+	// Remove the spectator and clean up
 	log.Printf("Spectator left...")
-	// Remove the spectator channel
 	s.world.RemoveSpectatorChannel(spectatorId)
+
 	return nil
 }
 
