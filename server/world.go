@@ -14,7 +14,7 @@ type World struct {
 	// Map from position -> *Entity
 	posEntityMatrix map[Vec2]*Entity
 	// Map from observer id to their observation channel
-	observerationChannels map[string]chan pb.CellUpdate
+	spectatorChannels map[string]chan pb.CellUpdate
 }
 
 const agent_living_energy_cost = 5
@@ -25,9 +25,9 @@ func NewWorld() World {
 	rand.Seed(time.Now().UnixNano())
 	// Create world
 	w := World{
-		entities:              make(map[string]*Entity),
-		posEntityMatrix:       make(map[Vec2]*Entity),
-		observerationChannels: make(map[string]chan pb.CellUpdate),
+		entities:          make(map[string]*Entity),
+		posEntityMatrix:   make(map[Vec2]*Entity),
+		spectatorChannels: make(map[string]chan pb.CellUpdate),
 	}
 	w.SpawnEntity(Vec2{0, 1}, "FOOD")
 	// Spawn food randomly
@@ -44,20 +44,20 @@ func NewWorld() World {
 }
 
 // -------------------
-// --- Observation ---
+// --- Spectation ---
 // -------------------
-func (w *World) AddObservationChannel() string {
+func (w *World) AddSpectatorChannel() string {
 	id := uuid.Must(uuid.NewV4()).String()
-	w.observerationChannels[id] = make(chan pb.CellUpdate)
+	w.spectatorChannels[id] = make(chan pb.CellUpdate)
 	return id
 }
 
-func (w *World) RemoveObservationChannel(id string) {
-	delete(w.observerationChannels, id)
+func (w *World) RemoveSpectatorChannel(id string) {
+	delete(w.spectatorChannels, id)
 }
 
 func (w *World) BroadcastCellUpdate(pos Vec2, occupant string) {
-	for _, channel := range w.observerationChannels {
+	for _, channel := range w.spectatorChannels {
 		channel <- pb.CellUpdate{X: pos.X, Y: pos.Y, Occupant: occupant}
 	}
 }

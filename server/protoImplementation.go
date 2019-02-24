@@ -75,10 +75,10 @@ func (s *Server) AgentAction(ctx context.Context, actionReq *pb.AgentActionReque
 }
 
 func (s *Server) ResetWorld(ctx context.Context, req *pb.ResetWorldRequest) (*pb.ResetWorldResult, error) {
-	// reset the world, preserving observation channels
-	osvChans := s.world.observerationChannels
+	// reset the world, preserving spectator channels
+	osvChans := s.world.spectatorChannels
 	s.world = NewWorld()
-	s.world.observerationChannels = osvChans
+	s.world.spectatorChannels = osvChans
 
 	// Broadcast a reset message
 	s.world.BroadcastCellUpdate(Vec2{0, 0}, "WORLD_RESET")
@@ -96,7 +96,7 @@ func (s *Server) ResetWorld(ctx context.Context, req *pb.ResetWorldRequest) (*pb
 func (s *Server) Spectate(req *pb.SpectateRequest, stream pb.Simulation_SpectateServer) error {
 	log.Printf("Spectate()")
 	log.Printf("Spectator joined...")
-	id := s.world.AddObservationChannel()
+	id := s.world.AddSpectatorChannel()
 	// Send initial world state
 	for pos, entity := range s.world.posEntityMatrix {
 		stream.Send(&pb.CellUpdate{X: pos.X, Y: pos.Y, Occupant: entity.Class})
@@ -104,12 +104,12 @@ func (s *Server) Spectate(req *pb.SpectateRequest, stream pb.Simulation_Spectate
 
 	// Listen for updates and send them to the client
 	for {
-		cellUpdate := <-s.world.observerationChannels[id]
+		cellUpdate := <-s.world.spectatorChannels[id]
 		stream.Send(&cellUpdate)
 	}
 
 	log.Printf("Spectator left...")
-	// Remove the observation channel
-	s.world.RemoveObservationChannel(id)
+	// Remove the spectator channel
+	s.world.RemoveSpectatorChannel(id)
 	return nil
 }
