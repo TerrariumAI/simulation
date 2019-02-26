@@ -5,9 +5,8 @@ import (
 	"net"
 	"os"
 
-	pb "github.com/olamai/proto"
+	. "github.com/olamai/proto/simulation"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
 
 type Server struct {
@@ -21,6 +20,7 @@ func main() {
 	if env == "" {
 		env = "dev"
 	}
+
 	// Initialize server obj
 	var simulationServer = Server{
 		world: NewWorld(),
@@ -33,8 +33,7 @@ func main() {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 	grpcServer := grpc.NewServer()
-	pb.RegisterSimulationServer(grpcServer, &simulationServer)
-	reflection.Register(grpcServer)
+	RegisterSimulationServer(grpcServer, &simulationServer)
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}

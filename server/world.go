@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"time"
 
-	pb "github.com/olamai/proto"
+	. "github.com/olamai/proto/simulation"
 )
 
 type World struct {
@@ -13,7 +13,7 @@ type World struct {
 	// Map from position -> *Entity
 	posEntityMatrix map[Vec2]*Entity
 	// Map from observer id to their observation channel
-	spectatorChannels map[string]chan pb.CellUpdate
+	spectatorChannels map[string]chan CellUpdate
 	// Specators subscribe to regions
 	regionSubs map[Vec2][]string
 }
@@ -29,7 +29,7 @@ func NewWorld() World {
 	w := World{
 		entities:          make(map[string]*Entity),
 		posEntityMatrix:   make(map[Vec2]*Entity),
-		spectatorChannels: make(map[string]chan pb.CellUpdate),
+		spectatorChannels: make(map[string]chan CellUpdate),
 		regionSubs:        make(map[Vec2][]string),
 	}
 	w.SpawnEntity(Vec2{0, 1}, "FOOD")
@@ -51,7 +51,7 @@ func NewWorld() World {
 // -------------------
 func (w *World) AddSpectatorChannel(id string) string {
 	// id := uuid.Must(uuid.NewV4()).String()
-	w.spectatorChannels[id] = make(chan pb.CellUpdate, 100)
+	w.spectatorChannels[id] = make(chan CellUpdate, 100)
 	return id
 }
 
@@ -77,7 +77,7 @@ func (w *World) BroadcastCellUpdate(pos Vec2, occupant string) {
 	// Loop over and send to channel
 	for _, spectatorId := range subs {
 		channel := w.spectatorChannels[spectatorId]
-		channel <- pb.CellUpdate{X: pos.X, Y: pos.Y, Occupant: occupant}
+		channel <- CellUpdate{X: pos.X, Y: pos.Y, Occupant: occupant}
 	}
 }
 
@@ -107,7 +107,7 @@ func (w *World) SubscribeToRegion(spectatorId string, region Vec2) bool {
 		for _, y := range ys {
 			pos := Vec2{x, y}
 			if entity, ok := w.posEntityMatrix[pos]; ok {
-				channel <- pb.CellUpdate{X: pos.X, Y: pos.Y, Occupant: entity.Class}
+				channel <- CellUpdate{X: pos.X, Y: pos.Y, Occupant: entity.Class}
 			}
 		}
 	}
@@ -304,13 +304,13 @@ func (w *World) GetObservationCellsForPosition(pos Vec2) []string {
 	return cells
 }
 
-func (w *World) ObserveById(id string) (observation *pb.AgentObservationResult) {
+func (w *World) ObserveById(id string) (observation *AgentObservationResult) {
 	// If entity exists, return true success and the observation
 	e, ok := w.entities[id]
 	if ok {
 		cells := w.GetObservationCellsForPosition(e.Pos)
-		return &pb.AgentObservationResult{Alive: true, Cells: cells, Energy: e.Energy, Health: e.Health}
+		return &AgentObservationResult{Alive: true, Cells: cells, Energy: e.Energy, Health: e.Health}
 	} else {
-		return &pb.AgentObservationResult{Alive: false, Cells: []string{}, Energy: 0, Health: 0}
+		return &AgentObservationResult{Alive: false, Cells: []string{}, Energy: 0, Health: 0}
 	}
 }

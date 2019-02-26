@@ -5,14 +5,14 @@ import (
 	"errors"
 	"log"
 
-	pb "github.com/olamai/proto"
+	. "github.com/olamai/proto/simulation"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 )
 
 // --- DEV ONLY ---
 // Create a new agent and return the new agent's id
-func (s *Server) SpawnAgent(ctx context.Context, in *pb.SpawnAgentRequest) (*pb.SpawnAgentResult, error) {
+func (s *Server) SpawnAgent(ctx context.Context, in *SpawnAgentRequest) (*SpawnAgentResult, error) {
 	if s.env == "prod" {
 		return nil, errors.New("ERROR: SpawnAgent not allowed on production server")
 	}
@@ -28,11 +28,11 @@ func (s *Server) SpawnAgent(ctx context.Context, in *pb.SpawnAgentRequest) (*pb.
 	}
 
 	// If succesful, return the agent's id
-	return &pb.SpawnAgentResult{Id: id}, nil
+	return &SpawnAgentResult{Id: id}, nil
 }
 
 // --- DEV ONLY ---
-func (s *Server) AgentObservation(ctx context.Context, in *pb.AgentObservationRequest) (*pb.AgentObservationResult, error) {
+func (s *Server) AgentObservation(ctx context.Context, in *AgentObservationRequest) (*AgentObservationResult, error) {
 	if s.env == "prod" {
 		return nil, errors.New("ERROR: AgentObservation not allowed on production server")
 	}
@@ -44,7 +44,7 @@ func (s *Server) AgentObservation(ctx context.Context, in *pb.AgentObservationRe
 	return observation, nil
 
 	// if _, ok := s.agentPositions; ok {
-	// 	var entities []*pb.Entity
+	// 	var entities []*Entity
 	// 	// Loop over agents and add to entities
 	// 	// TODO - only return agent's close to this agent rather than all of them
 	// 	for id, otherAgent := range s.agents {
@@ -55,7 +55,7 @@ func (s *Server) AgentObservation(ctx context.Context, in *pb.AgentObservationRe
 	// 	// TODO - loop over other entities such as food and also add
 
 	// 	// Return the observation data
-	// 	return &pb.AgentObservationResult{
+	// 	return &AgentObservationResult{
 	// 		Entities: entities,
 	// 	}, nil
 	// } else {
@@ -66,17 +66,17 @@ func (s *Server) AgentObservation(ctx context.Context, in *pb.AgentObservationRe
 }
 
 // --- DEV ONLY ---
-func (s *Server) AgentAction(ctx context.Context, req *pb.AgentActionRequest) (*pb.AgentActionResult, error) {
+func (s *Server) AgentAction(ctx context.Context, req *AgentActionRequest) (*AgentActionResult, error) {
 	if s.env == "prod" {
 		return nil, errors.New("ERROR: Action not allowed on this server")
 	}
 
 	success := s.world.PerformEntityAction(req.Id, req.Direction, req.Action)
 
-	return &pb.AgentActionResult{Successful: success}, nil
+	return &AgentActionResult{Successful: success}, nil
 }
 
-func (s *Server) ResetWorld(ctx context.Context, req *pb.ResetWorldRequest) (*pb.ResetWorldResult, error) {
+func (s *Server) ResetWorld(ctx context.Context, req *ResetWorldRequest) (*ResetWorldResult, error) {
 	// reset the world, preserving spectator channels
 	spectatorChans := s.world.spectatorChannels
 	regionSubs := s.world.regionSubs
@@ -92,7 +92,7 @@ func (s *Server) ResetWorld(ctx context.Context, req *pb.ResetWorldRequest) (*pb
 		s.world.BroadcastCellUpdate(pos, e.Class)
 	}
 
-	return &pb.ResetWorldResult{}, nil
+	return &ResetWorldResult{}, nil
 }
 
 // --- END DEV ONLY ---
@@ -128,7 +128,7 @@ func connectionOnState(ctx context.Context, conn *grpc.ClientConn, states ...con
 	return done
 }
 
-func (s *Server) Spectate(req *pb.SpectateRequest, stream pb.Simulation_SpectateServer) error {
+func (s *Server) Spectate(req *SpectateRequest, stream Simulation_SpectateServer) error {
 	log.Printf("Spectate()")
 	log.Printf("Spectator joined...")
 	// // Get info about the client
@@ -160,7 +160,7 @@ func (s *Server) Spectate(req *pb.SpectateRequest, stream pb.Simulation_Spectate
 	return nil
 }
 
-func (s *Server) SubscribeToRegion(ctx context.Context, req *pb.SubscribeToRegionRequest) (*pb.SubscribeToRegionResult, error) {
+func (s *Server) SubscribeToRegion(ctx context.Context, req *SubscribeToRegionRequest) (*SubscribeToRegionResult, error) {
 	// // Get info about the client
 	// client, ok := peer.FromContext(ctx)
 	// if !ok {
@@ -173,5 +173,5 @@ func (s *Server) SubscribeToRegion(ctx context.Context, req *pb.SubscribeToRegio
 	spectatorId := req.Id
 
 	s.world.SubscribeToRegion(spectatorId, Vec2{req.X, req.Y})
-	return &pb.SubscribeToRegionResult{}, nil
+	return &SubscribeToRegionResult{}, nil
 }
