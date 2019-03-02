@@ -51,7 +51,7 @@ func main() {
 	var header, trailer metadata.MD
 
 	for i := 0; i < 10; i++ {
-		agent := &Agent{X: 0, Y: 0}
+		agent := &Agent{X: 100, Y: 100}
 		r, err := c.CreateAgent(ctx, &CreateAgentRequest{Agent: agent}, grpc.Header(&header), grpc.Trailer(&trailer))
 		if err != nil {
 			log.Fatalf("could not greet: %v", err)
