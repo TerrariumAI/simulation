@@ -3,11 +3,11 @@ package main
 import uuid "github.com/satori/go.uuid"
 
 type Entity struct {
-	Id     string
-	Class  string
-	Pos    Vec2
-	Energy int32
-	Health int32
+	id     string
+	class  string
+	pos    Vec2
+	energy int32
+	health int32
 }
 
 const initial_energy = 100

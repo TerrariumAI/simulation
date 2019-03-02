@@ -1,7 +1,9 @@
+echo "[Building server executable]"
+./build.sh
+
 echo "[Building docker image]"
-docker build -t simulation .
+docker build --tag olamai/simulation:0.0.1 .
 
 echo "[Publishing docker image]"
 docker login
-docker tag simulation olamai/simulation:0.0.1
 docker push olamai/simulation:0.0.1

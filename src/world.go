@@ -77,7 +77,7 @@ func (w *World) BroadcastCellUpdate(pos Vec2, occupant string) {
 	// Loop over and send to channel
 	for _, spectatorId := range subs {
 		channel := w.spectatorChannels[spectatorId]
-		channel <- CellUpdate{X: pos.X, Y: pos.Y, Occupant: occupant}
+		channel <- CellUpdate{X: pos.x, Y: pos.y, Occupant: occupant}
 	}
 }
 
@@ -107,7 +107,7 @@ func (w *World) SubscribeToRegion(spectatorId string, region Vec2) bool {
 		for _, y := range ys {
 			pos := Vec2{x, y}
 			if entity, ok := w.posEntityMatrix[pos]; ok {
-				channel <- CellUpdate{X: pos.X, Y: pos.Y, Occupant: entity.Class}
+				channel <- CellUpdate{X: pos.x, Y: pos.y, Occupant: entity.class}
 			}
 		}
 	}
@@ -117,43 +117,43 @@ func (w *World) SubscribeToRegion(spectatorId string, region Vec2) bool {
 // -------------------
 // ----- Agents ------
 // -------------------
-func (w *World) SpawnAgent(pos Vec2) (success bool, id string) {
+func (w *World) SpawnAgent(pos Vec2) (success bool, entity *Entity) {
 	// Check to see if there is already an entity in that position
 	// If so, return false and don't spawn
 	if _, ok := w.posEntityMatrix[pos]; ok {
-		return false, ""
+		return false, nil
 	}
 
 	// Create the entity and add to entities map AND position matrix
 	e := NewEntity("AGENT", pos)
-	w.entities[e.Id] = &e
+	w.entities[e.id] = &e
 	w.posEntityMatrix[pos] = &e
 
 	// Send to observation
-	w.BroadcastCellUpdate(pos, e.Class)
+	w.BroadcastCellUpdate(pos, e.class)
 
-	return true, e.Id
+	return true, &e
 }
 
 // -------------------
 // ---- Entities -----
 // -------------------
-func (w *World) SpawnEntity(pos Vec2, class string) (success bool, id string) {
+func (w *World) SpawnEntity(pos Vec2, class string) (success bool, e *Entity) {
 	// Check to see if there is already an entity in that position
 	// If so, return false and don't spawn
 	if _, ok := w.posEntityMatrix[pos]; ok {
-		return false, ""
+		return false, nil
 	}
 
 	// Create the entity and add to entities map AND position matrix
-	e := NewEntity(class, pos)
-	w.entities[e.Id] = &e
-	w.posEntityMatrix[pos] = &e
+	entity := NewEntity(class, pos)
+	w.entities[entity.id] = &entity
+	w.posEntityMatrix[pos] = &entity
 
 	// Send to observation
 	w.BroadcastCellUpdate(pos, class)
 
-	return true, e.Id
+	return true, &entity
 }
 
 func (w *World) RemoveEntityById(id string) (success bool) {
@@ -164,7 +164,7 @@ func (w *World) RemoveEntityById(id string) (success bool) {
 		return false
 	}
 
-	pos := e.Pos
+	pos := e.pos
 	// Remove keys from maps
 	delete(w.entities, id)
 	delete(w.posEntityMatrix, pos)
@@ -190,15 +190,15 @@ func (w *World) EntityMove(id string, targetPos Vec2) bool {
 	// [End Checks]
 
 	// Remove entity from current position
-	delete(w.posEntityMatrix, e.Pos)
+	delete(w.posEntityMatrix, e.pos)
 	// Send to observation
-	w.BroadcastCellUpdate(e.Pos, "EMPTY")
+	w.BroadcastCellUpdate(e.pos, "EMPTY")
 
 	// Move the entity to new position
-	e.Pos = targetPos
+	e.pos = targetPos
 	w.posEntityMatrix[targetPos] = e
 	// Send to observation
-	w.BroadcastCellUpdate(e.Pos, e.Class)
+	w.BroadcastCellUpdate(e.pos, e.class)
 
 	return true
 }
@@ -216,16 +216,16 @@ func (w *World) EntityConsume(id string, targetPos Vec2) bool {
 	if !ok {
 		return false
 	} else {
-		if targetEntity.Class != "FOOD" {
+		if targetEntity.class != "FOOD" {
 			return false
 		}
 	}
 	// [End Checks]
 
 	// Remove food entity
-	w.RemoveEntityById(targetEntity.Id)
+	w.RemoveEntityById(targetEntity.id)
 	// Add to current entity's energy
-	e.Energy += 10
+	e.energy += 10
 
 	return true
 }
@@ -240,12 +240,12 @@ func (w *World) PerformEntityAction(id string, direction string, action string) 
 	}
 
 	// Don't do anything if you don't have energy left
-	if e.Energy == 0 {
-		e.Health -= 10
+	if e.energy == 0 {
+		e.health -= 10
 	}
 
 	// If it's health is 0, remove (kill) the entity and return false
-	if e.Health <= 0 {
+	if e.health <= 0 {
 		w.RemoveEntityById(id)
 		return false
 	}
@@ -254,13 +254,13 @@ func (w *World) PerformEntityAction(id string, direction string, action string) 
 	var targetPos Vec2
 	switch direction {
 	case "UP":
-		targetPos = Vec2{e.Pos.X, e.Pos.Y + 1}
+		targetPos = Vec2{e.pos.x, e.pos.y + 1}
 	case "DOWN":
-		targetPos = Vec2{e.Pos.X, e.Pos.Y - 1}
+		targetPos = Vec2{e.pos.x, e.pos.y - 1}
 	case "LEFT":
-		targetPos = Vec2{e.Pos.X - 1, e.Pos.Y}
+		targetPos = Vec2{e.pos.x - 1, e.pos.y}
 	case "RIGHT":
-		targetPos = Vec2{e.Pos.X + 1, e.Pos.Y}
+		targetPos = Vec2{e.pos.x + 1, e.pos.y}
 	default: // Direction not correct
 		return false
 	}
@@ -274,9 +274,9 @@ func (w *World) PerformEntityAction(id string, direction string, action string) 
 	}
 
 	// Take off living expense
-	e.Energy -= agent_living_energy_cost
-	if e.Energy < 0 {
-		e.Energy = 0
+	e.energy -= agent_living_energy_cost
+	if e.energy < 0 {
+		e.energy = 0
 	}
 
 	// Action not identified
@@ -286,8 +286,8 @@ func (w *World) PerformEntityAction(id string, direction string, action string) 
 func (w *World) GetObservationCellsForPosition(pos Vec2) []string {
 	var cells []string
 	// TODO - implement this
-	for y := pos.Y + 1; y >= pos.Y-1; y-- {
-		for x := pos.X - 1; x <= pos.X+1; x++ {
+	for y := pos.y + 1; y >= pos.y-1; y-- {
+		for x := pos.x - 1; x <= pos.x+1; x++ {
 			var posToObserve = Vec2{x, y}
 			// Make sure we don't observe ourselves
 			if posToObserve == pos {
@@ -295,7 +295,7 @@ func (w *World) GetObservationCellsForPosition(pos Vec2) []string {
 			}
 			// Add value from cell
 			if entity, ok := w.posEntityMatrix[posToObserve]; ok {
-				cells = append(cells, entity.Class)
+				cells = append(cells, entity.class)
 			} else {
 				cells = append(cells, "EMPTY")
 			}
@@ -304,13 +304,13 @@ func (w *World) GetObservationCellsForPosition(pos Vec2) []string {
 	return cells
 }
 
-func (w *World) ObserveById(id string) (observation *AgentObservationResult) {
+func (w *World) ObserveById(id string) (observation *Observation) {
 	// If entity exists, return true success and the observation
 	e, ok := w.entities[id]
 	if ok {
-		cells := w.GetObservationCellsForPosition(e.Pos)
-		return &AgentObservationResult{Alive: true, Cells: cells, Energy: e.Energy, Health: e.Health}
+		cells := w.GetObservationCellsForPosition(e.pos)
+		return &Observation{Alive: true, Cells: cells, Energy: e.energy, Health: e.health}
 	} else {
-		return &AgentObservationResult{Alive: false, Cells: []string{}, Energy: 0, Health: 0}
+		return &Observation{Alive: false, Cells: []string{}, Energy: 0, Health: 0}
 	}
 }

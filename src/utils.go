@@ -2,13 +2,13 @@ package main
 
 // Simple struct for holding positions
 type Vec2 struct {
-	X int32
-	Y int32
+	x int32
+	y int32
 }
 
 func (v *Vec2) GetRegion() Vec2 {
-	x := v.X
-	y := v.Y
+	x := v.x
+	y := v.y
 	var signX int32 = 1
 	var signY int32 = 1
 	if x < 0 {
@@ -25,16 +25,16 @@ func (v *Vec2) GetPositionsInRegion() ([]int32, []int32) {
 	ys := []int32{}
 	var signX int32 = 1
 	var signY int32 = 1
-	if v.X < 0 {
+	if v.x < 0 {
 		signX = -1
 	}
-	if v.Y < 0 {
+	if v.y < 0 {
 		signY = -1
 	}
-	startX := (v.X - signX) * region_size
-	startY := (v.Y - signY) * region_size
-	endX := v.X * region_size
-	endY := v.Y * region_size
+	startX := (v.x - signX) * region_size
+	startY := (v.y - signY) * region_size
+	endX := v.x * region_size
+	endY := v.y * region_size
 	if signX > 0 {
 		for x := startX; x < endX; x++ {
 			xs = append(xs, x)
