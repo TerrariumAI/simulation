@@ -11,9 +11,10 @@ require (
 	github.com/coreos/go-systemd v0.0.0-20190212144455-93d5ec2c7f76 // indirect
 	github.com/gliderlabs/ssh v0.1.3 // indirect
 	github.com/go-logfmt/logfmt v0.4.0 // indirect
+	github.com/go-sql-driver/mysql v1.4.1
 	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/golang/lint v0.0.0-20190301231843-5614ed5bae6f // indirect
-	github.com/golang/protobuf v1.3.0 // indirect
+	github.com/golang/protobuf v1.3.0
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/google/pprof v0.0.0-20190228041337-2ef8d84b2e3c // indirect
 	github.com/googleapis/gax-go v2.0.2+incompatible // indirect
@@ -23,6 +24,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.8.1 // indirect
 	github.com/kisielk/errcheck v1.2.0 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
+	github.com/mdempsky/gocode v0.0.0-20190203001940-7fb65232883f // indirect
 	github.com/microcosm-cc/bluemonday v1.0.2 // indirect
 	github.com/openzipkin/zipkin-go v0.1.5 // indirect
 	github.com/pkg/errors v0.8.1 // indirect
@@ -47,6 +49,7 @@ require (
 	github.com/shurcooL/webdavfs v0.0.0-20181215192745-5988b2d638f6 // indirect
 	github.com/sirupsen/logrus v1.3.0 // indirect
 	github.com/stretchr/testify v1.3.0 // indirect
+	github.com/zemirco/uid v0.0.0-20160129141151-3763f3c45832
 	go.opencensus.io v0.19.0 // indirect
 	go4.org v0.0.0-20190218023631-ce4c26f7be8e // indirect
 	golang.org/x/build v0.0.0-20190301201919-f7b27185a0a4 // indirect
@@ -59,6 +62,7 @@ require (
 	golang.org/x/sys v0.0.0-20190302025703-b6889370fb10 // indirect
 	golang.org/x/tools v0.0.0-20190228203856-589c23e65e65 // indirect
 	google.golang.org/genproto v0.0.0-20190227213309-4f5b463f9597 // indirect
+	google.golang.org/grpc v1.19.0
 	honnef.co/go/tools v0.0.0-20190215041234-466a0476246c // indirect
 	sourcegraph.com/sqs/pbtypes v1.0.0 // indirect
 )
