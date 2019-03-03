@@ -5,6 +5,7 @@ COPY server-key.pem /
 
 ADD main /
 
-EXPOSE 8081
 EXPOSE 50051
+
+CMD ["/main"]
 
