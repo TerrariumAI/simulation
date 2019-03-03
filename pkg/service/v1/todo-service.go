@@ -31,7 +31,11 @@ func (s *toDoServiceServer) NewTodo(title string, description string) int64 {
 
 // NewToDoServiceServer creates ToDo service
 func NewToDoServiceServer() v1.ToDoServiceServer {
-	return &toDoServiceServer{}
+	return &toDoServiceServer{
+		todos: []v1.ToDo{
+			v1.ToDo{},
+		},
+	}
 }
 
 // checkAPI checks if the API version requested by client is supported by server
@@ -55,7 +59,6 @@ func (s *toDoServiceServer) Create(ctx context.Context, req *v1.CreateRequest) (
 
 	// Create todo
 	id := s.NewTodo(req.ToDo.Title, req.ToDo.Description)
-	println("NEW TODO: ", id)
 
 	return &v1.CreateResponse{
 		Api: apiVersion,
@@ -114,7 +117,6 @@ func (s *toDoServiceServer) ReadAll(ctx context.Context, req *v1.ReadAllRequest)
 	if err := s.checkAPI(req.Api); err != nil {
 		return nil, err
 	}
-
 	list := []*v1.ToDo{}
 	for _, todo := range s.todos {
 		list = append(list, &todo)
