@@ -1,7 +1,7 @@
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: sim-deployment
+  name: sim-dep
   labels:
     app: sim
 spec:
@@ -17,19 +17,35 @@ spec:
       containers:
         - name: sim
           image: olamai/simulation:0.0.1
-          imagePullPolicy: Never
+          imagePullPolicy: Always
           ports:
-            - name: sim-service
+            - name: sim-dep-http1
               containerPort: 8080
+            - name: sim-dep-grpc
+              containerPort: 9090
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: sim-service
+  name: sim-dep-http1
 spec:
   type: NodePort
   selector:
     app: sim
   ports:
     - port: 8080
-      targetPort: sim-service
+      targetPort: sim-dep-http1
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sim-dep-grpc
+spec:
+  type: NodePort
+  selector:
+    app: sim
+  ports:
+    - port: 9090
+      targetPort: sim-dep-grpc
+  type: LoadBalancer
