@@ -1,19 +1,19 @@
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: sim-envoy-proxy
+  name: envoy-proxy
 spec:
   selector:
     matchLabels:
-      app: sim-envoy-proxy
+      app: envoy-proxy
   replicas: 1
   template:
     metadata:
       labels:
-        app: sim-envoy-proxy
+        app: envoy-proxy
     spec:
       containers:
-        - name: sim-envoy-proxy
+        - name: envoy-proxy
           image: olamai/envoy-proxy:0.0.1
           imagePullPolicy: Always
           ports:
@@ -22,13 +22,13 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: sim-envoy-proxy
+  name: envoy-proxy
   labels:
-    run: sim-envoy-proxy
+    app: envoy-proxy
 spec:
   type: NodePort
   selector:
-    app: sim-envoy-proxy
+    app: envoy-proxy
   ports:
     - port: 9091
       protocol: TCP
