@@ -3,10 +3,12 @@ package v1
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	v1 "github.com/olamai/simulation/pkg/api/v1"
@@ -273,6 +275,17 @@ func (s *simulationServiceServer) CreateSpectator(req *v1.CreateSpectatorRequest
 
 // Get an observation for an agent
 func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context, req *v1.SubscribeSpectatorToRegionRequest) (*v1.SubscribeSpectatorToRegionResponse, error) {
+	// Get Headers
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.DataLoss, "SubscribeSpectatorToRegion(): UnaryEcho: failed to get metadata")
+	}
+	if token, ok := md["auth-token"]; ok {
+
+		fmt.Printf("Custom header from metadata: " + token[0])
+	}
+
+	// customHeader := ctx.Value("custom-header=1")
 	id := req.Id
 	region := Vec2{req.Region.X, req.Region.Y}
 	// If the user is already subbed, successful is false
