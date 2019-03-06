@@ -1,0 +1,18 @@
+version: "3"
+services:
+  simulation:
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    image: olamai/simulation:0.0.1
+    ports:
+      - "9090:9090"
+  envoy:
+    build:
+      context: ./
+      dockerfile: ../envoy-proxy/Dockerfile
+    image: olamai/envoy-proxy:0.0.1
+    ports:
+      - "9091:9091"
+    links:
+      - simulation
