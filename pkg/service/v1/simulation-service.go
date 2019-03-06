@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"math/rand"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -31,12 +32,25 @@ type simulationServiceServer struct {
 
 // NewSimulationServiceServer creates ToDo service
 func NewSimulationServiceServer() v1.SimulationServiceServer {
-	return &simulationServiceServer{
+	s := &simulationServiceServer{
 		entities:        make(map[string]*Entity),
 		posEntityMap:    make(map[Vec2]*Entity),
 		spectIdChanMap:  make(map[string]chan v1.CellUpdate),
 		spectRegionSubs: make(map[Vec2][]string),
 	}
+
+	// Spawn food randomly
+	for i := 0; i < 100; i++ {
+		x := int32(rand.Intn(50) - 25)
+		y := int32(rand.Intn(50) - 25)
+		// Don't put anything at 0,0
+		if x == 0 || y == 0 {
+			continue
+		}
+		s.NewEntity("FOOD", Vec2{x, y})
+	}
+
+	return s
 }
 
 // checkAPI checks if the API version requested by client is supported by server

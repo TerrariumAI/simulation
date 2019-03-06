@@ -9,15 +9,9 @@
       "email": "zacharyholland@gmail.com"
     }
   },
-  "schemes": [
-    "http"
-  ],
-  "consumes": [
-    "application/json"
-  ],
-  "produces": [
-    "application/json"
-  ],
+  "schemes": ["http"],
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
   "paths": {
     "/v1/todo": {
       "post": {
@@ -47,9 +41,7 @@
             }
           }
         ],
-        "tags": [
-          "ToDoService"
-        ]
+        "tags": ["SimulationService"]
       }
     },
     "/v1/todo/all": {
@@ -79,9 +71,7 @@
             "type": "string"
           }
         ],
-        "tags": [
-          "ToDoService"
-        ]
+        "tags": ["SimulationService"]
       }
     },
     "/v1/todo/{id}": {
@@ -119,9 +109,7 @@
             "type": "string"
           }
         ],
-        "tags": [
-          "ToDoService"
-        ]
+        "tags": ["SimulationService"]
       },
       "delete": {
         "summary": "Delete todo task",
@@ -157,9 +145,7 @@
             "type": "string"
           }
         ],
-        "tags": [
-          "ToDoService"
-        ]
+        "tags": ["SimulationService"]
       }
     },
     "/v1/todo/{toDo.id}": {
@@ -198,9 +184,7 @@
             }
           }
         ],
-        "tags": [
-          "ToDoService"
-        ]
+        "tags": ["SimulationService"]
       },
       "patch": {
         "summary": "Update todo task",
@@ -237,9 +221,7 @@
             }
           }
         ],
-        "tags": [
-          "ToDoService"
-        ]
+        "tags": ["SimulationService"]
       }
     }
   },
