@@ -46,8 +46,9 @@ message Action {
 
 message Observation {
   // Cells around the agent
-  repeated string Cells = 2;
+  repeated string Cells = 1;
   // Agent stats
+  bool Alive = 2;
   int32 Energy = 3;
   int32 Health = 4;
 }
@@ -81,7 +82,7 @@ message CreateAgentResponse {
   // API versioning: it is my best practice to specify version explicitly
   string api = 1;
   // ID of created task
-  int64 id = 2;
+  string id = 2;
 }
 
 // Request data to read agent
@@ -126,8 +127,9 @@ message ExecuteAgentActionRequest {
 message ExecuteAgentActionResponse {
   // API versioning: it is my best practice to specify version explicitly
   string api = 1;
+  bool isAgentStillAlive = 2;
   // Was the agent able to perform the action
-  bool successful = 2;
+  bool wasActionSuccessful = 3;
 }
 
 message GetAgentObservationRequest {
@@ -148,19 +150,23 @@ message GetAgentObservationResponse {
 message CreateSpectatorRequest {
   // API versioning: it is my best practice to specify version explicitly
   string api = 1;
+  // Id of the spectator
+  string id = 2;
 }
 
-message AddSpectatorToRegionRequest {
+message SubscribeSpectatorToRegionRequest {
   // API versioning: it is my best practice to specify version explicitly
   string api = 1;
+  // Id of the spectator
+  string id = 2;
   // What region to add to
-  Region region = 2;
+  Region region = 3;
 }
-message AddSpectatorToRegionResponse {
+message SubscribeSpectatorToRegionResponse {
   // API versioning: it is my best practice to specify version explicitly
   string api = 1;
   // Success status
-  bool succesfull = 2; 
+  bool successful = 2; 
 }
 
 // Service to manage simulation
@@ -210,10 +216,10 @@ service SimulationService {
     };
   }
 
-  // Add the 
-  rpc AddSpectatorToRegion(AddSpectatorToRegionRequest) returns (AddSpectatorToRegionResponse) {
+  // Subscribe the spectator of given id to a region
+  rpc SubscribeSpectatorToRegion(SubscribeSpectatorToRegionRequest) returns (SubscribeSpectatorToRegionResponse) {
     option (google.api.http) = {
-      put : "/v1/spectator/{id}/addToRegion"
+      put : "/v1/spectator/{id}/subscribeToRegion"
       body : "*"
     };
   }

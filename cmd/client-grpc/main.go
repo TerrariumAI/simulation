@@ -27,23 +27,20 @@ func main() {
 	}
 	defer conn.Close()
 
-	c := v1.NewToDoServiceClient(conn)
+	c := v1.NewSimulationServiceClient(conn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	t := time.Now().In(time.UTC)
-	pfx := t.Format(time.RFC3339Nano)
-
 	// Call Create
-	req1 := v1.CreateRequest{
+	req1 := v1.CreateAgentRequest{
 		Api: apiVersion,
-		ToDo: &v1.ToDo{
-			Title:       "title (" + pfx + ")",
-			Description: "description (" + pfx + ")",
+		Agent: &v1.Agent{
+			X: 0,
+			Y: 0,
 		},
 	}
-	res1, err := c.Create(ctx, &req1)
+	res1, err := c.CreateAgent(ctx, &req1)
 	if err != nil {
 		log.Fatalf("Create failed: %v", err)
 	}
@@ -51,50 +48,55 @@ func main() {
 
 	id := res1.Id
 
-	// Read
-	req2 := v1.ReadRequest{
+	println("Id: ", id)
+
+	// Get agent
+	req2 := v1.GetAgentRequest{
 		Api: apiVersion,
 		Id:  id,
 	}
-	res2, err := c.Read(ctx, &req2)
+	res2, err := c.GetAgent(ctx, &req2)
 	if err != nil {
 		log.Fatalf("Read failed: %v", err)
 	}
 	log.Printf("Read result: <%+v>\n\n", res2)
+	println("Agent x: ", res2.Agent.X)
+	println("Agent y: ", res2.Agent.Y)
 
 	// Update
-	req3 := v1.UpdateRequest{
+	req3 := v1.ExecuteAgentActionRequest{
 		Api: apiVersion,
-		ToDo: &v1.ToDo{
-			Id:          res2.ToDo.Id,
-			Title:       res2.ToDo.Title,
-			Description: res2.ToDo.Description + " + updated",
+		Id:  id,
+		Action: &v1.Action{
+			Id:        "MOVE",
+			Direction: "UP",
 		},
 	}
-	res3, err := c.Update(ctx, &req3)
+	res3, err := c.ExecuteAgentAction(ctx, &req3)
 	if err != nil {
 		log.Fatalf("Update failed: %v", err)
 	}
 	log.Printf("Update result: <%+v>\n\n", res3)
 
 	// Call ReadAll
-	req4 := v1.ReadAllRequest{
+	req4 := v1.GetAgentObservationRequest{
 		Api: apiVersion,
+		Id:  id,
 	}
-	res4, err := c.ReadAll(ctx, &req4)
+	res4, err := c.GetAgentObservation(ctx, &req4)
 	if err != nil {
 		log.Fatalf("ReadAll failed: %v", err)
 	}
 	log.Printf("ReadAll result: <%+v>\n\n", res4)
 
-	// Delete
-	req5 := v1.DeleteRequest{
-		Api: apiVersion,
-		Id:  id,
-	}
-	res5, err := c.Delete(ctx, &req5)
-	if err != nil {
-		log.Fatalf("Delete failed: %v", err)
-	}
-	log.Printf("Delete result: <%+v>\n\n", res5)
+	// // Delete
+	// req5 := v1.DeleteRequest{
+	// 	Api: apiVersion,
+	// 	Id:  id,
+	// }
+	// res5, err := c.Delete(ctx, &req5)
+	// if err != nil {
+	// 	log.Fatalf("Delete failed: %v", err)
+	// }
+	// log.Printf("Delete result: <%+v>\n\n", res5)
 }

@@ -54,7 +54,7 @@ func RunServer() error {
 		return fmt.Errorf("failed to initialize logger: %v", err)
 	}
 
-	v1API := v1.NewToDoServiceServer()
+	v1API := v1.NewSimulationServiceServer()
 
 	// run HTTP gateway
 	go func() {

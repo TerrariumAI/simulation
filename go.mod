@@ -17,6 +17,7 @@ require (
 	github.com/golang/protobuf v1.3.0
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/google/pprof v0.0.0-20190228041337-2ef8d84b2e3c // indirect
+	github.com/google/uuid v1.1.1 // indirect
 	github.com/googleapis/gax-go v2.0.2+incompatible // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20181103185306-d547d1d9531e // indirect
 	github.com/gorilla/mux v1.7.0 // indirect
@@ -34,6 +35,7 @@ require (
 	github.com/prometheus/procfs v0.0.0-20190227231451-bbced9601137 // indirect
 	github.com/rogpeppe/fastuuid v1.0.0 // indirect
 	github.com/russross/blackfriday v2.0.0+incompatible // indirect
+	github.com/satori/go.uuid v1.2.0
 	github.com/shurcooL/go v0.0.0-20190121191506-3fef8c783dec // indirect
 	github.com/shurcooL/gofontwoff v0.0.0-20181114050219-180f79e6909d // indirect
 	github.com/shurcooL/highlight_diff v0.0.0-20181222201841-111da2e7d480 // indirect

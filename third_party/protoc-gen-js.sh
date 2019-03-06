@@ -3,7 +3,7 @@ protoc -I/usr/local/include -I. \
  --proto_path=third_party \
  --js_out=import_style=commonjs:pkg/api/v1/js \
  --grpc-web_out=import_style=commonjs,mode=grpcwebtext:pkg/api/v1/js \
-todo-service.proto
+simulation-service.proto
 
 protoc -I/usr/local/include -I. \
  --proto_path=api/proto/v1 \
