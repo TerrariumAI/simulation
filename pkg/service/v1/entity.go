@@ -17,6 +17,10 @@ func (s *simulationServiceServer) NewEntity(class string, pos Vec2) *Entity {
 	e := Entity{id, class, pos, initial_energy, initial_health}
 	s.entities[id] = &e
 	s.posEntityMap[pos] = &e
+
+	// Broadcast update
+	s.BroadcastCellUpdate(e.pos, e.class)
+
 	return &e
 }
 

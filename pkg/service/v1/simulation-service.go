@@ -69,7 +69,16 @@ func (s *simulationServiceServer) checkAPI(api string) error {
 
 // Broadcast a cell update
 func (s *simulationServiceServer) BroadcastCellUpdate(pos Vec2, occupant string) {
-	// TODO
+	// Get region for this position
+	region := pos.GetRegion()
+	// Get subs for this region
+	subs := s.spectRegionSubs[region]
+	// Loop over and send to channel
+	for _, spectatorId := range subs {
+		fmt.Println("Broadcasting to: " + spectatorId)
+		channel := s.spectIdChanMap[spectatorId]
+		channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Occupant: occupant}
+	}
 }
 
 // Create new agent
@@ -89,9 +98,6 @@ func (s *simulationServiceServer) CreateAgent(ctx context.Context, req *v1.Creat
 
 	// Create a new agent (which is an entity)
 	agent := s.NewEntity("AGENT", Vec2{req.Agent.X, req.Agent.Y})
-
-	// Broadcast update
-	s.BroadcastCellUpdate(agent.pos, agent.class)
 
 	return &v1.CreateAgentResponse{
 		Api: apiVersion,
@@ -305,6 +311,7 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 		for _, y := range ys {
 			pos := Vec2{x, y}
 			if entity, ok := s.posEntityMap[pos]; ok {
+				fmt.Printf(entity.class)
 				channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Occupant: entity.class}
 			}
 		}
