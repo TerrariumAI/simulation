@@ -1,4 +1,9 @@
-# Compile Proto
+## Notes
 
-./third_party/protoc-gen-go.sh
-./third_party/protoc-gen-js.sh
+Use F5 to run in VSCode
+
+## Tips
+
+if the server hangs again  
+ CTRL + ]  
+ pkill main
