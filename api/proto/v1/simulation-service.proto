@@ -1,0 +1,226 @@
+syntax = "proto3";
+package v1;
+
+import "google/api/annotations.proto";
+import "protoc-gen-swagger/options/annotations.proto";
+
+option (grpc.gateway.protoc_gen_swagger.options.openapiv2_swagger) = {
+  info : {
+    title : "Simulation service"
+    version : "1.0"
+    contact : {
+      name : "simulation project"
+      url : "https://github.com/olamai/simulation"
+      email : "zacharyholland@gmail.com"
+    }
+  }
+  schemes : HTTP
+  consumes : "application/json"
+  produces : "application/json"
+  responses : {
+    key : "404"
+    value : {
+      description : "Returned when the resource does not exist."
+      schema : {json_schema : {type : STRING}}
+    }
+  }
+};
+
+// Taks we have to do
+message Agent {
+  // Unique integer identifier of the agent
+  string id = 1;
+  // Position
+  int32 x = 2;
+  int32 y = 3;
+}
+
+message Action {
+  // identifier for the action
+  // Ex. Move, Eat, etc.
+  string id = 1;
+  // direction to perform the action in
+  // Ex. Up, Down, etc.
+  string direction = 2;
+}
+
+message Observation {
+  // Cells around the agent
+  repeated string Cells = 1;
+  // Agent stats
+  bool Alive = 2;
+  int32 Energy = 3;
+  int32 Health = 4;
+}
+
+message CellUpdate {
+  // Position
+  int32 x = 1;
+  int32 y = 2;
+  // The entity occupying a cell
+  string occupant = 3;
+}
+
+message Region {
+  int32 x = 1;
+  int32 y = 2;
+}
+
+// ----------------------
+// -- Agent
+// ----------------------
+
+// Request data to create new agent
+message CreateAgentRequest {
+  // API versioning: it is my best practice to specify version explicitly
+  string api = 1;
+  // Task entity to add
+  Agent agent = 2;
+}
+// Contains data of created agent
+message CreateAgentResponse {
+  // API versioning: it is my best practice to specify version explicitly
+  string api = 1;
+  // ID of created task
+  string id = 2;
+}
+
+// Request data to read agent
+message GetAgentRequest {
+  // API versioning: it is my best practice to specify version explicitly
+  string api = 1;
+  // Unique integer identifier of the agent
+  string id = 2;
+}
+// Contains agent data specified in by ID request
+message GetAgentResponse {
+  // API versioning: it is my best practice to specify version explicitly
+  string api = 1;
+  // Task entity read by ID
+  Agent agent = 2;
+}
+
+// Request data to delete agent
+message DeleteAgentRequest {
+  // API versioning: it is my best practice to specify version explicitly
+  string api = 1;
+  // Unique integer identifier of the agent to delete
+  string id = 2;
+}
+// Contains status of delete operation
+message DeleteAgentResponse {
+  // API versioning: it is my best practice to specify version explicitly
+  string api = 1;
+  // Contains number of entities have beed deleted
+  // Equals 1 in case of successful delete
+  string deleted = 2;
+}
+
+message ExecuteAgentActionRequest {
+  // API versioning: it is my best practice to specify version explicitly
+  string api = 1;
+  // Id for the agent that should perform the action
+  string id = 2;
+  // Action id
+  Action action = 3;
+}
+message ExecuteAgentActionResponse {
+  // API versioning: it is my best practice to specify version explicitly
+  string api = 1;
+  bool isAgentStillAlive = 2;
+  // Was the agent able to perform the action
+  bool wasActionSuccessful = 3;
+}
+
+message GetAgentObservationRequest {
+  // API versioning: it is my best practice to specify version explicitly
+  string api = 1;
+  // Agent that should perform the action
+  string id = 2;
+}
+message GetAgentObservationResponse {
+  // API versioning: it is my best practice to specify version explicitly
+  string api = 1;
+  // Was the agent able to perform the action
+  Observation observation = 2;
+}
+// ----------------------
+// -- Spectate
+// ----------------------
+message CreateSpectatorRequest {
+  // API versioning: it is my best practice to specify version explicitly
+  string api = 1;
+  // Id of the spectator
+  string id = 2;
+}
+
+message SubscribeSpectatorToRegionRequest {
+  // API versioning: it is my best practice to specify version explicitly
+  string api = 1;
+  // Id of the spectator
+  string id = 2;
+  // What region to add to
+  Region region = 3;
+}
+message SubscribeSpectatorToRegionResponse {
+  // API versioning: it is my best practice to specify version explicitly
+  string api = 1;
+  // Success status
+  bool successful = 2; 
+}
+
+// Service to manage simulation
+service SimulationService {
+  // Create new agent
+  rpc CreateAgent(CreateAgentRequest) returns (CreateAgentResponse) {
+    option (google.api.http) = {
+      post : "/v1/agent"
+      body : "*"
+    };
+  }
+
+  // Get data for an agent
+  rpc GetAgent(GetAgentRequest) returns (GetAgentResponse) {
+    option (google.api.http) = {
+      get : "/v1/agent/{id}"
+    };
+  }
+
+  // Delete an agent
+  rpc DeleteAgent(DeleteAgentRequest) returns (DeleteAgentResponse) {
+    option (google.api.http) = {
+      get : "/v1/agent/{id}"
+    };
+  }
+
+  // Perform an action for an agent
+  rpc ExecuteAgentAction(ExecuteAgentActionRequest) returns (ExecuteAgentActionResponse) {
+    option (google.api.http) = {
+      put : "/v1/agent/{id}"
+      body : "*"
+    };
+  }
+
+  // Get the observation for an agent
+  rpc GetAgentObservation(GetAgentObservationRequest) returns (GetAgentObservationResponse) {
+    option (google.api.http) = {
+      get : "/v1/agent/{id}/observation"
+    };
+  }
+
+
+  // Create a new spectator stream
+  rpc CreateSpectator(CreateSpectatorRequest) returns (stream CellUpdate) {
+    option (google.api.http) = {
+      get : "/v1/spectator"
+    };
+  }
+
+  // Subscribe the spectator of given id to a region
+  rpc SubscribeSpectatorToRegion(SubscribeSpectatorToRegionRequest) returns (SubscribeSpectatorToRegionResponse) {
+    option (google.api.http) = {
+      put : "/v1/spectator/{id}/subscribeToRegion"
+      body : "*"
+    };
+  }
+}

@@ -1,11 +1,7 @@
-FROM golang:1.9.1
+FROM scratch
 
-WORKDIR /go/src/github.com/olamai/simulation/server
-COPY server .
+ADD main /
 
-RUN go get -v ./...
-RUN go install -v ./...
+EXPOSE 8080 9090
 
-EXPOSE 7771
-
-CMD [ "server" ]
+ENTRYPOINT ["/main", "-grpc-port=9090", "-http-port=8080"]
