@@ -6,4 +6,5 @@ Use F5 to run in VSCode
 
 if the server hangs again  
  CTRL + ]  
- pkill main
+ pkill main  
+ If Ctrl+C (SIGINT) doesn't work, try Ctrl+\ (SIGQUIT). Then try Ctrl+Z (SIGTSTP).

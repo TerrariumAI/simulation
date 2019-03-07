@@ -10,7 +10,6 @@ import (
 
 	"github.com/olamai/simulation/pkg/logger"
 	"github.com/olamai/simulation/pkg/protocol/grpc"
-	"github.com/olamai/simulation/pkg/protocol/rest"
 	v1 "github.com/olamai/simulation/pkg/service/v1"
 )
 
@@ -56,10 +55,10 @@ func RunServer() error {
 
 	v1API := v1.NewSimulationServiceServer()
 
-	// run HTTP gateway
-	go func() {
-		_ = rest.RunServer(ctx, cfg.GRPCPort, cfg.HTTPPort)
-	}()
+	// // run HTTP gateway
+	// go func() {
+	// 	_ = rest.RunServer(ctx, cfg.GRPCPort, cfg.HTTPPort)
+	// }()
 
 	return grpc.RunServer(ctx, v1API, cfg.GRPCPort)
 }

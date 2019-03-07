@@ -87,6 +87,16 @@ func (s *simulationServiceServer) CreateAgent(ctx context.Context, req *v1.Creat
 	if err := s.checkAPI(req.Api); err != nil {
 		return nil, err
 	}
+	// get the auth token from the call
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.DataLoss, "SubscribeSpectatorToRegion(): UnaryEcho: failed to get metadata")
+	}
+	if token, ok := md["auth-token"]; ok {
+		fmt.Println("Custom header from metadata: " + token[0])
+	} else {
+		fmt.Println("No header data: " + token[0])
+	}
 
 	targetPos := Vec2{req.Agent.X, req.Agent.Y}
 
@@ -281,16 +291,6 @@ func (s *simulationServiceServer) CreateSpectator(req *v1.CreateSpectatorRequest
 
 // Get an observation for an agent
 func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context, req *v1.SubscribeSpectatorToRegionRequest) (*v1.SubscribeSpectatorToRegionResponse, error) {
-	// Get Headers
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return nil, status.Errorf(codes.DataLoss, "SubscribeSpectatorToRegion(): UnaryEcho: failed to get metadata")
-	}
-	if token, ok := md["auth-token"]; ok {
-
-		fmt.Printf("Custom header from metadata: " + token[0])
-	}
-
 	// customHeader := ctx.Value("custom-header=1")
 	id := req.Id
 	region := Vec2{req.Region.X, req.Region.Y}
