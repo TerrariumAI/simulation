@@ -21,6 +21,8 @@ type Config struct {
 	// HTTP/REST gateway start parameters section
 	// HTTPPort is TCP port to listen by HTTP/REST gateway
 	HTTPPort string
+	// Environment that the server is running in (dev or prod)
+	Environment string
 	// Log parameters section
 	// LogLevel is global log level: Debug(-1), Info(0), Warn(1), Error(2), DPanic(3), Panic(4), Fatal(5)
 	LogLevel int
@@ -36,6 +38,7 @@ func RunServer() error {
 	var cfg Config
 	flag.StringVar(&cfg.GRPCPort, "grpc-port", "", "gRPC port to bind")
 	flag.StringVar(&cfg.HTTPPort, "http-port", "", "HTTP port to bind")
+	flag.StringVar(&cfg.Environment, "env", "", "Environment the server is running in")
 	flag.IntVar(&cfg.LogLevel, "log-level", 0, "Global log level")
 	flag.StringVar(&cfg.LogTimeFormat, "log-time-format", "",
 		"Print time format for logger e.g. 2006-01-02T15:04:05Z07:00")
@@ -53,7 +56,7 @@ func RunServer() error {
 		return fmt.Errorf("failed to initialize logger: %v", err)
 	}
 
-	v1API := v1.NewSimulationServiceServer()
+	v1API := v1.NewSimulationServiceServer(cfg.Environment)
 
 	// // run HTTP gateway
 	// go func() {

@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go v0.36.0 // indirect
 	dmitri.shuralyov.com/app/changes v0.0.0-20181114035150-5af16e21babb // indirect
 	dmitri.shuralyov.com/service/change v0.0.0-20190301072032-c25fb47d71b3 // indirect
+	firebase.google.com/go v3.6.0+incompatible
 	git.apache.org/thrift.git v0.12.0 // indirect
 	github.com/Shopify/sarama v1.21.0 // indirect
 	github.com/coreos/go-systemd v0.0.0-20190212144455-93d5ec2c7f76 // indirect
@@ -67,6 +68,7 @@ require (
 	golang.org/x/perf v0.0.0-20190124201629-844a5f5b46f4 // indirect
 	golang.org/x/sys v0.0.0-20190303192550-c2f5717e611c // indirect
 	golang.org/x/tools v0.0.0-20190228203856-589c23e65e65 // indirect
+	google.golang.org/api v0.1.0
 	google.golang.org/genproto v0.0.0-20190227213309-4f5b463f9597
 	google.golang.org/grpc v1.19.0
 	honnef.co/go/tools v0.0.0-20190215041234-466a0476246c // indirect

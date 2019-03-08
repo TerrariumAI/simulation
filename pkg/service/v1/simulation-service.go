@@ -8,37 +8,44 @@ import (
 	"math/rand"
 
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+
+	firebase "firebase.google.com/go"
 
 	v1 "github.com/olamai/simulation/pkg/api/v1"
 )
 
 const (
 	// apiVersion is version of API is provided by server
-	apiVersion               = "v1"
-	AGENT_LIVING_ENERGY_COST = 2
+	apiVersion            = "v1"
+	agentLivingEnergyCost = 2
 )
 
 // toDoServiceServer is implementation of v1.ToDoServiceServer proto interface
 type simulationServiceServer struct {
+	// Environment the server is running in
+	env string
 	// Entity storage
 	entities map[string]*Entity
 	// Map from position -> *Entity
 	posEntityMap map[Vec2]*Entity
 	// Map from spectator id -> observation channel
-	spectIdChanMap map[string]chan v1.CellUpdate
+	spectIDChanMap map[string]chan v1.CellUpdate
 	// Specators subscription to regions
 	spectRegionSubs map[Vec2][]string
+	// Firebase app
+	firebaseApp *firebase.App
 }
 
 // NewSimulationServiceServer creates ToDo service
-func NewSimulationServiceServer() v1.SimulationServiceServer {
+func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 	s := &simulationServiceServer{
+		env:             env,
 		entities:        make(map[string]*Entity),
 		posEntityMap:    make(map[Vec2]*Entity),
-		spectIdChanMap:  make(map[string]chan v1.CellUpdate),
+		spectIDChanMap:  make(map[string]chan v1.CellUpdate),
 		spectRegionSubs: make(map[Vec2][]string),
+		firebaseApp:     initializeFirebaseApp(),
 	}
 
 	// Spawn food randomly
@@ -74,30 +81,29 @@ func (s *simulationServiceServer) BroadcastCellUpdate(pos Vec2, occupant string)
 	// Get subs for this region
 	subs := s.spectRegionSubs[region]
 	// Loop over and send to channel
-	for _, spectatorId := range subs {
-		fmt.Println("Broadcasting to: " + spectatorId)
-		channel := s.spectIdChanMap[spectatorId]
+	for _, spectatorID := range subs {
+		fmt.Println("Broadcasting to: " + spectatorID)
+		channel := s.spectIDChanMap[spectatorID]
 		channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Occupant: occupant}
 	}
 }
 
 // Create new agent
 func (s *simulationServiceServer) CreateAgent(ctx context.Context, req *v1.CreateAgentRequest) (*v1.CreateAgentResponse, error) {
-	// check if the API version requested by client is supported by server
+	// Check if the API version requested by client is supported by server
 	if err := s.checkAPI(req.Api); err != nil {
 		return nil, err
 	}
-	// get the auth token from the call
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return nil, status.Errorf(codes.DataLoss, "SubscribeSpectatorToRegion(): UnaryEcho: failed to get metadata")
-	}
-	if token, ok := md["auth-token"]; ok {
-		fmt.Println("Custom header from metadata: " + token[0])
-	} else {
-		fmt.Println("No header data: " + token[0])
+
+	// Verify the auth token
+	token := verifyFirebaseIDToken(ctx, s.firebaseApp, s.env)
+	fmt.Println(token)
+	if token == nil {
+		err := errors.New("CreateAgent(): Unable to verify auth token")
+		return nil, err
 	}
 
+	// Get pos the user is trying to spawn an agent in
 	targetPos := Vec2{req.Agent.X, req.Agent.Y}
 
 	// Make sure the cell is empty
@@ -155,7 +161,7 @@ func (s *simulationServiceServer) DeleteAgent(ctx context.Context, req *v1.Delet
 	}
 
 	// Remove the entity
-	s.RemoveEntityById(agent.id)
+	s.RemoveEntityByID(agent.id)
 
 	// Return the data for the agent
 	return &v1.DeleteAgentResponse{
@@ -185,7 +191,7 @@ func (s *simulationServiceServer) ExecuteAgentAction(ctx context.Context, req *v
 	}
 	// Kill the agent if they have no health and end call
 	if agent.health <= 0 {
-		s.RemoveEntityById(agent.id)
+		s.RemoveEntityByID(agent.id)
 		return &v1.ExecuteAgentActionResponse{
 			Api:                 apiVersion,
 			IsAgentStillAlive:   false,
@@ -216,7 +222,7 @@ func (s *simulationServiceServer) ExecuteAgentAction(ctx context.Context, req *v
 	}
 
 	// Take off living expense
-	agent.energy -= AGENT_LIVING_ENERGY_COST
+	agent.energy -= agentLivingEnergyCost
 	if agent.energy < 0 {
 		agent.energy = 0
 	}
@@ -270,12 +276,12 @@ func (s *simulationServiceServer) CreateSpectator(req *v1.CreateSpectatorRequest
 
 	// Create a spectator id
 	// For now it is just the ip of the client
-	spectatorId := req.Id
-	s.AddSpectatorChannel(spectatorId)
+	spectatorID := req.Id
+	s.AddSpectatorChannel(spectatorID)
 
 	// Listen for updates and send them to the client
 	for {
-		cellUpdate := <-s.spectIdChanMap[spectatorId]
+		cellUpdate := <-s.spectIDChanMap[spectatorID]
 		if err := stream.Send(&cellUpdate); err != nil {
 			// Break the sending loop
 			break
@@ -284,7 +290,7 @@ func (s *simulationServiceServer) CreateSpectator(req *v1.CreateSpectatorRequest
 
 	// Remove the spectator and clean up
 	log.Printf("Spectator left...")
-	s.RemoveSpectatorChannel(spectatorId)
+	s.RemoveSpectatorChannel(spectatorID)
 
 	return nil
 }
@@ -304,7 +310,7 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 	// Add spectator id to subscription slice
 	s.spectRegionSubs[region] = append(s.spectRegionSubs[region], id)
 	// Get spectator channel
-	channel := s.spectIdChanMap[id]
+	channel := s.spectIDChanMap[id]
 	// Send initial world state
 	xs, ys := region.GetPositionsInRegion()
 	for _, x := range xs {

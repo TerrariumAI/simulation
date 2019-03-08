@@ -1,5 +1,6 @@
 package v1
 
+// Entity - data for entities that exist in cells
 type Entity struct {
 	id     string
 	class  string
@@ -8,13 +9,13 @@ type Entity struct {
 	health int32
 }
 
-const initial_energy = 100
-const initial_health = 100
+const initialEnergy = 100
+const initialHealth = 100
 
 // Create a new entity and add it to the simulation
 func (s *simulationServiceServer) NewEntity(class string, pos Vec2) *Entity {
 	id, _ := newUUID()
-	e := Entity{id, class, pos, initial_energy, initial_health}
+	e := Entity{id, class, pos, initialEnergy, initialHealth}
 	s.entities[id] = &e
 	s.posEntityMap[pos] = &e
 
@@ -25,7 +26,7 @@ func (s *simulationServiceServer) NewEntity(class string, pos Vec2) *Entity {
 }
 
 // Remove an entity by Id and broadcast the update
-func (s *simulationServiceServer) RemoveEntityById(id string) bool {
+func (s *simulationServiceServer) RemoveEntityByID(id string) bool {
 	// Get the entitiy
 	e, ok := s.entities[id]
 	// Return false if an entitiy by that id doesn't exist
@@ -91,7 +92,7 @@ func (s *simulationServiceServer) EntityConsume(id string, targetPos Vec2) bool 
 	// [End Checks]
 
 	// Remove food entity
-	s.RemoveEntityById(targetEntity.id)
+	s.RemoveEntityByID(targetEntity.id)
 	// Add to current entity's energy
 	e.energy += 10
 
