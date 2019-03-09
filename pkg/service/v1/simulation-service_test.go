@@ -5,11 +5,16 @@ import (
 	"reflect"
 	"testing"
 
+	"google.golang.org/grpc/metadata"
+
 	v1 "github.com/olamai/simulation/pkg/api/v1"
 )
 
 func Test_simulationServiceServer_CreateAgent(t *testing.T) {
-	ctx := context.Background()
+	ctxWithoutValidToken := context.Background()
+	md := metadata.Pairs("auth-token", "TEST-ID-TOKEN")
+	ctxWithValidToken := metadata.NewIncomingContext(context.Background(), md)
+
 	s := NewSimulationServiceServer("testing")
 
 	type args struct {
@@ -24,10 +29,10 @@ func Test_simulationServiceServer_CreateAgent(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "OK",
+			name: "Succesful Agent Creation",
 			s:    s,
 			args: args{
-				ctx: ctx,
+				ctx: ctxWithValidToken,
 				req: &v1.CreateAgentRequest{
 					Api: "v1",
 					Agent: &v1.Agent{
@@ -45,7 +50,7 @@ func Test_simulationServiceServer_CreateAgent(t *testing.T) {
 			name: "Unsupported API",
 			s:    s,
 			args: args{
-				ctx: ctx,
+				ctx: ctxWithValidToken,
 				req: &v1.CreateAgentRequest{
 					Api: "v1000",
 					Agent: &v1.Agent{
@@ -60,7 +65,7 @@ func Test_simulationServiceServer_CreateAgent(t *testing.T) {
 			name: "Agent already exists error",
 			s:    s,
 			args: args{
-				ctx: ctx,
+				ctx: ctxWithValidToken,
 				req: &v1.CreateAgentRequest{
 					Api: "v1",
 					Agent: &v1.Agent{
@@ -71,46 +76,21 @@ func Test_simulationServiceServer_CreateAgent(t *testing.T) {
 			},
 			wantErr: true,
 		},
-		// {
-		// 	name: "INSERT failed",
-		// 	s:    s,
-		// 	args: args{
-		// 		ctx: ctx,
-		// 		req: &v1.CreateRequest{
-		// 			Api: "v1",
-		// 			ToDo: &v1.ToDo{
-		// 				Title:       "title",
-		// 				Description: "description",
-		// 				Reminder:    reminder,
-		// 			},
-		// 		},
-		// 	},
-		// 	mock: func() {
-		// 		mock.ExpectExec("INSERT INTO ToDo").WithArgs("title", "description", tm).
-		// 			WillReturnError(errors.New("INSERT failed"))
-		// 	},
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name: "LastInsertId failed",
-		// 	s:    s,
-		// 	args: args{
-		// 		ctx: ctx,
-		// 		req: &v1.CreateRequest{
-		// 			Api: "v1",
-		// 			ToDo: &v1.ToDo{
-		// 				Title:       "title",
-		// 				Description: "description",
-		// 				Reminder:    reminder,
-		// 			},
-		// 		},
-		// 	},
-		// 	mock: func() {
-		// 		mock.ExpectExec("INSERT INTO ToDo").WithArgs("title", "description", tm).
-		// 			WillReturnResult(sqlmock.NewErrorResult(errors.New("LastInsertId failed")))
-		// 	},
-		// 	wantErr: true,
-		// },
+		{
+			name: "Invalid auth token",
+			s:    s,
+			args: args{
+				ctx: ctxWithoutValidToken,
+				req: &v1.CreateAgentRequest{
+					Api: "v1",
+					Agent: &v1.Agent{
+						X: 0,
+						Y: 0,
+					},
+				},
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

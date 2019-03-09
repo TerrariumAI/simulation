@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/olamai/simulation/pkg/logger"
 
@@ -34,16 +35,6 @@ func initializeFirebaseApp(env string) *firebase.App {
 }
 
 func verifyFirebaseIDToken(ctx context.Context, app *firebase.App, env string) *auth.Token {
-	// -----------------------------------
-	// TESTING FUNCTIONALITY
-	// -----------------------------------
-	//Return a testing token with fake uid
-	if env == "testing" {
-		return &auth.Token{
-			UID: "TEST_UID",
-		}
-	}
-	// -----------------------------------
 	// get the auth token from the context
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
@@ -55,6 +46,21 @@ func verifyFirebaseIDToken(ctx context.Context, app *firebase.App, env string) *
 		return nil
 	}
 	idToken := authTokenHeader[0]
+	fmt.Println("ID TOKEN FOUND: " + idToken)
+	// -----------------------------------
+	// TESTING FUNCTIONALITY
+	// -----------------------------------
+	if env == "testing" {
+		// If this is the correct testing token, return a testing token with fake uid
+		if idToken == "TEST-ID-TOKEN" {
+			return &auth.Token{
+				UID: "TEST-UID",
+			}
+		}
+		// If not, return nil
+		return nil
+	}
+	// -----------------------------------
 	// Make sure the firebase app instance exists
 	if app == nil {
 		logger.Log.Warn("Couldn't authenticate user: error initializing firebase app")
@@ -70,6 +76,7 @@ func verifyFirebaseIDToken(ctx context.Context, app *firebase.App, env string) *
 	token, err := client.VerifyIDToken(ctx, idToken)
 	if err != nil {
 		logger.Log.Warn("Error verifying ID token: %v\n", zap.String("reason", err.Error()))
+		return nil
 	}
 
 	return token
