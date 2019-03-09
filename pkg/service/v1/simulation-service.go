@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -13,6 +14,7 @@ import (
 	firebase "firebase.google.com/go"
 
 	v1 "github.com/olamai/simulation/pkg/api/v1"
+	"github.com/olamai/simulation/pkg/logger"
 )
 
 const (
@@ -314,13 +316,29 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 	s.spectRegionSubs[region] = append(s.spectRegionSubs[region], id)
 	// Get spectator channel
 	channel := s.spectIDChanMap[id]
+
+	// If the channel hasn't been created yet, try waiting a couple seconds then trying again
+	//  Try this 3 times
+	for i := 1; i < 4; i++ {
+		if channel != nil {
+			break
+		}
+		logger.Log.Warn("SubscribeSpectatorToRegion(): Spectator channel is nil, sleeping and trying again. Try #" + string(i))
+		time.Sleep(2 * time.Second)
+
+		channel = s.spectIDChanMap[id]
+	}
+	// If after the retrys it still hasn't found a channel throw an error
+	if channel == nil {
+		return nil, errors.New("SubscribeSpectatorToRegion(): Couldn't find a spectator by that id")
+	}
+
 	// Send initial world state
 	xs, ys := region.GetPositionsInRegion()
 	for _, x := range xs {
 		for _, y := range ys {
 			pos := Vec2{x, y}
 			if entity, ok := s.posEntityMap[pos]; ok {
-				fmt.Printf(entity.class)
 				channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Occupant: entity.class}
 			}
 		}
