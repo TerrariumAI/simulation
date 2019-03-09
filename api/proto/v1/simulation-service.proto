@@ -29,7 +29,7 @@ option (grpc.gateway.protoc_gen_swagger.options.openapiv2_swagger) = {
 // Taks we have to do
 message Agent {
   // Unique integer identifier of the agent
-  string id = 1;
+  int64 id = 1;
   // Position
   int32 x = 2;
   int32 y = 3;
@@ -74,15 +74,15 @@ message Region {
 message CreateAgentRequest {
   // API versioning: it is my best practice to specify version explicitly
   string api = 1;
-  // Task entity to add
+  // Agent to add
   Agent agent = 2;
 }
 // Contains data of created agent
 message CreateAgentResponse {
   // API versioning: it is my best practice to specify version explicitly
   string api = 1;
-  // ID of created task
-  string id = 2;
+  // ID of created agent
+  int64 id = 2;
 }
 
 // Request data to read agent
@@ -90,7 +90,7 @@ message GetAgentRequest {
   // API versioning: it is my best practice to specify version explicitly
   string api = 1;
   // Unique integer identifier of the agent
-  string id = 2;
+  int64 id = 2;
 }
 // Contains agent data specified in by ID request
 message GetAgentResponse {
@@ -105,7 +105,7 @@ message DeleteAgentRequest {
   // API versioning: it is my best practice to specify version explicitly
   string api = 1;
   // Unique integer identifier of the agent to delete
-  string id = 2;
+  int64 id = 2;
 }
 // Contains status of delete operation
 message DeleteAgentResponse {
@@ -113,14 +113,14 @@ message DeleteAgentResponse {
   string api = 1;
   // Contains number of entities have beed deleted
   // Equals 1 in case of successful delete
-  string deleted = 2;
+  int64 deleted = 2;
 }
 
 message ExecuteAgentActionRequest {
   // API versioning: it is my best practice to specify version explicitly
   string api = 1;
   // Id for the agent that should perform the action
-  string id = 2;
+  int64 id = 2;
   // Action id
   Action action = 3;
 }
@@ -136,7 +136,7 @@ message GetAgentObservationRequest {
   // API versioning: it is my best practice to specify version explicitly
   string api = 1;
   // Agent that should perform the action
-  string id = 2;
+  int64 id = 2;
 }
 message GetAgentObservationResponse {
   // API versioning: it is my best practice to specify version explicitly

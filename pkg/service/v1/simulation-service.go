@@ -26,7 +26,8 @@ type simulationServiceServer struct {
 	// Environment the server is running in
 	env string
 	// Entity storage
-	entities map[string]*Entity
+	nextEntityID int64
+	entities     map[int64]*Entity
 	// Map from position -> *Entity
 	posEntityMap map[Vec2]*Entity
 	// Map from spectator id -> observation channel
@@ -41,22 +42,24 @@ type simulationServiceServer struct {
 func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 	s := &simulationServiceServer{
 		env:             env,
-		entities:        make(map[string]*Entity),
+		entities:        make(map[int64]*Entity),
 		posEntityMap:    make(map[Vec2]*Entity),
 		spectIDChanMap:  make(map[string]chan v1.CellUpdate),
 		spectRegionSubs: make(map[Vec2][]string),
-		firebaseApp:     initializeFirebaseApp(),
+		firebaseApp:     initializeFirebaseApp(env),
 	}
 
-	// Spawn food randomly
-	for i := 0; i < 100; i++ {
-		x := int32(rand.Intn(50) - 25)
-		y := int32(rand.Intn(50) - 25)
-		// Don't put anything at 0,0
-		if x == 0 || y == 0 {
-			continue
+	if env != "testing" {
+		// Spawn food randomly
+		for i := 0; i < 100; i++ {
+			x := int32(rand.Intn(50) - 25)
+			y := int32(rand.Intn(50) - 25)
+			// Don't put anything at 0,0
+			if x == 0 || y == 0 {
+				continue
+			}
+			s.NewEntity("FOOD", Vec2{x, y})
 		}
-		s.NewEntity("FOOD", Vec2{x, y})
 	}
 
 	return s

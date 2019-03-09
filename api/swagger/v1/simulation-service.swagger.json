@@ -76,7 +76,8 @@
             "description": "Unique integer identifier of the agent to delete",
             "in": "path",
             "required": true,
-            "type": "string"
+            "type": "string",
+            "format": "int64"
           },
           {
             "name": "api",
@@ -113,7 +114,8 @@
             "description": "Id for the agent that should perform the action",
             "in": "path",
             "required": true,
-            "type": "string"
+            "type": "string",
+            "format": "int64"
           },
           {
             "name": "body",
@@ -153,7 +155,8 @@
             "description": "Agent that should perform the action",
             "in": "path",
             "required": true,
-            "type": "string"
+            "type": "string",
+            "format": "int64"
           },
           {
             "name": "api",
@@ -307,6 +310,7 @@
       "properties": {
         "id": {
           "type": "string",
+          "format": "int64",
           "title": "Unique integer identifier of the agent"
         },
         "x": {
@@ -348,7 +352,7 @@
         },
         "agent": {
           "$ref": "#/definitions/v1Agent",
-          "title": "Task entity to add"
+          "title": "Agent to add"
         }
       },
       "title": "Request data to create new agent"
@@ -362,7 +366,8 @@
         },
         "id": {
           "type": "string",
-          "title": "ID of created task"
+          "format": "int64",
+          "title": "ID of created agent"
         }
       },
       "title": "Contains data of created agent"
@@ -376,6 +381,7 @@
         },
         "deleted": {
           "type": "string",
+          "format": "int64",
           "title": "Contains number of entities have beed deleted\nEquals 1 in case of successful delete"
         }
       },
@@ -390,6 +396,7 @@
         },
         "id": {
           "type": "string",
+          "format": "int64",
           "title": "Id for the agent that should perform the action"
         },
         "action": {

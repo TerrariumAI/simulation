@@ -14,7 +14,15 @@ import (
 )
 
 // Initialize a new firebase app instance
-func initializeFirebaseApp() *firebase.App {
+func initializeFirebaseApp(env string) *firebase.App {
+	// -----------------------------------
+	// TESTING FUNCTIONALITY
+	// -----------------------------------
+	//Return a testing token with fake uid
+	if env == "testing" {
+		return nil
+	}
+	// -----------------------------------
 	// Initialize firebase app
 	opt := option.WithCredentialsFile("./serviceAccountKey.json")
 	app, err := firebase.NewApp(context.Background(), nil, opt)
@@ -26,15 +34,16 @@ func initializeFirebaseApp() *firebase.App {
 }
 
 func verifyFirebaseIDToken(ctx context.Context, app *firebase.App, env string) *auth.Token {
-	// DEV TESTING
+	// -----------------------------------
+	// TESTING FUNCTIONALITY
 	// -----------------------------------
 	//Return a testing token with fake uid
-	if env == "dev" {
+	if env == "testing" {
 		return &auth.Token{
 			UID: "TEST_UID",
 		}
 	}
-	// -------------------------------------
+	// -----------------------------------
 	// get the auth token from the context
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {

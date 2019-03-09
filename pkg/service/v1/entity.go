@@ -2,7 +2,7 @@ package v1
 
 // Entity - data for entities that exist in cells
 type Entity struct {
-	id     string
+	id     int64
 	class  string
 	pos    Vec2
 	energy int32
@@ -14,7 +14,8 @@ const initialHealth = 100
 
 // Create a new entity and add it to the simulation
 func (s *simulationServiceServer) NewEntity(class string, pos Vec2) *Entity {
-	id, _ := newUUID()
+	id := s.nextEntityID
+	s.nextEntityID++
 	e := Entity{id, class, pos, initialEnergy, initialHealth}
 	s.entities[id] = &e
 	s.posEntityMap[pos] = &e
@@ -26,7 +27,7 @@ func (s *simulationServiceServer) NewEntity(class string, pos Vec2) *Entity {
 }
 
 // Remove an entity by Id and broadcast the update
-func (s *simulationServiceServer) RemoveEntityByID(id string) bool {
+func (s *simulationServiceServer) RemoveEntityByID(id int64) bool {
 	// Get the entitiy
 	e, ok := s.entities[id]
 	// Return false if an entitiy by that id doesn't exist
@@ -43,7 +44,7 @@ func (s *simulationServiceServer) RemoveEntityByID(id string) bool {
 }
 
 // Move an entity
-func (s *simulationServiceServer) EntityMove(id string, targetPos Vec2) bool {
+func (s *simulationServiceServer) EntityMove(id int64, targetPos Vec2) bool {
 	e, ok := s.entities[id]
 
 	// [Start Checks]
@@ -72,7 +73,7 @@ func (s *simulationServiceServer) EntityMove(id string, targetPos Vec2) bool {
 }
 
 // Entity consume another cell's coccupant
-func (s *simulationServiceServer) EntityConsume(id string, targetPos Vec2) bool {
+func (s *simulationServiceServer) EntityConsume(id int64, targetPos Vec2) bool {
 	e, ok := s.entities[id]
 
 	// [Start Checks]
