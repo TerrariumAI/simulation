@@ -80,16 +80,24 @@ func (s *simulationServiceServer) checkAPI(api string) error {
 }
 
 // Broadcast a cell update
-func (s *simulationServiceServer) BroadcastCellUpdate(pos Vec2, occupant string) {
+func (s *simulationServiceServer) BroadcastCellUpdate(pos Vec2, entity *Entity) {
 	// Get region for this position
 	region := pos.GetRegion()
 	// Get subs for this region
 	subs := s.spectRegionSubs[region]
 	// Loop over and send to channel
 	for _, spectatorID := range subs {
-		fmt.Println("Broadcasting to: " + spectatorID)
 		channel := s.spectIDChanMap[spectatorID]
-		channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Occupant: occupant}
+		if entity == nil {
+			channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Entity: nil}
+		} else {
+			channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Entity: &v1.Entity{
+				Id: entity.id,
+				X:  entity.pos.x,
+				Y:  entity.pos.y,
+				Class: entity.class,
+			}}
+		}
 	}
 }
 
@@ -126,27 +134,27 @@ func (s *simulationServiceServer) CreateAgent(ctx context.Context, req *v1.Creat
 	}, nil
 }
 
-// Get data for an agent
-func (s *simulationServiceServer) GetAgent(ctx context.Context, req *v1.GetAgentRequest) (*v1.GetAgentResponse, error) {
+// Get data for an entity
+func (s *simulationServiceServer) GetEntity(ctx context.Context, req *v1.GetEntityRequest) (*v1.GetEntityResponse, error) {
 	// check if the API version requested by client is supported by server
 	if err := s.checkAPI(req.Api); err != nil {
 		return nil, err
 	}
-	// Get the agent from the map
-	agent, ok := s.entities[req.Id]
+	// Get the entity from the map
+	entity, ok := s.entities[req.Id]
 	// Throw an error if an agent by that id doesn't exist
 	if !ok {
-		err := errors.New("GetAgent(): Agent Not Found")
+		err := errors.New("GetEntity(): Entity Not Found")
 		return nil, err
 	}
 
 	// Return the data for the agent
-	return &v1.GetAgentResponse{
+	return &v1.GetEntityResponse{
 		Api: apiVersion,
-		Agent: &v1.Agent{
-			Id: agent.id,
-			X:  agent.pos.x,
-			Y:  agent.pos.y,
+		Entity: &v1.Entity{
+			Id: entity.id,
+			X:  entity.pos.x,
+			Y:  entity.pos.y,
 		},
 	}, nil
 }
@@ -157,6 +165,14 @@ func (s *simulationServiceServer) DeleteAgent(ctx context.Context, req *v1.Delet
 	if err := s.checkAPI(req.Api); err != nil {
 		return nil, err
 	}
+	// Verify the auth token
+	token := verifyFirebaseIDToken(ctx, s.firebaseApp, s.env)
+	fmt.Println(token)
+	if token == nil {
+		err := errors.New("CreateAgent(): Unable to verify auth token")
+		return nil, err
+	}
+
 	// Get the agent
 	agent, ok := s.entities[req.Id]
 	// Throw an error if an agent by that id doesn't exist
@@ -171,7 +187,7 @@ func (s *simulationServiceServer) DeleteAgent(ctx context.Context, req *v1.Delet
 	// Return the data for the agent
 	return &v1.DeleteAgentResponse{
 		Api:     apiVersion,
-		Deleted: req.Id,
+		Deleted: 1,
 	}, nil
 }
 
@@ -339,7 +355,12 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 		for _, y := range ys {
 			pos := Vec2{x, y}
 			if entity, ok := s.posEntityMap[pos]; ok {
-				channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Occupant: entity.class}
+				channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Entity: &v1.Entity{
+					Id: entity.id,
+					X:  entity.pos.x,
+					Y:  entity.pos.y,
+					Class: entity.class
+				}}
 			}
 		}
 	}

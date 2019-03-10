@@ -46,11 +46,11 @@ func request_SimulationService_CreateAgent_0(ctx context.Context, marshaler runt
 }
 
 var (
-	filter_SimulationService_GetAgent_0 = &utilities.DoubleArray{Encoding: map[string]int{"id": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+	filter_SimulationService_GetEntity_0 = &utilities.DoubleArray{Encoding: map[string]int{"id": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
 )
 
-func request_SimulationService_GetAgent_0(ctx context.Context, marshaler runtime.Marshaler, client SimulationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq GetAgentRequest
+func request_SimulationService_GetEntity_0(ctx context.Context, marshaler runtime.Marshaler, client SimulationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetEntityRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -71,11 +71,11 @@ func request_SimulationService_GetAgent_0(ctx context.Context, marshaler runtime
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id", err)
 	}
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_SimulationService_GetAgent_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_SimulationService_GetEntity_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := client.GetAgent(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.GetEntity(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
@@ -303,7 +303,7 @@ func RegisterSimulationServiceHandlerClient(ctx context.Context, mux *runtime.Se
 
 	})
 
-	mux.Handle("GET", pattern_SimulationService_GetAgent_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_SimulationService_GetEntity_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -312,14 +312,14 @@ func RegisterSimulationServiceHandlerClient(ctx context.Context, mux *runtime.Se
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_SimulationService_GetAgent_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_SimulationService_GetEntity_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_SimulationService_GetAgent_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_SimulationService_GetEntity_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -429,7 +429,7 @@ func RegisterSimulationServiceHandlerClient(ctx context.Context, mux *runtime.Se
 var (
 	pattern_SimulationService_CreateAgent_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "agent"}, ""))
 
-	pattern_SimulationService_GetAgent_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1", "agent", "id"}, ""))
+	pattern_SimulationService_GetEntity_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1", "entity", "id"}, ""))
 
 	pattern_SimulationService_DeleteAgent_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1", "agent", "id"}, ""))
 
@@ -445,7 +445,7 @@ var (
 var (
 	forward_SimulationService_CreateAgent_0 = runtime.ForwardResponseMessage
 
-	forward_SimulationService_GetAgent_0 = runtime.ForwardResponseMessage
+	forward_SimulationService_GetEntity_0 = runtime.ForwardResponseMessage
 
 	forward_SimulationService_DeleteAgent_0 = runtime.ForwardResponseMessage
 

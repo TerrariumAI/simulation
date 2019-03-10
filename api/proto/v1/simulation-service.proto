@@ -27,12 +27,14 @@ option (grpc.gateway.protoc_gen_swagger.options.openapiv2_swagger) = {
 };
 
 // Taks we have to do
-message Agent {
+message Entity {
   // Unique integer identifier of the agent
   int64 id = 1;
   // Position
   int32 x = 2;
   int32 y = 3;
+  // Entity class
+  string class = 4;
 }
 
 message Action {
@@ -58,7 +60,7 @@ message CellUpdate {
   int32 x = 1;
   int32 y = 2;
   // The entity occupying a cell
-  string occupant = 3;
+  Entity entity = 3;
 }
 
 message Region {
@@ -69,13 +71,12 @@ message Region {
 // ----------------------
 // -- Agent
 // ----------------------
-
 // Request data to create new agent
 message CreateAgentRequest {
   // API versioning: it is my best practice to specify version explicitly
   string api = 1;
   // Agent to add
-  Agent agent = 2;
+  Entity agent = 2;
 }
 // Contains data of created agent
 message CreateAgentResponse {
@@ -83,21 +84,6 @@ message CreateAgentResponse {
   string api = 1;
   // ID of created agent
   int64 id = 2;
-}
-
-// Request data to read agent
-message GetAgentRequest {
-  // API versioning: it is my best practice to specify version explicitly
-  string api = 1;
-  // Unique integer identifier of the agent
-  int64 id = 2;
-}
-// Contains agent data specified in by ID request
-message GetAgentResponse {
-  // API versioning: it is my best practice to specify version explicitly
-  string api = 1;
-  // Task entity read by ID
-  Agent agent = 2;
 }
 
 // Request data to delete agent
@@ -144,6 +130,25 @@ message GetAgentObservationResponse {
   // Was the agent able to perform the action
   Observation observation = 2;
 }
+
+// ----------------------
+// -- Generic Entity
+// ----------------------
+// Request data to read entity
+message GetEntityRequest {
+  // API versioning: it is my best practice to specify version explicitly
+  string api = 1;
+  // Unique integer identifier of the agent
+  int64 id = 2;
+}
+// Contains entity data specified in by ID request
+message GetEntityResponse {
+  // API versioning: it is my best practice to specify version explicitly
+  string api = 1;
+  // Task entity read by ID
+  Entity entity = 2;
+}
+
 // ----------------------
 // -- Spectate
 // ----------------------
@@ -179,10 +184,10 @@ service SimulationService {
     };
   }
 
-  // Get data for an agent
-  rpc GetAgent(GetAgentRequest) returns (GetAgentResponse) {
+  // Get data for an entity
+  rpc GetEntity(GetEntityRequest) returns (GetEntityResponse) {
     option (google.api.http) = {
-      get : "/v1/agent/{id}"
+      get : "/v1/entity/{id}"
     };
   }
 

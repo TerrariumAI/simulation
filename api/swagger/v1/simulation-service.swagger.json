@@ -171,6 +171,46 @@
         ]
       }
     },
+    "/v1/entity/{id}": {
+      "get": {
+        "summary": "Get data for an entity",
+        "operationId": "GetEntity",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetEntityResponse"
+            }
+          },
+          "404": {
+            "description": "Returned when the resource does not exist.",
+            "schema": {
+              "format": "string"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "Unique integer identifier of the agent",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "api",
+            "description": "API versioning: it is my best practice to specify version explicitly.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "SimulationService"
+        ]
+      }
+    },
     "/v1/spectator": {
       "get": {
         "summary": "Create a new spectator stream",
@@ -305,26 +345,6 @@
         }
       }
     },
-    "v1Agent": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string",
-          "format": "int64",
-          "title": "Unique integer identifier of the agent"
-        },
-        "x": {
-          "type": "integer",
-          "format": "int32",
-          "title": "Position"
-        },
-        "y": {
-          "type": "integer",
-          "format": "int32"
-        }
-      },
-      "title": "Taks we have to do"
-    },
     "v1CellUpdate": {
       "type": "object",
       "properties": {
@@ -337,8 +357,8 @@
           "type": "integer",
           "format": "int32"
         },
-        "occupant": {
-          "type": "string",
+        "entity": {
+          "$ref": "#/definitions/v1Entity",
           "title": "The entity occupying a cell"
         }
       }
@@ -351,11 +371,11 @@
           "title": "API versioning: it is my best practice to specify version explicitly"
         },
         "agent": {
-          "$ref": "#/definitions/v1Agent",
+          "$ref": "#/definitions/v1Entity",
           "title": "Agent to add"
         }
       },
-      "title": "Request data to create new agent"
+      "title": "----------------------\n-- Agent\n----------------------\nRequest data to create new agent"
     },
     "v1CreateAgentResponse": {
       "type": "object",
@@ -386,6 +406,30 @@
         }
       },
       "title": "Contains status of delete operation"
+    },
+    "v1Entity": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "int64",
+          "title": "Unique integer identifier of the agent"
+        },
+        "x": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Position"
+        },
+        "y": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "class": {
+          "type": "string",
+          "title": "Entity class"
+        }
+      },
+      "title": "Taks we have to do"
     },
     "v1ExecuteAgentActionRequest": {
       "type": "object",
@@ -436,19 +480,19 @@
         }
       }
     },
-    "v1GetAgentResponse": {
+    "v1GetEntityResponse": {
       "type": "object",
       "properties": {
         "api": {
           "type": "string",
           "title": "API versioning: it is my best practice to specify version explicitly"
         },
-        "agent": {
-          "$ref": "#/definitions/v1Agent",
+        "entity": {
+          "$ref": "#/definitions/v1Entity",
           "title": "Task entity read by ID"
         }
       },
-      "title": "Contains agent data specified in by ID request"
+      "title": "Contains entity data specified in by ID request"
     },
     "v1Observation": {
       "type": "object",
