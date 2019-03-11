@@ -92,9 +92,9 @@ func (s *simulationServiceServer) BroadcastCellUpdate(pos Vec2, entity *Entity) 
 			channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Entity: nil}
 		} else {
 			channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Entity: &v1.Entity{
-				Id: entity.id,
-				X:  entity.pos.x,
-				Y:  entity.pos.y,
+				Id:    entity.id,
+				X:     entity.pos.x,
+				Y:     entity.pos.y,
 				Class: entity.class,
 			}}
 		}
@@ -356,10 +356,10 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 			pos := Vec2{x, y}
 			if entity, ok := s.posEntityMap[pos]; ok {
 				channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Entity: &v1.Entity{
-					Id: entity.id,
-					X:  entity.pos.x,
-					Y:  entity.pos.y,
-					Class: entity.class
+					Id:    entity.id,
+					X:     entity.pos.x,
+					Y:     entity.pos.y,
+					Class: entity.class,
 				}}
 			}
 		}

@@ -8,6 +8,8 @@ go-build: ## build the server executable (for linux/docker use only)
 
 run: ## run the server locally
 	go run ./cmd/server/main.go -grpc-port=9090 -http-port=8080 -log-level=-1 -env=prod
+run-testing: ## run the server locally
+	go run ./cmd/server/main.go -grpc-port=9090 -http-port=8080 -log-level=-1 -env=testing
 
 check-version-env-var:
 ifndef VERSION
