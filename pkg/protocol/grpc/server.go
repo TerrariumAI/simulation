@@ -37,7 +37,8 @@ func RunServer(ctx context.Context, v1API v1.SimulationServiceServer, port strin
 			// sig is a ^C, handle it
 			logger.Log.Warn("shutting down gRPC server...")
 
-			server.GracefulStop()
+			// Not graceful stop because Spectate RPCs will never complete
+			server.Stop()
 
 			logger.Log.Warn("grpc server shut down!")
 

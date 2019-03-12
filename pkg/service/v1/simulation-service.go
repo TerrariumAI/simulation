@@ -3,9 +3,9 @@ package v1
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"math/rand"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -38,6 +38,8 @@ type simulationServiceServer struct {
 	spectRegionSubs map[Vec2][]string
 	// Firebase app
 	firebaseApp *firebase.App
+	// Mutex to ensure data safety
+	m sync.Mutex
 }
 
 // NewSimulationServiceServer creates ToDo service
@@ -51,18 +53,18 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 		firebaseApp:     initializeFirebaseApp(env),
 	}
 
-	// if env != "testing" {
-	// Spawn food randomly
-	for i := 0; i < 100; i++ {
-		x := int32(rand.Intn(50) - 25)
-		y := int32(rand.Intn(50) - 25)
-		// Don't put anything at 0,0
-		if x == 0 || y == 0 {
-			continue
+	if env != "testing" {
+		// Spawn food randomly
+		for i := 0; i < 100; i++ {
+			x := int32(rand.Intn(50) - 25)
+			y := int32(rand.Intn(50) - 25)
+			// Don't put anything at 0,0
+			if x == 0 || y == 0 {
+				continue
+			}
+			s.newEntity("FOOD", Vec2{x, y})
 		}
-		s.NewEntity("FOOD", Vec2{x, y})
 	}
-	// }
 
 	return s
 }
@@ -79,30 +81,11 @@ func (s *simulationServiceServer) checkAPI(api string) error {
 	return nil
 }
 
-// Broadcast a cell update
-func (s *simulationServiceServer) BroadcastCellUpdate(pos Vec2, entity *Entity, action string) {
-	// Get region for this position
-	region := pos.GetRegion()
-	// Get subs for this region
-	subs := s.spectRegionSubs[region]
-	// Loop over and send to channel
-	for _, spectatorID := range subs {
-		channel := s.spectIDChanMap[spectatorID]
-		if entity == nil {
-			channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Entity: nil, Action: action}
-		} else {
-			channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Entity: &v1.Entity{
-				Id:    entity.id,
-				X:     entity.pos.x,
-				Y:     entity.pos.y,
-				Class: entity.class,
-			}, Action: action}
-		}
-	}
-}
-
 // Create new agent
 func (s *simulationServiceServer) CreateAgent(ctx context.Context, req *v1.CreateAgentRequest) (*v1.CreateAgentResponse, error) {
+	// Lock the data, defer unlock until end of call
+	s.m.Lock()
+	defer s.m.Unlock()
 	// Check if the API version requested by client is supported by server
 	if err := s.checkAPI(req.Api); err != nil {
 		return nil, err
@@ -110,7 +93,6 @@ func (s *simulationServiceServer) CreateAgent(ctx context.Context, req *v1.Creat
 
 	// Verify the auth token
 	token := verifyFirebaseIDToken(ctx, s.firebaseApp, s.env)
-	fmt.Println(token)
 	if token == nil {
 		err := errors.New("CreateAgent(): Unable to verify auth token")
 		return nil, err
@@ -120,13 +102,13 @@ func (s *simulationServiceServer) CreateAgent(ctx context.Context, req *v1.Creat
 	targetPos := Vec2{req.Agent.X, req.Agent.Y}
 
 	// Make sure the cell is empty
-	if _, ok := s.posEntityMap[targetPos]; ok {
+	if s.isCellOccupied(targetPos) {
 		err := errors.New("CreateAgent(): Cell is already occupied")
 		return nil, err
 	}
 
 	// Create a new agent (which is an entity)
-	agent := s.NewEntity("AGENT", Vec2{req.Agent.X, req.Agent.Y})
+	agent := s.newEntity("AGENT", Vec2{req.Agent.X, req.Agent.Y})
 
 	return &v1.CreateAgentResponse{
 		Api: apiVersion,
@@ -136,6 +118,9 @@ func (s *simulationServiceServer) CreateAgent(ctx context.Context, req *v1.Creat
 
 // Get data for an entity
 func (s *simulationServiceServer) GetEntity(ctx context.Context, req *v1.GetEntityRequest) (*v1.GetEntityResponse, error) {
+	// Lock the data, defer unlock until end of call
+	s.m.Lock()
+	defer s.m.Unlock()
 	// check if the API version requested by client is supported by server
 	if err := s.checkAPI(req.Api); err != nil {
 		return nil, err
@@ -161,13 +146,15 @@ func (s *simulationServiceServer) GetEntity(ctx context.Context, req *v1.GetEnti
 
 // Remove an agent
 func (s *simulationServiceServer) DeleteAgent(ctx context.Context, req *v1.DeleteAgentRequest) (*v1.DeleteAgentResponse, error) {
+	// Lock the data, defer unlock until end of call
+	s.m.Lock()
+	defer s.m.Unlock()
 	// check if the API version requested by client is supported by server
 	if err := s.checkAPI(req.Api); err != nil {
 		return nil, err
 	}
 	// Verify the auth token
 	token := verifyFirebaseIDToken(ctx, s.firebaseApp, s.env)
-	fmt.Println(token)
 	if token == nil {
 		err := errors.New("CreateAgent(): Unable to verify auth token")
 		return nil, err
@@ -182,7 +169,7 @@ func (s *simulationServiceServer) DeleteAgent(ctx context.Context, req *v1.Delet
 	}
 
 	// Remove the entity
-	s.RemoveEntityByID(agent.id)
+	s.removeEntityByID(agent.id)
 
 	// Return the data for the agent
 	return &v1.DeleteAgentResponse{
@@ -193,6 +180,10 @@ func (s *simulationServiceServer) DeleteAgent(ctx context.Context, req *v1.Delet
 
 // Execute an action for an agent
 func (s *simulationServiceServer) ExecuteAgentAction(ctx context.Context, req *v1.ExecuteAgentActionRequest) (*v1.ExecuteAgentActionResponse, error) {
+	// Lock the data, defer unlock until end of call
+	s.m.Lock()
+	defer s.m.Unlock()
+	// Get data from request
 	action := req.Action
 	var actionSuccess bool
 	// check if the API version requested by client is supported by server
@@ -212,7 +203,7 @@ func (s *simulationServiceServer) ExecuteAgentAction(ctx context.Context, req *v
 	}
 	// Kill the agent if they have no health and end call
 	if agent.health <= 0 {
-		s.RemoveEntityByID(agent.id)
+		s.removeEntityByID(agent.id)
 		return &v1.ExecuteAgentActionResponse{
 			Api:                 apiVersion,
 			IsAgentStillAlive:   false,
@@ -237,9 +228,9 @@ func (s *simulationServiceServer) ExecuteAgentAction(ctx context.Context, req *v
 	// Perform the action
 	switch action.Id {
 	case "MOVE":
-		actionSuccess = s.EntityMove(agent.id, targetPos)
+		actionSuccess = s.entityMove(agent.id, targetPos)
 	case "CONSUME":
-		actionSuccess = s.EntityConsume(agent.id, targetPos)
+		actionSuccess = s.entityConsume(agent.id, targetPos)
 	}
 
 	// Take off living expense
@@ -257,11 +248,14 @@ func (s *simulationServiceServer) ExecuteAgentAction(ctx context.Context, req *v
 
 // Get an observation for an agent
 func (s *simulationServiceServer) GetAgentObservation(ctx context.Context, req *v1.GetAgentObservationRequest) (*v1.GetAgentObservationResponse, error) {
+	// Lock the data, defer unlock until end of call
+	s.m.Lock()
+	defer s.m.Unlock()
 	// Get the agent
 	e, ok := s.entities[req.Id]
 
 	if ok {
-		cells := s.GetObservationCellsForPosition(e.pos)
+		cells := s.getObservationCellsForPosition(e.pos)
 		// Agent is alive and well... maybe, at least it's alive
 		return &v1.GetAgentObservationResponse{
 			Api: apiVersion,
@@ -272,33 +266,28 @@ func (s *simulationServiceServer) GetAgentObservation(ctx context.Context, req *
 				Health: e.health,
 			},
 		}, nil
-	} else {
-		// Agent doesn't exist anymore
-		return &v1.GetAgentObservationResponse{
-			Api: apiVersion,
-			Observation: &v1.Observation{
-				Alive:  false,
-				Cells:  []string{},
-				Energy: 0,
-				Health: 0,
-			},
-		}, nil
 	}
+	// Agent doesn't exist anymore
+	return &v1.GetAgentObservationResponse{
+		Api: apiVersion,
+		Observation: &v1.Observation{
+			Alive:  false,
+			Cells:  []string{},
+			Energy: 0,
+			Health: 0,
+		},
+	}, nil
 }
 
 // Remove an agent
 func (s *simulationServiceServer) CreateSpectator(req *v1.CreateSpectatorRequest, stream v1.SimulationService_CreateSpectatorServer) error {
-	// // Get info about the client
-	// client, ok := peer.FromContext(stream.Context())
-	// if !ok {
-	// 	return errors.New("ERROR: Couldn't get info about peer")
-	// }
-	// addr := client.Addr.String()
-
-	// Create a spectator id
-	// For now it is just the ip of the client
+	// Lock the data, unlock after spectator is added
+	s.m.Lock()
+	// Get spectator ID from client in the request
 	spectatorID := req.Id
-	s.AddSpectatorChannel(spectatorID)
+	s.addSpectatorChannel(spectatorID)
+	// Unlock data
+	s.m.Unlock()
 
 	// Listen for updates and send them to the client
 	for {
@@ -310,14 +299,20 @@ func (s *simulationServiceServer) CreateSpectator(req *v1.CreateSpectatorRequest
 	}
 
 	// Remove the spectator and clean up
+	// Lock data until spectator is removed
+	s.m.Lock()
+	s.removeSpectatorChannel(spectatorID)
+	// Unlock data
+	s.m.Unlock()
 	log.Printf("Spectator left...")
-	s.RemoveSpectatorChannel(spectatorID)
 
 	return nil
 }
 
 // Get an observation for an agent
 func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context, req *v1.SubscribeSpectatorToRegionRequest) (*v1.SubscribeSpectatorToRegionResponse, error) {
+	// Lock the data while creating the spectator
+	s.m.Lock()
 	// customHeader := ctx.Value("custom-header=1")
 	id := req.Id
 	region := Vec2{req.Region.X, req.Region.Y}
@@ -332,6 +327,8 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 	s.spectRegionSubs[region] = append(s.spectRegionSubs[region], id)
 	// Get spectator channel
 	channel := s.spectIDChanMap[id]
+	// Unlock the data
+	s.m.Unlock()
 
 	// If the channel hasn't been created yet, try waiting a couple seconds then trying again
 	//  Try this 3 times
@@ -341,16 +338,23 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 		}
 		logger.Log.Warn("SubscribeSpectatorToRegion(): Spectator channel is nil, sleeping and trying again. Try #" + string(i))
 		time.Sleep(2 * time.Second)
-
+		// Lock the data when attempting to read from spect map
+		s.m.Lock()
 		channel = s.spectIDChanMap[id]
+		// Unlock the data
+		s.m.Unlock()
 	}
 	// If after the retrys it still hasn't found a channel throw an error
 	if channel == nil {
 		return nil, errors.New("SubscribeSpectatorToRegion(): Couldn't find a spectator by that id")
 	}
 
+	// Lock the data while sending the spectator the initial region data
+	s.m.Lock()
+	defer s.m.Unlock()
+
 	// Send initial world state
-	xs, ys := region.GetPositionsInRegion()
+	xs, ys := region.getPositionsInRegion()
 	for _, x := range xs {
 		for _, y := range ys {
 			pos := Vec2{x, y}
@@ -372,13 +376,15 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 }
 
 func (s *simulationServiceServer) ResetWorld(ctx context.Context, req *v1.ResetWorldRequest) (*v1.ResetWorldResponse, error) {
+	// Lock the data, defer unlock until end of call
+	s.m.Lock()
+	defer s.m.Unlock()
 	// check if the API version requested by client is supported by server
 	if err := s.checkAPI(req.Api); err != nil {
 		return nil, err
 	}
 	// Verify the auth token
 	token := verifyFirebaseIDToken(ctx, s.firebaseApp, s.env)
-	fmt.Println(token)
 	if token == nil {
 		err := errors.New("ResetWorld(): Unable to verify auth token")
 		return nil, err
@@ -394,13 +400,13 @@ func (s *simulationServiceServer) ResetWorld(ctx context.Context, req *v1.ResetW
 		if x == 0 || y == 0 {
 			continue
 		}
-		s.NewEntity("FOOD", Vec2{x, y})
+		s.newEntity("FOOD", Vec2{x, y})
 	}
 	// Broadcast the reset
-	s.BroadcastCellUpdate(Vec2{0, 0}, nil, "RESET")
+	s.broadcastCellUpdate(Vec2{0, 0}, nil, "RESET")
 	// Broadcast new cells
 	for pos, e := range s.posEntityMap {
-		s.BroadcastCellUpdate(pos, e, "")
+		s.broadcastCellUpdate(pos, e, "")
 	}
 	// Return
 	return &v1.ResetWorldResponse{}, nil

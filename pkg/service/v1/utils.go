@@ -7,16 +7,17 @@ import (
 )
 
 const (
-	REGION_SIZE = 5
+	regionSize = 10
 )
 
-// Simple struct for holding positions
+// Vec2 - Simple struct for holding positions
 type Vec2 struct {
 	x int32
 	y int32
 }
 
-func (v *Vec2) GetRegion() Vec2 {
+// GetRegion - Returns the region that a position is in
+func (v *Vec2) getRegion() Vec2 {
 	x := v.x
 	y := v.y
 	var signX int32 = 1
@@ -30,7 +31,8 @@ func (v *Vec2) GetRegion() Vec2 {
 	return Vec2{x/10 + signX, y/10 + signY}
 }
 
-func (v *Vec2) GetPositionsInRegion() ([]int32, []int32) {
+// GetPositionsInRegion - Returns all positions that are in a specfic region
+func (v *Vec2) getPositionsInRegion() ([]int32, []int32) {
 	xs := []int32{}
 	ys := []int32{}
 	var signX int32 = 1
@@ -41,10 +43,10 @@ func (v *Vec2) GetPositionsInRegion() ([]int32, []int32) {
 	if v.y < 0 {
 		signY = -1
 	}
-	startX := (v.x - signX) * REGION_SIZE
-	startY := (v.y - signY) * REGION_SIZE
-	endX := v.x * REGION_SIZE
-	endY := v.y * REGION_SIZE
+	startX := (v.x - signX) * regionSize
+	startY := (v.y - signY) * regionSize
+	endX := v.x * regionSize
+	endY := v.y * regionSize
 	if signX > 0 {
 		for x := startX; x < endX; x++ {
 			xs = append(xs, x)
@@ -86,7 +88,7 @@ func newUUID() (string, error) {
 // ---------------------
 
 // Get all observations for a specific position
-func (s *simulationServiceServer) GetObservationCellsForPosition(pos Vec2) []string {
+func (s *simulationServiceServer) getObservationCellsForPosition(pos Vec2) []string {
 	var cells []string
 	// TODO - implement this
 	for y := pos.y + 1; y >= pos.y-1; y-- {

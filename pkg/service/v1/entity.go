@@ -13,7 +13,8 @@ const initialEnergy = 100
 const initialHealth = 100
 
 // Create a new entity and add it to the simulation
-func (s *simulationServiceServer) NewEntity(class string, pos Vec2) *Entity {
+func (s *simulationServiceServer) newEntity(class string, pos Vec2) *Entity {
+	// Create the entity
 	id := s.nextEntityID
 	s.nextEntityID++
 	e := Entity{id, class, pos, initialEnergy, initialHealth}
@@ -21,13 +22,13 @@ func (s *simulationServiceServer) NewEntity(class string, pos Vec2) *Entity {
 	s.posEntityMap[pos] = &e
 
 	// Broadcast update
-	s.BroadcastCellUpdate(e.pos, &e, "")
+	s.broadcastCellUpdate(e.pos, &e, "")
 
 	return &e
 }
 
 // Remove an entity by Id and broadcast the update
-func (s *simulationServiceServer) RemoveEntityByID(id int64) bool {
+func (s *simulationServiceServer) removeEntityByID(id int64) bool {
 	// Get the entitiy
 	e, ok := s.entities[id]
 	// Return false if an entitiy by that id doesn't exist
@@ -38,13 +39,14 @@ func (s *simulationServiceServer) RemoveEntityByID(id int64) bool {
 	delete(s.entities, e.id)
 	delete(s.posEntityMap, e.pos)
 	// Broadcast update
-	s.BroadcastCellUpdate(e.pos, nil, "")
+	s.broadcastCellUpdate(e.pos, nil, "")
 
 	return true
 }
 
 // Move an entity
-func (s *simulationServiceServer) EntityMove(id int64, targetPos Vec2) bool {
+func (s *simulationServiceServer) entityMove(id int64, targetPos Vec2) bool {
+	// Get the entity by id
 	e, ok := s.entities[id]
 
 	// [Start Checks]
@@ -59,7 +61,7 @@ func (s *simulationServiceServer) EntityMove(id int64, targetPos Vec2) bool {
 	// [End Checks]
 
 	// Send to observation
-	s.BroadcastCellUpdate(e.pos, nil, "")
+	s.broadcastCellUpdate(e.pos, nil, "")
 	// Remove entity from current position
 	delete(s.posEntityMap, e.pos)
 
@@ -67,13 +69,14 @@ func (s *simulationServiceServer) EntityMove(id int64, targetPos Vec2) bool {
 	e.pos = targetPos
 	s.posEntityMap[targetPos] = e
 	// Send to observation
-	s.BroadcastCellUpdate(e.pos, e, "")
+	s.broadcastCellUpdate(e.pos, e, "")
 
 	return true
 }
 
 // Entity consume another cell's coccupant
-func (s *simulationServiceServer) EntityConsume(id int64, targetPos Vec2) bool {
+func (s *simulationServiceServer) entityConsume(id int64, targetPos Vec2) bool {
+	// Get the entity by id
 	e, ok := s.entities[id]
 
 	// [Start Checks]
@@ -85,17 +88,24 @@ func (s *simulationServiceServer) EntityConsume(id int64, targetPos Vec2) bool {
 	targetEntity, ok := s.posEntityMap[targetPos]
 	if !ok {
 		return false
-	} else {
-		if targetEntity.class != "FOOD" {
-			return false
-		}
+	}
+	// Target entity was found, make sure class is consumable
+	if targetEntity.class != "FOOD" {
+		return false
 	}
 	// [End Checks]
 
 	// Remove food entity
-	s.RemoveEntityByID(targetEntity.id)
+	s.removeEntityByID(targetEntity.id)
 	// Add to current entity's energy
 	e.energy += 10
 
 	return true
+}
+
+func (s *simulationServiceServer) isCellOccupied(pos Vec2) bool {
+	if _, ok := s.posEntityMap[pos]; ok {
+		return true
+	}
+	return false
 }

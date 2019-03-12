@@ -35,7 +35,7 @@ func Test_simulationServiceServer_CreateAgent(t *testing.T) {
 				ctx: ctxWithValidToken,
 				req: &v1.CreateAgentRequest{
 					Api: "v1",
-					Agent: &v1.Agent{
+					Agent: &v1.Entity{
 						X: 0,
 						Y: 0,
 					},
@@ -53,7 +53,7 @@ func Test_simulationServiceServer_CreateAgent(t *testing.T) {
 				ctx: ctxWithValidToken,
 				req: &v1.CreateAgentRequest{
 					Api: "v1000",
-					Agent: &v1.Agent{
+					Agent: &v1.Entity{
 						X: 0,
 						Y: 0,
 					},
@@ -68,7 +68,7 @@ func Test_simulationServiceServer_CreateAgent(t *testing.T) {
 				ctx: ctxWithValidToken,
 				req: &v1.CreateAgentRequest{
 					Api: "v1",
-					Agent: &v1.Agent{
+					Agent: &v1.Entity{
 						X: 0,
 						Y: 0,
 					},
@@ -83,7 +83,7 @@ func Test_simulationServiceServer_CreateAgent(t *testing.T) {
 				ctx: ctxWithoutValidToken,
 				req: &v1.CreateAgentRequest{
 					Api: "v1",
-					Agent: &v1.Agent{
+					Agent: &v1.Entity{
 						X: 0,
 						Y: 0,
 					},
@@ -114,7 +114,7 @@ func Test_simulationServiceServer_GetAgent(t *testing.T) {
 	s := NewSimulationServiceServer("testing")
 
 	// Create an agent to test on
-	agent := &v1.Agent{
+	agent := &v1.Entity{
 		X: 2,
 		Y: -4,
 	}
@@ -131,13 +131,13 @@ func Test_simulationServiceServer_GetAgent(t *testing.T) {
 
 	type args struct {
 		ctx context.Context
-		req *v1.GetAgentRequest
+		req *v1.GetEntityRequest
 	}
 	tests := []struct {
 		name    string
 		s       v1.SimulationServiceServer
 		args    args
-		want    *v1.GetAgentResponse
+		want    *v1.GetEntityResponse
 		wantErr bool
 	}{
 		{
@@ -145,14 +145,14 @@ func Test_simulationServiceServer_GetAgent(t *testing.T) {
 			s:    s,
 			args: args{
 				ctx: ctxWithValidToken,
-				req: &v1.GetAgentRequest{
+				req: &v1.GetEntityRequest{
 					Api: "v1",
 					Id:  agentID,
 				},
 			},
-			want: &v1.GetAgentResponse{
-				Api:   "v1",
-				Agent: agent,
+			want: &v1.GetEntityResponse{
+				Api:    "v1",
+				Entity: agent,
 			},
 		},
 		{
@@ -160,7 +160,7 @@ func Test_simulationServiceServer_GetAgent(t *testing.T) {
 			s:    s,
 			args: args{
 				ctx: ctxWithValidToken,
-				req: &v1.GetAgentRequest{
+				req: &v1.GetEntityRequest{
 					Api: "v1000",
 					Id:  agentID,
 				},
@@ -172,7 +172,7 @@ func Test_simulationServiceServer_GetAgent(t *testing.T) {
 			s:    s,
 			args: args{
 				ctx: ctxWithValidToken,
-				req: &v1.GetAgentRequest{
+				req: &v1.GetEntityRequest{
 					Api: "v1",
 					Id:  999,
 				},
@@ -184,20 +184,20 @@ func Test_simulationServiceServer_GetAgent(t *testing.T) {
 			s:    s,
 			args: args{
 				ctx: ctxWithoutValidToken,
-				req: &v1.GetAgentRequest{
+				req: &v1.GetEntityRequest{
 					Api: "v1",
 					Id:  0,
 				},
 			},
-			want: &v1.GetAgentResponse{
-				Api:   "v1",
-				Agent: agent,
+			want: &v1.GetEntityResponse{
+				Api:    "v1",
+				Entity: agent,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.s.GetAgent(tt.args.ctx, tt.args.req)
+			got, err := tt.s.GetEntity(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("simulationService.Create() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -217,7 +217,7 @@ func Test_simulationServiceServer_DeleteAgent(t *testing.T) {
 	s := NewSimulationServiceServer("testing")
 
 	// Create an agent to test on
-	agent := &v1.Agent{
+	agent := &v1.Entity{
 		X: 2,
 		Y: -4,
 	}
