@@ -311,9 +311,8 @@ func (s *simulationServiceServer) CreateSpectator(req *v1.CreateSpectatorRequest
 
 // Get an observation for an agent
 func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context, req *v1.SubscribeSpectatorToRegionRequest) (*v1.SubscribeSpectatorToRegionResponse, error) {
-	// Lock the data, defer unlock until end of call
+	// Lock the data while creating the spectator
 	s.m.Lock()
-	defer s.m.Unlock()
 	// customHeader := ctx.Value("custom-header=1")
 	id := req.Id
 	region := Vec2{req.Region.X, req.Region.Y}
@@ -328,6 +327,8 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 	s.spectRegionSubs[region] = append(s.spectRegionSubs[region], id)
 	// Get spectator channel
 	channel := s.spectIDChanMap[id]
+	// Unlock the data
+	s.m.Unlock()
 
 	// If the channel hasn't been created yet, try waiting a couple seconds then trying again
 	//  Try this 3 times
@@ -337,13 +338,20 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 		}
 		logger.Log.Warn("SubscribeSpectatorToRegion(): Spectator channel is nil, sleeping and trying again. Try #" + string(i))
 		time.Sleep(2 * time.Second)
-
+		// Lock the data when attempting to read from spect map
+		s.m.Lock()
 		channel = s.spectIDChanMap[id]
+		// Unlock the data
+		s.m.Unlock()
 	}
 	// If after the retrys it still hasn't found a channel throw an error
 	if channel == nil {
 		return nil, errors.New("SubscribeSpectatorToRegion(): Couldn't find a spectator by that id")
 	}
+
+	// Lock the data while sending the spectator the initial region data
+	s.m.Lock()
+	defer s.m.Unlock()
 
 	// Send initial world state
 	xs, ys := region.getPositionsInRegion()
