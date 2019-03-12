@@ -3,9 +3,9 @@ package v1
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"math/rand"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -38,6 +38,8 @@ type simulationServiceServer struct {
 	spectRegionSubs map[Vec2][]string
 	// Firebase app
 	firebaseApp *firebase.App
+	// Mutex to ensure data safety
+	m sync.Mutex
 }
 
 // NewSimulationServiceServer creates ToDo service
@@ -79,30 +81,11 @@ func (s *simulationServiceServer) checkAPI(api string) error {
 	return nil
 }
 
-// Broadcast a cell update
-func (s *simulationServiceServer) BroadcastCellUpdate(pos Vec2, entity *Entity, action string) {
-	// Get region for this position
-	region := pos.GetRegion()
-	// Get subs for this region
-	subs := s.spectRegionSubs[region]
-	// Loop over and send to channel
-	for _, spectatorID := range subs {
-		channel := s.spectIDChanMap[spectatorID]
-		if entity == nil {
-			channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Entity: nil, Action: action}
-		} else {
-			channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Entity: &v1.Entity{
-				Id:    entity.id,
-				X:     entity.pos.x,
-				Y:     entity.pos.y,
-				Class: entity.class,
-			}, Action: action}
-		}
-	}
-}
-
 // Create new agent
 func (s *simulationServiceServer) CreateAgent(ctx context.Context, req *v1.CreateAgentRequest) (*v1.CreateAgentResponse, error) {
+	// Lock the data, defer unlock until end of call
+	s.m.Lock()
+	defer s.m.Unlock()
 	// Check if the API version requested by client is supported by server
 	if err := s.checkAPI(req.Api); err != nil {
 		return nil, err
@@ -110,7 +93,6 @@ func (s *simulationServiceServer) CreateAgent(ctx context.Context, req *v1.Creat
 
 	// Verify the auth token
 	token := verifyFirebaseIDToken(ctx, s.firebaseApp, s.env)
-	fmt.Println(token)
 	if token == nil {
 		err := errors.New("CreateAgent(): Unable to verify auth token")
 		return nil, err
@@ -120,7 +102,7 @@ func (s *simulationServiceServer) CreateAgent(ctx context.Context, req *v1.Creat
 	targetPos := Vec2{req.Agent.X, req.Agent.Y}
 
 	// Make sure the cell is empty
-	if _, ok := s.posEntityMap[targetPos]; ok {
+	if s.isCellOccupied(targetPos) {
 		err := errors.New("CreateAgent(): Cell is already occupied")
 		return nil, err
 	}
@@ -136,6 +118,9 @@ func (s *simulationServiceServer) CreateAgent(ctx context.Context, req *v1.Creat
 
 // Get data for an entity
 func (s *simulationServiceServer) GetEntity(ctx context.Context, req *v1.GetEntityRequest) (*v1.GetEntityResponse, error) {
+	// Lock the data, defer unlock until end of call
+	s.m.Lock()
+	defer s.m.Unlock()
 	// check if the API version requested by client is supported by server
 	if err := s.checkAPI(req.Api); err != nil {
 		return nil, err
@@ -161,13 +146,15 @@ func (s *simulationServiceServer) GetEntity(ctx context.Context, req *v1.GetEnti
 
 // Remove an agent
 func (s *simulationServiceServer) DeleteAgent(ctx context.Context, req *v1.DeleteAgentRequest) (*v1.DeleteAgentResponse, error) {
+	// Lock the data, defer unlock until end of call
+	s.m.Lock()
+	defer s.m.Unlock()
 	// check if the API version requested by client is supported by server
 	if err := s.checkAPI(req.Api); err != nil {
 		return nil, err
 	}
 	// Verify the auth token
 	token := verifyFirebaseIDToken(ctx, s.firebaseApp, s.env)
-	fmt.Println(token)
 	if token == nil {
 		err := errors.New("CreateAgent(): Unable to verify auth token")
 		return nil, err
@@ -193,6 +180,10 @@ func (s *simulationServiceServer) DeleteAgent(ctx context.Context, req *v1.Delet
 
 // Execute an action for an agent
 func (s *simulationServiceServer) ExecuteAgentAction(ctx context.Context, req *v1.ExecuteAgentActionRequest) (*v1.ExecuteAgentActionResponse, error) {
+	// Lock the data, defer unlock until end of call
+	s.m.Lock()
+	defer s.m.Unlock()
+	// Get data from request
 	action := req.Action
 	var actionSuccess bool
 	// check if the API version requested by client is supported by server
@@ -257,6 +248,9 @@ func (s *simulationServiceServer) ExecuteAgentAction(ctx context.Context, req *v
 
 // Get an observation for an agent
 func (s *simulationServiceServer) GetAgentObservation(ctx context.Context, req *v1.GetAgentObservationRequest) (*v1.GetAgentObservationResponse, error) {
+	// Lock the data, defer unlock until end of call
+	s.m.Lock()
+	defer s.m.Unlock()
 	// Get the agent
 	e, ok := s.entities[req.Id]
 
@@ -288,17 +282,13 @@ func (s *simulationServiceServer) GetAgentObservation(ctx context.Context, req *
 
 // Remove an agent
 func (s *simulationServiceServer) CreateSpectator(req *v1.CreateSpectatorRequest, stream v1.SimulationService_CreateSpectatorServer) error {
-	// // Get info about the client
-	// client, ok := peer.FromContext(stream.Context())
-	// if !ok {
-	// 	return errors.New("ERROR: Couldn't get info about peer")
-	// }
-	// addr := client.Addr.String()
-
-	// Create a spectator id
-	// For now it is just the ip of the client
+	// Lock the data, unlock after spectator is added
+	s.m.Lock()
+	// Get spectator ID from client in the request
 	spectatorID := req.Id
 	s.AddSpectatorChannel(spectatorID)
+	// Unlock data
+	s.m.Unlock()
 
 	// Listen for updates and send them to the client
 	for {
@@ -310,14 +300,21 @@ func (s *simulationServiceServer) CreateSpectator(req *v1.CreateSpectatorRequest
 	}
 
 	// Remove the spectator and clean up
-	log.Printf("Spectator left...")
+	// Lock data until spectator is removed
+	s.m.Lock()
 	s.RemoveSpectatorChannel(spectatorID)
+	// Unlock data
+	s.m.Unlock()
+	log.Printf("Spectator left...")
 
 	return nil
 }
 
 // Get an observation for an agent
 func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context, req *v1.SubscribeSpectatorToRegionRequest) (*v1.SubscribeSpectatorToRegionResponse, error) {
+	// Lock the data, defer unlock until end of call
+	s.m.Lock()
+	defer s.m.Unlock()
 	// customHeader := ctx.Value("custom-header=1")
 	id := req.Id
 	region := Vec2{req.Region.X, req.Region.Y}
@@ -372,13 +369,15 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 }
 
 func (s *simulationServiceServer) ResetWorld(ctx context.Context, req *v1.ResetWorldRequest) (*v1.ResetWorldResponse, error) {
+	// Lock the data, defer unlock until end of call
+	s.m.Lock()
+	defer s.m.Unlock()
 	// check if the API version requested by client is supported by server
 	if err := s.checkAPI(req.Api); err != nil {
 		return nil, err
 	}
 	// Verify the auth token
 	token := verifyFirebaseIDToken(ctx, s.firebaseApp, s.env)
-	fmt.Println(token)
 	if token == nil {
 		err := errors.New("ResetWorld(): Unable to verify auth token")
 		return nil, err

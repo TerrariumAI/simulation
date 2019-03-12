@@ -2,7 +2,6 @@ package v1
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/olamai/simulation/pkg/logger"
 
@@ -46,7 +45,6 @@ func verifyFirebaseIDToken(ctx context.Context, app *firebase.App, env string) *
 		return nil
 	}
 	idToken := authTokenHeader[0]
-	fmt.Println("ID TOKEN FOUND: " + idToken)
 	// -----------------------------------
 	// TESTING FUNCTIONALITY
 	// -----------------------------------
@@ -57,7 +55,7 @@ func verifyFirebaseIDToken(ctx context.Context, app *firebase.App, env string) *
 				UID: "TEST-UID",
 			}
 		}
-		// If not, return nil
+		// If not correct test token, return nil
 		return nil
 	}
 	// -----------------------------------

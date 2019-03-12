@@ -14,6 +14,7 @@ const initialHealth = 100
 
 // Create a new entity and add it to the simulation
 func (s *simulationServiceServer) NewEntity(class string, pos Vec2) *Entity {
+	// Create the entity
 	id := s.nextEntityID
 	s.nextEntityID++
 	e := Entity{id, class, pos, initialEnergy, initialHealth}
@@ -45,6 +46,7 @@ func (s *simulationServiceServer) RemoveEntityByID(id int64) bool {
 
 // Move an entity
 func (s *simulationServiceServer) EntityMove(id int64, targetPos Vec2) bool {
+	// Get the entity by id
 	e, ok := s.entities[id]
 
 	// [Start Checks]
@@ -74,6 +76,7 @@ func (s *simulationServiceServer) EntityMove(id int64, targetPos Vec2) bool {
 
 // Entity consume another cell's coccupant
 func (s *simulationServiceServer) EntityConsume(id int64, targetPos Vec2) bool {
+	// Get the entity by id
 	e, ok := s.entities[id]
 
 	// [Start Checks]
@@ -98,4 +101,11 @@ func (s *simulationServiceServer) EntityConsume(id int64, targetPos Vec2) bool {
 	e.energy += 10
 
 	return true
+}
+
+func (s *simulationServiceServer) isCellOccupied(pos Vec2) bool {
+	if _, ok := s.posEntityMap[pos]; ok {
+		return true
+	}
+	return false
 }

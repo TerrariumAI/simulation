@@ -36,3 +36,25 @@ func (s *simulationServiceServer) isSpectatorAlreadySubscribedToRegion(spectator
 	}
 	return false
 }
+
+// Broadcast a cell update
+func (s *simulationServiceServer) BroadcastCellUpdate(pos Vec2, entity *Entity, action string) {
+	// Get region for this position
+	region := pos.GetRegion()
+	// Get subs for this region
+	subs := s.spectRegionSubs[region]
+	// Loop over and send to channel
+	for _, spectatorID := range subs {
+		channel := s.spectIDChanMap[spectatorID]
+		if entity == nil {
+			channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Entity: nil, Action: action}
+		} else {
+			channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Entity: &v1.Entity{
+				Id:    entity.id,
+				X:     entity.pos.x,
+				Y:     entity.pos.y,
+				Class: entity.class,
+			}, Action: action}
+		}
+	}
+}
