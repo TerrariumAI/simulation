@@ -51,18 +51,18 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 		firebaseApp:     initializeFirebaseApp(env),
 	}
 
-	// if env != "testing" {
-	// Spawn food randomly
-	for i := 0; i < 100; i++ {
-		x := int32(rand.Intn(50) - 25)
-		y := int32(rand.Intn(50) - 25)
-		// Don't put anything at 0,0
-		if x == 0 || y == 0 {
-			continue
+	if env != "testing" {
+		// Spawn food randomly
+		for i := 0; i < 100; i++ {
+			x := int32(rand.Intn(50) - 25)
+			y := int32(rand.Intn(50) - 25)
+			// Don't put anything at 0,0
+			if x == 0 || y == 0 {
+				continue
+			}
+			s.NewEntity("FOOD", Vec2{x, y})
 		}
-		s.NewEntity("FOOD", Vec2{x, y})
 	}
-	// }
 
 	return s
 }

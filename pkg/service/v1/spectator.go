@@ -25,12 +25,12 @@ func (s *simulationServiceServer) RemoveSpectatorChannel(id string) {
 }
 
 // Check if a spectator is already subbed to a region
-func (s *simulationServiceServer) isSpectatorAlreadySubscribedToRegion(spectatorId string, region Vec2) bool {
+func (s *simulationServiceServer) isSpectatorAlreadySubscribedToRegion(spectatorID string, region Vec2) bool {
 	// Get subs for this region
 	subs := s.spectRegionSubs[region]
 	// Loop over and send to channel
-	for _, _spectatorId := range subs {
-		if _spectatorId == spectatorId {
+	for _, _spectatorID := range subs {
+		if _spectatorID == spectatorID {
 			return true
 		}
 	}
