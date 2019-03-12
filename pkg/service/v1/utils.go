@@ -17,7 +17,7 @@ type Vec2 struct {
 }
 
 // GetRegion - Returns the region that a position is in
-func (v *Vec2) GetRegion() Vec2 {
+func (v *Vec2) getRegion() Vec2 {
 	x := v.x
 	y := v.y
 	var signX int32 = 1
@@ -32,7 +32,7 @@ func (v *Vec2) GetRegion() Vec2 {
 }
 
 // GetPositionsInRegion - Returns all positions that are in a specfic region
-func (v *Vec2) GetPositionsInRegion() ([]int32, []int32) {
+func (v *Vec2) getPositionsInRegion() ([]int32, []int32) {
 	xs := []int32{}
 	ys := []int32{}
 	var signX int32 = 1
@@ -88,7 +88,7 @@ func newUUID() (string, error) {
 // ---------------------
 
 // Get all observations for a specific position
-func (s *simulationServiceServer) GetObservationCellsForPosition(pos Vec2) []string {
+func (s *simulationServiceServer) getObservationCellsForPosition(pos Vec2) []string {
 	var cells []string
 	// TODO - implement this
 	for y := pos.y + 1; y >= pos.y-1; y-- {

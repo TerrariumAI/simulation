@@ -62,7 +62,7 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 			if x == 0 || y == 0 {
 				continue
 			}
-			s.NewEntity("FOOD", Vec2{x, y})
+			s.newEntity("FOOD", Vec2{x, y})
 		}
 	}
 
@@ -108,7 +108,7 @@ func (s *simulationServiceServer) CreateAgent(ctx context.Context, req *v1.Creat
 	}
 
 	// Create a new agent (which is an entity)
-	agent := s.NewEntity("AGENT", Vec2{req.Agent.X, req.Agent.Y})
+	agent := s.newEntity("AGENT", Vec2{req.Agent.X, req.Agent.Y})
 
 	return &v1.CreateAgentResponse{
 		Api: apiVersion,
@@ -169,7 +169,7 @@ func (s *simulationServiceServer) DeleteAgent(ctx context.Context, req *v1.Delet
 	}
 
 	// Remove the entity
-	s.RemoveEntityByID(agent.id)
+	s.removeEntityByID(agent.id)
 
 	// Return the data for the agent
 	return &v1.DeleteAgentResponse{
@@ -203,7 +203,7 @@ func (s *simulationServiceServer) ExecuteAgentAction(ctx context.Context, req *v
 	}
 	// Kill the agent if they have no health and end call
 	if agent.health <= 0 {
-		s.RemoveEntityByID(agent.id)
+		s.removeEntityByID(agent.id)
 		return &v1.ExecuteAgentActionResponse{
 			Api:                 apiVersion,
 			IsAgentStillAlive:   false,
@@ -228,9 +228,9 @@ func (s *simulationServiceServer) ExecuteAgentAction(ctx context.Context, req *v
 	// Perform the action
 	switch action.Id {
 	case "MOVE":
-		actionSuccess = s.EntityMove(agent.id, targetPos)
+		actionSuccess = s.entityMove(agent.id, targetPos)
 	case "CONSUME":
-		actionSuccess = s.EntityConsume(agent.id, targetPos)
+		actionSuccess = s.entityConsume(agent.id, targetPos)
 	}
 
 	// Take off living expense
@@ -255,7 +255,7 @@ func (s *simulationServiceServer) GetAgentObservation(ctx context.Context, req *
 	e, ok := s.entities[req.Id]
 
 	if ok {
-		cells := s.GetObservationCellsForPosition(e.pos)
+		cells := s.getObservationCellsForPosition(e.pos)
 		// Agent is alive and well... maybe, at least it's alive
 		return &v1.GetAgentObservationResponse{
 			Api: apiVersion,
@@ -266,18 +266,17 @@ func (s *simulationServiceServer) GetAgentObservation(ctx context.Context, req *
 				Health: e.health,
 			},
 		}, nil
-	} else {
-		// Agent doesn't exist anymore
-		return &v1.GetAgentObservationResponse{
-			Api: apiVersion,
-			Observation: &v1.Observation{
-				Alive:  false,
-				Cells:  []string{},
-				Energy: 0,
-				Health: 0,
-			},
-		}, nil
 	}
+	// Agent doesn't exist anymore
+	return &v1.GetAgentObservationResponse{
+		Api: apiVersion,
+		Observation: &v1.Observation{
+			Alive:  false,
+			Cells:  []string{},
+			Energy: 0,
+			Health: 0,
+		},
+	}, nil
 }
 
 // Remove an agent
@@ -286,7 +285,7 @@ func (s *simulationServiceServer) CreateSpectator(req *v1.CreateSpectatorRequest
 	s.m.Lock()
 	// Get spectator ID from client in the request
 	spectatorID := req.Id
-	s.AddSpectatorChannel(spectatorID)
+	s.addSpectatorChannel(spectatorID)
 	// Unlock data
 	s.m.Unlock()
 
@@ -302,7 +301,7 @@ func (s *simulationServiceServer) CreateSpectator(req *v1.CreateSpectatorRequest
 	// Remove the spectator and clean up
 	// Lock data until spectator is removed
 	s.m.Lock()
-	s.RemoveSpectatorChannel(spectatorID)
+	s.removeSpectatorChannel(spectatorID)
 	// Unlock data
 	s.m.Unlock()
 	log.Printf("Spectator left...")
@@ -347,7 +346,7 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 	}
 
 	// Send initial world state
-	xs, ys := region.GetPositionsInRegion()
+	xs, ys := region.getPositionsInRegion()
 	for _, x := range xs {
 		for _, y := range ys {
 			pos := Vec2{x, y}
@@ -393,13 +392,13 @@ func (s *simulationServiceServer) ResetWorld(ctx context.Context, req *v1.ResetW
 		if x == 0 || y == 0 {
 			continue
 		}
-		s.NewEntity("FOOD", Vec2{x, y})
+		s.newEntity("FOOD", Vec2{x, y})
 	}
 	// Broadcast the reset
-	s.BroadcastCellUpdate(Vec2{0, 0}, nil, "RESET")
+	s.broadcastCellUpdate(Vec2{0, 0}, nil, "RESET")
 	// Broadcast new cells
 	for pos, e := range s.posEntityMap {
-		s.BroadcastCellUpdate(pos, e, "")
+		s.broadcastCellUpdate(pos, e, "")
 	}
 	// Return
 	return &v1.ResetWorldResponse{}, nil

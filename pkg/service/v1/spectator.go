@@ -3,14 +3,14 @@ package v1
 import v1 "github.com/olamai/simulation/pkg/api/v1"
 
 // Add a spectator channel to the server
-func (s *simulationServiceServer) AddSpectatorChannel(id string) string {
+func (s *simulationServiceServer) addSpectatorChannel(id string) string {
 	// id := uuid.Must(uuid.NewV4()).String()
 	s.spectIDChanMap[id] = make(chan v1.CellUpdate, 100)
 	return id
 }
 
 // Remove a spectator channel from the server AND all it's subscriptions
-func (s *simulationServiceServer) RemoveSpectatorChannel(id string) {
+func (s *simulationServiceServer) removeSpectatorChannel(id string) {
 	// Loop over regions
 	for region, spectatorIDs := range s.spectRegionSubs {
 		// If the user is subscribed to this region, remove their subscription
@@ -38,9 +38,9 @@ func (s *simulationServiceServer) isSpectatorAlreadySubscribedToRegion(spectator
 }
 
 // Broadcast a cell update
-func (s *simulationServiceServer) BroadcastCellUpdate(pos Vec2, entity *Entity, action string) {
+func (s *simulationServiceServer) broadcastCellUpdate(pos Vec2, entity *Entity, action string) {
 	// Get region for this position
-	region := pos.GetRegion()
+	region := pos.getRegion()
 	// Get subs for this region
 	subs := s.spectRegionSubs[region]
 	// Loop over and send to channel
