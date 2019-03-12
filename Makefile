@@ -7,9 +7,9 @@ go-build: ## build the server executable (for linux/docker use only)
 	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/server
 
 run: ## run the server locally
-	go run ./cmd/server/main.go -grpc-port=9090 -http-port=8080 -log-level=-1  -env=prod
-run-testing: ## run the server locally
-	go run ./cmd/server/main.go -grpc-port=9090 -http-port=8080 -log-level=-1 -env=testing
+	go run ./cmd/server/main.go -grpc-port=9090 -http-port=8080 -log-level=99 -env=prod
+run-debug: ## run the server locally
+	go run -race ./cmd/server/main.go -grpc-port=9090 -http-port=8080 -log-level=-1 -env=debugging
 
 check-version-env-var:
 ifndef VERSION
