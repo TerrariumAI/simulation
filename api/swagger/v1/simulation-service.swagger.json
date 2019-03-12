@@ -211,6 +211,39 @@
         ]
       }
     },
+    "/v1/reset": {
+      "put": {
+        "summary": "Reset the world",
+        "operationId": "ResetWorld",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ResetWorldResponse"
+            }
+          },
+          "404": {
+            "description": "Returned when the resource does not exist.",
+            "schema": {
+              "format": "string"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1ResetWorldRequest"
+            }
+          }
+        ],
+        "tags": [
+          "SimulationService"
+        ]
+      }
+    },
     "/v1/spectator": {
       "get": {
         "summary": "Create a new spectator stream",
@@ -356,6 +389,10 @@
         "y": {
           "type": "integer",
           "format": "int32"
+        },
+        "action": {
+          "type": "string",
+          "title": "If we want to perform an action instead"
         },
         "entity": {
           "$ref": "#/definitions/v1Entity",
@@ -531,6 +568,17 @@
           "format": "int32"
         }
       }
+    },
+    "v1ResetWorldRequest": {
+      "type": "object",
+      "properties": {
+        "api": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ResetWorldResponse": {
+      "type": "object"
     },
     "v1SubscribeSpectatorToRegionRequest": {
       "type": "object",

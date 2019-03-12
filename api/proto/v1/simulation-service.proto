@@ -59,8 +59,10 @@ message CellUpdate {
   // Position
   int32 x = 1;
   int32 y = 2;
+  // If we want to perform an action instead
+  string action = 3;
   // The entity occupying a cell
-  Entity entity = 3;
+  Entity entity = 4;
 }
 
 message Region {
@@ -130,6 +132,11 @@ message GetAgentObservationResponse {
   // Was the agent able to perform the action
   Observation observation = 2;
 }
+
+message ResetWorldRequest {
+  string api = 1;
+}
+message ResetWorldResponse {}
 
 // ----------------------
 // -- Generic Entity
@@ -225,6 +232,14 @@ service SimulationService {
   rpc SubscribeSpectatorToRegion(SubscribeSpectatorToRegionRequest) returns (SubscribeSpectatorToRegionResponse) {
     option (google.api.http) = {
       put : "/v1/spectator/{id}/subscribeToRegion"
+      body : "*"
+    };
+  }
+
+  // Reset the world
+  rpc ResetWorld(ResetWorldRequest) returns (ResetWorldResponse) {
+    option (google.api.http) = {
+      put : "/v1/reset"
       body : "*"
     };
   }

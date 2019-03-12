@@ -39,6 +39,8 @@ func RunServer(ctx context.Context, v1API v1.SimulationServiceServer, port strin
 
 			server.GracefulStop()
 
+			logger.Log.Warn("grpc server shut down!")
+
 			<-ctx.Done()
 		}
 	}()

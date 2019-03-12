@@ -51,18 +51,18 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 		firebaseApp:     initializeFirebaseApp(env),
 	}
 
-	if env != "testing" {
-		// Spawn food randomly
-		for i := 0; i < 100; i++ {
-			x := int32(rand.Intn(50) - 25)
-			y := int32(rand.Intn(50) - 25)
-			// Don't put anything at 0,0
-			if x == 0 || y == 0 {
-				continue
-			}
-			s.NewEntity("FOOD", Vec2{x, y})
+	// if env != "testing" {
+	// Spawn food randomly
+	for i := 0; i < 100; i++ {
+		x := int32(rand.Intn(50) - 25)
+		y := int32(rand.Intn(50) - 25)
+		// Don't put anything at 0,0
+		if x == 0 || y == 0 {
+			continue
 		}
+		s.NewEntity("FOOD", Vec2{x, y})
 	}
+	// }
 
 	return s
 }
@@ -80,7 +80,7 @@ func (s *simulationServiceServer) checkAPI(api string) error {
 }
 
 // Broadcast a cell update
-func (s *simulationServiceServer) BroadcastCellUpdate(pos Vec2, entity *Entity) {
+func (s *simulationServiceServer) BroadcastCellUpdate(pos Vec2, entity *Entity, action string) {
 	// Get region for this position
 	region := pos.GetRegion()
 	// Get subs for this region
@@ -89,14 +89,14 @@ func (s *simulationServiceServer) BroadcastCellUpdate(pos Vec2, entity *Entity) 
 	for _, spectatorID := range subs {
 		channel := s.spectIDChanMap[spectatorID]
 		if entity == nil {
-			channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Entity: nil}
+			channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Entity: nil, Action: action}
 		} else {
 			channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Entity: &v1.Entity{
 				Id:    entity.id,
 				X:     entity.pos.x,
 				Y:     entity.pos.y,
 				Class: entity.class,
-			}}
+			}, Action: action}
 		}
 	}
 }
@@ -369,4 +369,39 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 		Api:        apiVersion,
 		Successful: true,
 	}, nil
+}
+
+func (s *simulationServiceServer) ResetWorld(ctx context.Context, req *v1.ResetWorldRequest) (*v1.ResetWorldResponse, error) {
+	// check if the API version requested by client is supported by server
+	if err := s.checkAPI(req.Api); err != nil {
+		return nil, err
+	}
+	// Verify the auth token
+	token := verifyFirebaseIDToken(ctx, s.firebaseApp, s.env)
+	fmt.Println(token)
+	if token == nil {
+		err := errors.New("ResetWorld(): Unable to verify auth token")
+		return nil, err
+	}
+
+	s.entities = make(map[int64]*Entity)
+	s.posEntityMap = make(map[Vec2]*Entity)
+	// Spawn food randomly
+	for i := 0; i < 100; i++ {
+		x := int32(rand.Intn(50) - 25)
+		y := int32(rand.Intn(50) - 25)
+		// Don't put anything at 0,0
+		if x == 0 || y == 0 {
+			continue
+		}
+		s.NewEntity("FOOD", Vec2{x, y})
+	}
+	// Broadcast the reset
+	s.BroadcastCellUpdate(Vec2{0, 0}, nil, "RESET")
+	// Broadcast new cells
+	for pos, e := range s.posEntityMap {
+		s.BroadcastCellUpdate(pos, e, "")
+	}
+	// Return
+	return &v1.ResetWorldResponse{}, nil
 }

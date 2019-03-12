@@ -35,7 +35,7 @@ func main() {
 	// Call Create
 	req1 := v1.CreateAgentRequest{
 		Api: apiVersion,
-		Agent: &v1.Agent{
+		Agent: &v1.Entity{
 			X: 0,
 			Y: 0,
 		},
@@ -51,17 +51,17 @@ func main() {
 	println("Id: ", id)
 
 	// Get agent
-	req2 := v1.GetAgentRequest{
+	req2 := v1.GetEntityRequest{
 		Api: apiVersion,
 		Id:  id,
 	}
-	res2, err := c.GetAgent(ctx, &req2)
+	res2, err := c.GetEntity(ctx, &req2)
 	if err != nil {
 		log.Fatalf("Read failed: %v", err)
 	}
 	log.Printf("Read result: <%+v>\n\n", res2)
-	println("Agent x: ", res2.Agent.X)
-	println("Agent y: ", res2.Agent.Y)
+	println("Agent x: ", res2.Entity.X)
+	println("Agent y: ", res2.Entity.Y)
 
 	// Update
 	req3 := v1.ExecuteAgentActionRequest{
