@@ -3,6 +3,7 @@ package v1
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 	"sync"
@@ -64,6 +65,7 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 			}
 			s.newEntity("FOOD", Vec2{x, y})
 		}
+		fmt.Println(len(s.entities))
 	}
 
 	return s
@@ -370,6 +372,7 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 						},
 					},
 				}
+				fmt.Println("Sending entity to spectator...")
 			}
 		}
 	}

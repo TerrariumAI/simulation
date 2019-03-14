@@ -28,7 +28,7 @@ func (v *Vec2) getRegion() Vec2 {
 	if y < 0 {
 		signY = -1
 	}
-	return Vec2{x/10 + signX, y/10 + signY}
+	return Vec2{x/regionSize + signX, y/regionSize + signY}
 }
 
 // GetPositionsInRegion - Returns all positions that are in a specfic region
