@@ -30,9 +30,6 @@ option (grpc.gateway.protoc_gen_swagger.options.openapiv2_swagger) = {
 message Entity {
   // Unique integer identifier of the agent
   int64 id = 1;
-  // Position
-  int32 x = 2;
-  int32 y = 3;
   // Entity class
   string class = 4;
 }
@@ -48,21 +45,29 @@ message Action {
 
 message Observation {
   // Cells around the agent
-  repeated string Cells = 1;
+  repeated string cells = 1;
   // Agent stats
-  bool Alive = 2;
-  int32 Energy = 3;
-  int32 Health = 4;
+  bool alive = 2;
+  int32 energy = 3;
+  int32 health = 4;
 }
 
 message CellUpdate {
   // Position
   int32 x = 1;
   int32 y = 2;
-  // If we want to perform an action instead
-  string action = 3;
   // The entity occupying a cell
   Entity entity = 4;
+}
+message ServerAction {
+  // action the server wants clients to take
+  string action = 1;
+}
+message SpectateResponse {
+  oneof data {
+    CellUpdate cellUpdate = 1;
+    ServerAction serverAction = 2;
+  }
 }
 
 message Region {
@@ -78,7 +83,9 @@ message CreateAgentRequest {
   // API versioning: it is my best practice to specify version explicitly
   string api = 1;
   // Agent to add
-  Entity agent = 2;
+  // Entity agent = 2;
+  int32 x = 2;
+  int32 y = 3;
 }
 // Contains data of created agent
 message CreateAgentResponse {
@@ -222,7 +229,7 @@ service SimulationService {
 
 
   // Create a new spectator stream
-  rpc CreateSpectator(CreateSpectatorRequest) returns (stream CellUpdate) {
+  rpc CreateSpectator(CreateSpectatorRequest) returns (stream SpectateResponse) {
     option (google.api.http) = {
       get : "/v1/spectator"
     };

@@ -22,7 +22,7 @@ func (s *simulationServiceServer) newEntity(class string, pos Vec2) *Entity {
 	s.posEntityMap[pos] = &e
 
 	// Broadcast update
-	s.broadcastCellUpdate(e.pos, &e, "")
+	s.broadcastCellUpdate(e.pos, &e)
 
 	return &e
 }
@@ -39,7 +39,7 @@ func (s *simulationServiceServer) removeEntityByID(id int64) bool {
 	delete(s.entities, e.id)
 	delete(s.posEntityMap, e.pos)
 	// Broadcast update
-	s.broadcastCellUpdate(e.pos, nil, "")
+	s.broadcastCellUpdate(e.pos, nil)
 
 	return true
 }
@@ -61,7 +61,7 @@ func (s *simulationServiceServer) entityMove(id int64, targetPos Vec2) bool {
 	// [End Checks]
 
 	// Send to observation
-	s.broadcastCellUpdate(e.pos, nil, "")
+	s.broadcastCellUpdate(e.pos, nil)
 	// Remove entity from current position
 	delete(s.posEntityMap, e.pos)
 
@@ -69,7 +69,7 @@ func (s *simulationServiceServer) entityMove(id int64, targetPos Vec2) bool {
 	e.pos = targetPos
 	s.posEntityMap[targetPos] = e
 	// Send to observation
-	s.broadcastCellUpdate(e.pos, e, "")
+	s.broadcastCellUpdate(e.pos, e)
 
 	return true
 }

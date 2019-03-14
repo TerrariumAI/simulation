@@ -5,7 +5,7 @@ import v1 "github.com/olamai/simulation/pkg/api/v1"
 // Add a spectator channel to the server
 func (s *simulationServiceServer) addSpectatorChannel(id string) string {
 	// id := uuid.Must(uuid.NewV4()).String()
-	s.spectIDChanMap[id] = make(chan v1.CellUpdate, 100)
+	s.spectIDChanMap[id] = make(chan v1.SpectateResponse, 100)
 	return id
 }
 
@@ -37,8 +37,20 @@ func (s *simulationServiceServer) isSpectatorAlreadySubscribedToRegion(spectator
 	return false
 }
 
+func (s *simulationServiceServer) broadcastServerAction(action string) {
+	for _, channel := range s.spectIDChanMap {
+		channel <- v1.SpectateResponse{
+			Data: &v1.SpectateResponse_ServerAction{
+				&v1.ServerAction{
+					Action: action,
+				},
+			},
+		}
+	}
+}
+
 // Broadcast a cell update
-func (s *simulationServiceServer) broadcastCellUpdate(pos Vec2, entity *Entity, action string) {
+func (s *simulationServiceServer) broadcastCellUpdate(pos Vec2, entity *Entity) {
 	// Get region for this position
 	region := pos.getRegion()
 	// Get subs for this region
@@ -47,14 +59,28 @@ func (s *simulationServiceServer) broadcastCellUpdate(pos Vec2, entity *Entity, 
 	for _, spectatorID := range subs {
 		channel := s.spectIDChanMap[spectatorID]
 		if entity == nil {
-			channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Entity: nil, Action: action}
+			channel <- v1.SpectateResponse{
+				Data: &v1.SpectateResponse_CellUpdate{
+					&v1.CellUpdate{
+						X:      pos.x,
+						Y:      pos.y,
+						Entity: nil,
+					},
+				},
+			}
 		} else {
-			channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Entity: &v1.Entity{
-				Id:    entity.id,
-				X:     entity.pos.x,
-				Y:     entity.pos.y,
-				Class: entity.class,
-			}, Action: action}
+			channel <- v1.SpectateResponse{
+				Data: &v1.SpectateResponse_CellUpdate{
+					&v1.CellUpdate{
+						X: pos.x,
+						Y: pos.y,
+						Entity: &v1.Entity{
+							Id:    entity.id,
+							Class: entity.class,
+						},
+					},
+				},
+			}
 		}
 	}
 }

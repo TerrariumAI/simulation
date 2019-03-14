@@ -33,7 +33,7 @@ type simulationServiceServer struct {
 	// Map from position -> *Entity
 	posEntityMap map[Vec2]*Entity
 	// Map from spectator id -> observation channel
-	spectIDChanMap map[string]chan v1.CellUpdate
+	spectIDChanMap map[string]chan v1.SpectateResponse
 	// Specators subscription to regions
 	spectRegionSubs map[Vec2][]string
 	// Firebase app
@@ -48,7 +48,7 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 		env:             env,
 		entities:        make(map[int64]*Entity),
 		posEntityMap:    make(map[Vec2]*Entity),
-		spectIDChanMap:  make(map[string]chan v1.CellUpdate),
+		spectIDChanMap:  make(map[string]chan v1.SpectateResponse),
 		spectRegionSubs: make(map[Vec2][]string),
 		firebaseApp:     initializeFirebaseApp(env),
 	}
@@ -99,7 +99,7 @@ func (s *simulationServiceServer) CreateAgent(ctx context.Context, req *v1.Creat
 	}
 
 	// Get pos the user is trying to spawn an agent in
-	targetPos := Vec2{req.Agent.X, req.Agent.Y}
+	targetPos := Vec2{req.X, req.Y}
 
 	// Make sure the cell is empty
 	if s.isCellOccupied(targetPos) {
@@ -108,7 +108,7 @@ func (s *simulationServiceServer) CreateAgent(ctx context.Context, req *v1.Creat
 	}
 
 	// Create a new agent (which is an entity)
-	agent := s.newEntity("AGENT", Vec2{req.Agent.X, req.Agent.Y})
+	agent := s.newEntity("AGENT", Vec2{req.X, req.Y})
 
 	return &v1.CreateAgentResponse{
 		Api: apiVersion,
@@ -137,9 +137,8 @@ func (s *simulationServiceServer) GetEntity(ctx context.Context, req *v1.GetEnti
 	return &v1.GetEntityResponse{
 		Api: apiVersion,
 		Entity: &v1.Entity{
-			Id: entity.id,
-			X:  entity.pos.x,
-			Y:  entity.pos.y,
+			Id:    entity.id,
+			Class: entity.class,
 		},
 	}, nil
 }
@@ -291,8 +290,8 @@ func (s *simulationServiceServer) CreateSpectator(req *v1.CreateSpectatorRequest
 
 	// Listen for updates and send them to the client
 	for {
-		cellUpdate := <-s.spectIDChanMap[spectatorID]
-		if err := stream.Send(&cellUpdate); err != nil {
+		response := <-s.spectIDChanMap[spectatorID]
+		if err := stream.Send(&response); err != nil {
 			// Break the sending loop
 			break
 		}
@@ -359,12 +358,18 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 		for _, y := range ys {
 			pos := Vec2{x, y}
 			if entity, ok := s.posEntityMap[pos]; ok {
-				channel <- v1.CellUpdate{X: pos.x, Y: pos.y, Entity: &v1.Entity{
-					Id:    entity.id,
-					X:     entity.pos.x,
-					Y:     entity.pos.y,
-					Class: entity.class,
-				}}
+				channel <- v1.SpectateResponse{
+					Data: &v1.SpectateResponse_CellUpdate{
+						&v1.CellUpdate{
+							X: pos.x,
+							Y: pos.y,
+							Entity: &v1.Entity{
+								Id:    entity.id,
+								Class: entity.class,
+							},
+						},
+					},
+				}
 			}
 		}
 	}
@@ -403,10 +408,10 @@ func (s *simulationServiceServer) ResetWorld(ctx context.Context, req *v1.ResetW
 		s.newEntity("FOOD", Vec2{x, y})
 	}
 	// Broadcast the reset
-	s.broadcastCellUpdate(Vec2{0, 0}, nil, "RESET")
+	s.broadcastServerAction("RESET")
 	// Broadcast new cells
 	for pos, e := range s.posEntityMap {
-		s.broadcastCellUpdate(pos, e, "")
+		s.broadcastCellUpdate(pos, e)
 	}
 	// Return
 	return &v1.ResetWorldResponse{}, nil

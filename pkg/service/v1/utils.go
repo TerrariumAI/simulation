@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	regionSize = 10
+	regionSize = 8
 )
 
 // Vec2 - Simple struct for holding positions

@@ -252,7 +252,7 @@
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "$ref": "#/x-stream-definitions/v1CellUpdate"
+              "$ref": "#/x-stream-definitions/v1SpectateResponse"
             }
           },
           "404": {
@@ -390,10 +390,6 @@
           "type": "integer",
           "format": "int32"
         },
-        "action": {
-          "type": "string",
-          "title": "If we want to perform an action instead"
-        },
         "entity": {
           "$ref": "#/definitions/v1Entity",
           "title": "The entity occupying a cell"
@@ -407,9 +403,14 @@
           "type": "string",
           "title": "API versioning: it is my best practice to specify version explicitly"
         },
-        "agent": {
-          "$ref": "#/definitions/v1Entity",
-          "title": "Agent to add"
+        "x": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Agent to add\nEntity agent = 2;"
+        },
+        "y": {
+          "type": "integer",
+          "format": "int32"
         }
       },
       "title": "----------------------\n-- Agent\n----------------------\nRequest data to create new agent"
@@ -451,15 +452,6 @@
           "type": "string",
           "format": "int64",
           "title": "Unique integer identifier of the agent"
-        },
-        "x": {
-          "type": "integer",
-          "format": "int32",
-          "title": "Position"
-        },
-        "y": {
-          "type": "integer",
-          "format": "int32"
         },
         "class": {
           "type": "string",
@@ -534,23 +526,23 @@
     "v1Observation": {
       "type": "object",
       "properties": {
-        "Cells": {
+        "cells": {
           "type": "array",
           "items": {
             "type": "string"
           },
           "title": "Cells around the agent"
         },
-        "Alive": {
+        "alive": {
           "type": "boolean",
           "format": "boolean",
           "title": "Agent stats"
         },
-        "Energy": {
+        "energy": {
           "type": "integer",
           "format": "int32"
         },
-        "Health": {
+        "health": {
           "type": "integer",
           "format": "int32"
         }
@@ -579,6 +571,26 @@
     },
     "v1ResetWorldResponse": {
       "type": "object"
+    },
+    "v1ServerAction": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "title": "action the server wants clients to take"
+        }
+      }
+    },
+    "v1SpectateResponse": {
+      "type": "object",
+      "properties": {
+        "cellUpdate": {
+          "$ref": "#/definitions/v1CellUpdate"
+        },
+        "serverAction": {
+          "$ref": "#/definitions/v1ServerAction"
+        }
+      }
     },
     "v1SubscribeSpectatorToRegionRequest": {
       "type": "object",
@@ -613,17 +625,17 @@
     }
   },
   "x-stream-definitions": {
-    "v1CellUpdate": {
+    "v1SpectateResponse": {
       "type": "object",
       "properties": {
         "result": {
-          "$ref": "#/definitions/v1CellUpdate"
+          "$ref": "#/definitions/v1SpectateResponse"
         },
         "error": {
           "$ref": "#/definitions/runtimeStreamError"
         }
       },
-      "title": "Stream result of v1CellUpdate"
+      "title": "Stream result of v1SpectateResponse"
     }
   }
 }
