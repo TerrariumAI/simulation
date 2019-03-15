@@ -282,17 +282,18 @@ func (s *simulationServiceServer) GetAgentObservation(ctx context.Context, req *
 
 // Remove an agent
 func (s *simulationServiceServer) CreateSpectator(req *v1.CreateSpectatorRequest, stream v1.SimulationService_CreateSpectatorServer) error {
-	// Lock the data, unlock after spectator is added
-	s.m.Lock()
 	// Get spectator ID from client in the request
 	spectatorID := req.Id
+	// Lock the data, unlock after spectator is added
+	s.m.Lock()
 	s.addSpectatorChannel(spectatorID)
+	channel := s.spectIDChanMap[spectatorID]
 	// Unlock data
 	s.m.Unlock()
 
 	// Listen for updates and send them to the client
 	for {
-		response := <-s.spectIDChanMap[spectatorID]
+		response := <-channel
 		if err := stream.Send(&response); err != nil {
 			// Break the sending loop
 			break
