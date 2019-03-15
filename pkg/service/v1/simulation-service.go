@@ -3,7 +3,6 @@ package v1
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"math/rand"
 	"sync"
@@ -56,9 +55,9 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 
 	if env != "testing" {
 		// Spawn food randomly
-		for i := 0; i < 500; i++ {
-			x := int32(rand.Intn(100) - 50)
-			y := int32(rand.Intn(100) - 50)
+		for i := 0; i < 800; i++ {
+			x := int32(rand.Intn(200) - 100)
+			y := int32(rand.Intn(200) - 100)
 			// x := int32(rand.Intn(32))
 			// y := int32(rand.Intn(16))
 			// Don't put anything at 0,0
@@ -67,7 +66,6 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 			}
 			s.newEntity("FOOD", Vec2{x, y})
 		}
-		fmt.Println(len(s.entities))
 	}
 
 	return s
@@ -321,11 +319,13 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 	region := Vec2{req.Region.X, req.Region.Y}
 	// If the user is already subbed, successful is false
 	if s.isSpectatorAlreadySubscribedToRegion(id, region) {
+		s.m.Unlock()
 		return &v1.SubscribeSpectatorToRegionResponse{
 			Api:        apiVersion,
 			Successful: false,
 		}, nil
 	}
+
 	// Add spectator id to subscription slice
 	s.spectRegionSubs[region] = append(s.spectRegionSubs[region], id)
 	// Get spectator channel
@@ -358,7 +358,6 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 
 	// Send initial world state
 	positions := region.getPositionsInRegion()
-	fmt.Println("Positions in region: ", len(positions))
 	for _, pos := range positions {
 		if entity, ok := s.posEntityMap[pos]; ok {
 			channel <- v1.SpectateResponse{
@@ -373,7 +372,6 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 					},
 				},
 			}
-			fmt.Println("Sending entity to spectator from region: ", region)
 		}
 	}
 
