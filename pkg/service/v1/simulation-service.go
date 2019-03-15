@@ -56,11 +56,13 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 
 	if env != "testing" {
 		// Spawn food randomly
-		for i := 0; i < 100; i++ {
-			x := int32(rand.Intn(50) - 25)
-			y := int32(rand.Intn(50) - 25)
+		for i := 0; i < 500; i++ {
+			x := int32(rand.Intn(100) - 50)
+			y := int32(rand.Intn(100) - 50)
+			// x := int32(rand.Intn(32))
+			// y := int32(rand.Intn(16))
 			// Don't put anything at 0,0
-			if x == 0 || y == 0 {
+			if x == 0 && y == 0 {
 				continue
 			}
 			s.newEntity("FOOD", Vec2{x, y})
@@ -355,25 +357,23 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 	defer s.m.Unlock()
 
 	// Send initial world state
-	xs, ys := region.getPositionsInRegion()
-	for _, x := range xs {
-		for _, y := range ys {
-			pos := Vec2{x, y}
-			if entity, ok := s.posEntityMap[pos]; ok {
-				channel <- v1.SpectateResponse{
-					Data: &v1.SpectateResponse_CellUpdate{
-						&v1.CellUpdate{
-							X: pos.x,
-							Y: pos.y,
-							Entity: &v1.Entity{
-								Id:    entity.id,
-								Class: entity.class,
-							},
+	positions := region.getPositionsInRegion()
+	fmt.Println("Positions in region: ", len(positions))
+	for _, pos := range positions {
+		if entity, ok := s.posEntityMap[pos]; ok {
+			channel <- v1.SpectateResponse{
+				Data: &v1.SpectateResponse_CellUpdate{
+					&v1.CellUpdate{
+						X: pos.x,
+						Y: pos.y,
+						Entity: &v1.Entity{
+							Id:    entity.id,
+							Class: entity.class,
 						},
 					},
-				}
-				fmt.Println("Sending entity to spectator...")
+				},
 			}
+			fmt.Println("Sending entity to spectator from region: ", region)
 		}
 	}
 

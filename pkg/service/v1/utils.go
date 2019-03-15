@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	regionSize = 8
+	regionSize = 16
 )
 
 // Vec2 - Simple struct for holding positions
@@ -20,53 +20,24 @@ type Vec2 struct {
 func (v *Vec2) getRegion() Vec2 {
 	x := v.x
 	y := v.y
-	var signX int32 = 1
-	var signY int32 = 1
 	if x < 0 {
-		signX = -1
+		x -= regionSize
 	}
 	if y < 0 {
-		signY = -1
+		y -= regionSize
 	}
-	return Vec2{x/regionSize + signX, y/regionSize + signY}
+	return Vec2{x / regionSize, y / regionSize}
 }
 
 // GetPositionsInRegion - Returns all positions that are in a specfic region
-func (v *Vec2) getPositionsInRegion() ([]int32, []int32) {
-	xs := []int32{}
-	ys := []int32{}
-	var signX int32 = 1
-	var signY int32 = 1
-	if v.x < 0 {
-		signX = -1
-	}
-	if v.y < 0 {
-		signY = -1
-	}
-	startX := (v.x - signX) * regionSize
-	startY := (v.y - signY) * regionSize
-	endX := v.x * regionSize
-	endY := v.y * regionSize
-	if signX > 0 {
-		for x := startX; x < endX; x++ {
-			xs = append(xs, x)
-		}
-	} else {
-		for x := startX; x > endX; x-- {
-			xs = append(xs, x)
+func (v *Vec2) getPositionsInRegion() []Vec2 {
+	positions := []Vec2{}
+	for x := v.x * regionSize; x < v.x*regionSize+regionSize; x++ {
+		for y := v.y * regionSize; y < v.y*regionSize+regionSize; y++ {
+			positions = append(positions, Vec2{x, y})
 		}
 	}
-	if signY > 0 {
-		for y := startY; y < endY; y++ {
-			ys = append(ys, y)
-		}
-	} else {
-		for y := startY; y > endY; y-- {
-			ys = append(ys, y)
-		}
-	}
-
-	return xs, ys
+	return positions
 }
 
 // newUUID generates a random UUID according to RFC 4122
