@@ -313,20 +313,21 @@ func (s *simulationServiceServer) CreateSpectator(req *v1.CreateSpectatorRequest
 
 // Get an observation for an agent
 func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context, req *v1.SubscribeSpectatorToRegionRequest) (*v1.SubscribeSpectatorToRegionResponse, error) {
-	// Lock the data while creating the spectator
-	s.m.Lock()
 	// customHeader := ctx.Value("custom-header=1")
 	id := req.Id
 	region := Vec2{req.Region.X, req.Region.Y}
+
+	// Lock the data while creating the spectator
+	s.m.Lock()
 	// If the user is already subbed, successful is false
-	if s.isSpectatorAlreadySubscribedToRegion(id, region) {
+	isAlreadySubbed, _ := s.isSpectatorAlreadySubscribedToRegion(id, region)
+	if isAlreadySubbed {
 		s.m.Unlock()
 		return &v1.SubscribeSpectatorToRegionResponse{
 			Api:        apiVersion,
 			Successful: false,
 		}, nil
 	}
-
 	// Add spectator id to subscription slice
 	s.spectRegionSubs[region] = append(s.spectRegionSubs[region], id)
 	// Get spectator channel
@@ -377,6 +378,37 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 	}
 
 	return &v1.SubscribeSpectatorToRegionResponse{
+		Api:        apiVersion,
+		Successful: true,
+	}, nil
+}
+
+func (s *simulationServiceServer) UnsubscribeSpectatorFromRegion(ctx context.Context, req *v1.UnsubscribeSpectatorFromRegionRequest) (*v1.UnsubscribeSpectatorFromRegionResponse, error) {
+	// customHeader := ctx.Value("custom-header=1")
+	id := req.Id
+	region := Vec2{req.Region.X, req.Region.Y}
+
+	// Lock the data while creating the spectator
+	s.m.Lock()
+	// If the user is NOT already subbed, successful is false
+	isAlreadySubbed, i := s.isSpectatorAlreadySubscribedToRegion(id, region)
+	if !isAlreadySubbed {
+		s.m.Unlock()
+		return &v1.UnsubscribeSpectatorFromRegionResponse{
+			Api:        apiVersion,
+			Successful: false,
+		}, nil
+	}
+	// Remove spectator id from subscription slice
+	s.spectRegionSubs[region] = append(s.spectRegionSubs[region][:i], s.spectRegionSubs[region][i+1:]...)
+	// Remove the key if there are no more spectators in the region
+	if len(s.spectRegionSubs[region]) == 0 {
+		delete(s.spectRegionSubs, region)
+	}
+	// Unlock the data
+	s.m.Unlock()
+
+	return &v1.UnsubscribeSpectatorFromRegionResponse{
 		Api:        apiVersion,
 		Successful: true,
 	}, nil

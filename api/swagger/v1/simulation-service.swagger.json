@@ -322,6 +322,46 @@
           "SimulationService"
         ]
       }
+    },
+    "/v1/spectator/{id}/unsubscribeFromRegion": {
+      "put": {
+        "summary": "Subscribe the spectator of given id to a region",
+        "operationId": "UnsubscribeSpectatorFromRegion",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1UnsubscribeSpectatorFromRegionResponse"
+            }
+          },
+          "404": {
+            "description": "Returned when the resource does not exist.",
+            "schema": {
+              "format": "string"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "Id of the spectator",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1UnsubscribeSpectatorFromRegionRequest"
+            }
+          }
+        ],
+        "tags": [
+          "SimulationService"
+        ]
+      }
     }
   },
   "definitions": {
@@ -610,6 +650,37 @@
       }
     },
     "v1SubscribeSpectatorToRegionResponse": {
+      "type": "object",
+      "properties": {
+        "api": {
+          "type": "string",
+          "title": "API versioning: it is my best practice to specify version explicitly"
+        },
+        "successful": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "Success status"
+        }
+      }
+    },
+    "v1UnsubscribeSpectatorFromRegionRequest": {
+      "type": "object",
+      "properties": {
+        "api": {
+          "type": "string",
+          "title": "API versioning: it is my best practice to specify version explicitly"
+        },
+        "id": {
+          "type": "string",
+          "title": "Id of the spectator"
+        },
+        "region": {
+          "$ref": "#/definitions/v1Region",
+          "title": "What region to add to"
+        }
+      }
+    },
+    "v1UnsubscribeSpectatorFromRegionResponse": {
       "type": "object",
       "properties": {
         "api": {

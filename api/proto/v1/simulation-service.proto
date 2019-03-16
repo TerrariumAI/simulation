@@ -188,6 +188,21 @@ message SubscribeSpectatorToRegionResponse {
   bool successful = 2; 
 }
 
+message UnsubscribeSpectatorFromRegionRequest {
+  // API versioning: it is my best practice to specify version explicitly
+  string api = 1;
+  // Id of the spectator
+  string id = 2;
+  // What region to add to
+  Region region = 3;
+}
+message UnsubscribeSpectatorFromRegionResponse {
+  // API versioning: it is my best practice to specify version explicitly
+  string api = 1;
+  // Success status
+  bool successful = 2; 
+}
+
 // Service to manage simulation
 service SimulationService {
   // Create new agent
@@ -239,6 +254,14 @@ service SimulationService {
   rpc SubscribeSpectatorToRegion(SubscribeSpectatorToRegionRequest) returns (SubscribeSpectatorToRegionResponse) {
     option (google.api.http) = {
       put : "/v1/spectator/{id}/subscribeToRegion"
+      body : "*"
+    };
+  }
+
+  // Subscribe the spectator of given id to a region
+  rpc UnsubscribeSpectatorFromRegion(UnsubscribeSpectatorFromRegionRequest) returns (UnsubscribeSpectatorFromRegionResponse) {
+    option (google.api.http) = {
+      put : "/v1/spectator/{id}/unsubscribeFromRegion"
       body : "*"
     };
   }
