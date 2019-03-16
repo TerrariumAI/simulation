@@ -19,7 +19,7 @@ func initializeFirebaseApp(env string) *firebase.App {
 	// TESTING FUNCTIONALITY
 	// -----------------------------------
 	//Return a testing token with fake uid
-	if env == "testing" || env == "debugging" {
+	if env == "testing" || env == "training" {
 		return nil
 	}
 	// -----------------------------------
@@ -48,7 +48,7 @@ func verifyFirebaseIDToken(ctx context.Context, app *firebase.App, env string) *
 	// -----------------------------------
 	// TESTING FUNCTIONALITY
 	// -----------------------------------
-	if env == "testing" || env == "debugging" {
+	if env == "testing" || env == "training" {
 		// If this is the correct testing token, return a testing token with fake uid
 		if idToken == "TEST-ID-TOKEN" {
 			return &auth.Token{

@@ -9,7 +9,7 @@ go-build: ## build the server executable (for linux/docker use only)
 run: ## run the server locally
 	go run ./cmd/server/main.go -grpc-port=9090 -http-port=8080 -log-level=99 -env=prod
 run-debug: ## run the server locally
-	go run -race ./cmd/server/main.go -grpc-port=9090 -http-port=8080 -log-level=-1 -env=debugging
+	go run -race ./cmd/server/main.go -grpc-port=9090 -http-port=8080 -log-level=-1 -env=training
 
 # Proto compilation
 compile-proto: compile-proto-go compile-proto-py compile-proto-js # Compile proto in all languages
@@ -19,7 +19,7 @@ compile-proto-py:
 	./third_party/protoc-gen-py.sh
 compile-proto-js:
 	./third_party/protoc-gen-js.sh
-	
+
 check-version-env-var:
 ifndef VERSION
 	$(error VERSION is undefined)

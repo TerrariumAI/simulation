@@ -53,6 +53,7 @@ require (
 	github.com/shurcooL/webdavfs v0.0.0-20181215192745-5988b2d638f6 // indirect
 	github.com/sirupsen/logrus v1.3.0 // indirect
 	github.com/stretchr/testify v1.3.0 // indirect
+	github.com/tensorflow/tensorflow v1.13.1 // indirect
 	github.com/zemirco/uid v0.0.0-20160129141151-3763f3c45832
 	go.opencensus.io v0.19.0 // indirect
 	go.uber.org/atomic v1.3.2 // indirect

@@ -185,6 +185,8 @@ github.com/stretchr/objx v0.1.1/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
 github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07/go.mod h1:kDXzergiv9cbyO7IOYJZWg1U88JhDg3PB6klq9Hg2pA=
+github.com/tensorflow/tensorflow v1.13.1 h1:ygn0+ztXusm6RGVP4Od5IF+8h5sAgD5qbeTvqYyMnjo=
+github.com/tensorflow/tensorflow v1.13.1/go.mod h1:itOSERT4trABok4UOoG+X4BoKds9F3rIsySdn+Lvu90=
 github.com/zemirco/uid v0.0.0-20160129141151-3763f3c45832 h1:NFzxrkF7I0/279WuZocYwF+ApZL9bMoLhoPi+H35Y4E=
 github.com/zemirco/uid v0.0.0-20160129141151-3763f3c45832/go.mod h1:F5gG5+oHA+576dKL4mEf0NxBfMjf/yNNV6lVAC85Y8U=
 go.opencensus.io v0.18.0/go.mod h1:vKdFvxhtzZ9onBp9VKHK8z/sRpBMnKAsufL7wlDrCOA=

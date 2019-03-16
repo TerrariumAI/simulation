@@ -1,10 +1,10 @@
-## Notes
+## OlamAI Simulation
 
-Use F5 to run in VSCode
+This is the code that runs the AI environment simulation. You can also use this to train your AI by running the simulation locally and connecting to it via Python.
 
-## Tips
+## Tags
 
-if the server hangs again  
- CTRL + ]  
- pkill main  
- If Ctrl+C (SIGINT) doesn't work, try Ctrl+\ (SIGQUIT). Then try Ctrl+Z (SIGTSTP).
+**-grpc-port=<PORT_NUMBER>** The port the gRPC server will run on  
+**-http-port=<PORT_NUMBER>** The port the REST server will run on  
+**-env=<ENVIRONMENT>** The env can either be "prod", "training", or "testing".
+**-log-level=<LEVEL>** The amount of logging you want
