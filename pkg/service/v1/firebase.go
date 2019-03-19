@@ -117,3 +117,77 @@ func getUserProfileWithSecret(ctx context.Context, app *firebase.App) (map[strin
 	m["id"] = dsnap.Ref.ID
 	return m, nil
 }
+
+func addRemoteModelToFirebase(app *firebase.App, uid string, name string) error {
+	// Create the client
+	sa := option.WithCredentialsFile("./serviceAccountKey.json")
+	app, err := firebase.NewApp(context.Background(), nil, sa)
+	if err != nil {
+		return err
+	}
+	client, err := app.Firestore(context.Background())
+	defer client.Close()
+	if err != nil {
+		return err
+	}
+	// Make sure we can add the new RM
+	iter := client.Collection("remoteModels").Where("user", "==", uid).Where("name", "==", name).Documents(context.Background())
+	snaps, err := iter.GetAll()
+	if err != nil {
+		return err
+	}
+	if len(snaps) != 0 {
+		return errors.New("Remote model with that name already exists")
+	}
+	// Add the RM
+	_, _, err = client.Collection("remoteModels").Add(context.Background(), map[string]interface{}{
+		"name": name,
+		"user": uid,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func removeRemoteModelFromFirebase(app *firebase.App, uid string, name string) error {
+	// Create the client
+	sa := option.WithCredentialsFile("./serviceAccountKey.json")
+	app, err := firebase.NewApp(context.Background(), nil, sa)
+	if err != nil {
+		return err
+	}
+	client, err := app.Firestore(context.Background())
+	defer client.Close()
+	if err != nil {
+		return err
+	}
+	// Make sure we can add the new RM
+	iter := client.Collection("remoteModels").Where("user", "==", uid).Where("name", "==", name).Documents(context.Background())
+	snaps, err := iter.GetAll()
+	for _, snap := range snaps {
+		snap.Ref.Delete(context.Background())
+	}
+	return nil
+}
+
+func removeAllRemoteModelsFromFirebase(app *firebase.App) error {
+	// Create the client
+	sa := option.WithCredentialsFile("./serviceAccountKey.json")
+	app, err := firebase.NewApp(context.Background(), nil, sa)
+	if err != nil {
+		return err
+	}
+	client, err := app.Firestore(context.Background())
+	defer client.Close()
+	if err != nil {
+		return err
+	}
+	// Make sure we can add the new RM
+	iter := client.Collection("remoteModels").Documents(context.Background())
+	snaps, err := iter.GetAll()
+	for _, snap := range snaps {
+		snap.Ref.Delete(context.Background())
+	}
+	return nil
+}

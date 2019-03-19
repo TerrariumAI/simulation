@@ -1,24 +1,27 @@
 package v1
 
+import "errors"
+
 // Entity - data for entities that exist in cells
 type Entity struct {
-	id       int64
-	class    string
-	pos      Vec2
-	energy   int32
-	health   int32
-	ownerUID string
+	id        int64
+	class     string
+	pos       Vec2
+	energy    int32
+	health    int32
+	ownerUID  string
+	modelName string
 }
 
 const initialEnergy = 100
 const initialHealth = 100
 
 // Create a new entity and add it to the simulation
-func (s *simulationServiceServer) newEntity(class string, ownerUID string, pos Vec2) *Entity {
+func (s *simulationServiceServer) newEntity(class string, ownerUID string, modelName string, pos Vec2) *Entity {
 	// Create the entity
 	id := s.nextEntityID
 	s.nextEntityID++
-	e := Entity{id, class, pos, initialEnergy, initialHealth, ownerUID}
+	e := Entity{id, class, pos, initialEnergy, initialHealth, ownerUID, modelName}
 	s.entities[id] = &e
 	s.posEntityMap[pos] = &e
 
@@ -31,6 +34,14 @@ func (s *simulationServiceServer) newEntity(class string, ownerUID string, pos V
 	s.broadcastCellUpdate(e.pos, &e)
 
 	return &e
+}
+
+func (s *simulationServiceServer) newAgent(class string, ownerUID string, modelName string, pos Vec2) (*Entity, error) {
+	if s.env == "prod" && !s.doesModelExist(ownerUID, modelName) {
+		return nil, errors.New("CreateNewEntity(): That model does not exist")
+	}
+
+	return s.newEntity(class, ownerUID, modelName, pos), nil
 }
 
 // Remove an entity by Id and broadcast the update

@@ -84,10 +84,12 @@ message Region {
 message CreateAgentRequest {
   // API versioning: it is my best practice to specify version explicitly
   string api = 1;
+  // Name of the model for this agent
+  string modelName = 2;
   // Agent to add
   // Entity agent = 2;
-  int32 x = 2;
-  int32 y = 3;
+  int32 x = 3;
+  int32 y = 4;
 }
 // Contains data of created agent
 message CreateAgentResponse {
@@ -211,6 +213,8 @@ message UnsubscribeSpectatorFromRegionResponse {
 message CreateRemoteModelRequest {
   // API versioning: it is my best practice to specify version explicitly
   string api = 1;
+  // Name of the mode
+  string name = 2;
 }
 
 // Service to manage simulation

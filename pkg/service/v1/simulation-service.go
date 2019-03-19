@@ -38,8 +38,8 @@ type simulationServiceServer struct {
 	spectIDChanMap map[string]chan v1.SpectateResponse
 	// Specators subscription to regions
 	spectRegionSubs map[Vec2][]string
-	// Map from user id to model channel
-	remoteModelMap map[string]chan v1.Observation
+	// Map from user id to map from model name to channel
+	remoteModelMap map[string][]*remoteModel
 	// Firebase app
 	firebaseApp *firebase.App
 	// Mutex to ensure data safety
@@ -55,9 +55,12 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 		posEntityMap:    make(map[Vec2]*Entity),
 		spectIDChanMap:  make(map[string]chan v1.SpectateResponse),
 		spectRegionSubs: make(map[Vec2][]string),
-		remoteModelMap:  make(map[string]chan v1.Observation),
+		remoteModelMap:  make(map[string][]*remoteModel),
 		firebaseApp:     initializeFirebaseApp(env),
 	}
+
+	// Remove all remote models that were registered for this server before starting
+	removeAllRemoteModelsFromFirebase(s.firebaseApp)
 
 	// Populate the world with food entities
 	if env != "testing" {
@@ -69,7 +72,7 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 			if x == 0 && y == 0 {
 				continue
 			}
-			s.newEntity("FOOD", "", Vec2{x, y})
+			s.newEntity("FOOD", "", "", Vec2{x, y})
 		}
 	}
 
@@ -119,7 +122,10 @@ func (s *simulationServiceServer) CreateAgent(ctx context.Context, req *v1.Creat
 	}
 
 	// Create a new agent (which is an entity)
-	agent := s.newEntity("AGENT", token.UID, Vec2{req.X, req.Y})
+	agent, err := s.newAgent("AGENT", token.UID, req.ModelName, Vec2{req.X, req.Y})
+	if err != nil {
+		return nil, err
+	}
 
 	return &v1.CreateAgentResponse{
 		Api: apiVersion,
@@ -316,7 +322,7 @@ func (s *simulationServiceServer) ResetWorld(ctx context.Context, req *v1.ResetW
 		if x == 0 || y == 0 {
 			continue
 		}
-		s.newEntity("FOOD", "", Vec2{x, y})
+		s.newEntity("FOOD", "", "", Vec2{x, y})
 	}
 	// Broadcast the reset
 	s.broadcastServerAction("RESET")
@@ -463,37 +469,42 @@ func (s *simulationServiceServer) UnsubscribeSpectatorFromRegion(ctx context.Con
 }
 
 func (s *simulationServiceServer) CreateRemoteModel(req *v1.CreateRemoteModelRequest, stream v1.SimulationService_CreateRemoteModelServer) error {
-	// Lock the data, defer unlock until end of call
-	s.m.Lock()
 	// Check if the API version requested by client is supported by server
 	if err := s.checkAPI(req.Api); err != nil {
 		return err
 	}
 
+	// Lock the data, defer unlock until end of call
+	s.m.Lock()
+
 	// Get profile from
 	profile, err := getUserProfileWithSecret(stream.Context(), s.firebaseApp)
 	if err != nil {
+		// Unlock the data
+		s.m.Unlock()
 		return err
 	}
 	uidInterface, ok := profile["id"]
 	if !ok {
+		// Unlock the data
+		s.m.Unlock()
 		return errors.New("CreateRemoteModel(): Couldn't get id for profile with that secret key")
 	}
 	uid := uidInterface.(string)
 
-	// Make sure the user can actually create a remote model
-	if !s.canUserAddRemoteModel(uid) {
-		return errors.New("CreateRemoteModel(): You can't create any more remote models")
-	}
-
 	// Add a channel for this remote model
-	remoteModelChan := s.addRemoteModelChannel(uid)
+	remoteModel, err := s.addRemoteModel(uid, req.Name)
+	if err != nil {
+		// Unlock the data
+		s.m.Unlock()
+		return err
+	}
 	// Unlock the data
 	s.m.Unlock()
 
 	// Listen for updates and send them to the client
 	for {
-		response := <-remoteModelChan
+		response := <-remoteModel.channel
 		if err := stream.Send(&response); err != nil {
 			// Break the sending loop
 			break
@@ -503,10 +514,9 @@ func (s *simulationServiceServer) CreateRemoteModel(req *v1.CreateRemoteModelReq
 	// Remove the remote model and clean up
 	// Lock data until spectator is removed
 	s.m.Lock()
-	s.removeRemoteModelChannel(uid)
+	s.removeRemoteModelChannel(uid, req.Name)
 	// Unlock data
 	s.m.Unlock()
-	log.Printf("Remote model removed...")
 
 	return nil
 }

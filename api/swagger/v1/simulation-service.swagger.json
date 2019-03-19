@@ -196,6 +196,13 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "name",
+            "description": "Name of the mode.",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -474,6 +481,10 @@
         "api": {
           "type": "string",
           "title": "API versioning: it is my best practice to specify version explicitly"
+        },
+        "modelName": {
+          "type": "string",
+          "title": "Name of the model for this agent"
         },
         "x": {
           "type": "integer",
