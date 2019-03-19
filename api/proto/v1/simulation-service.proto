@@ -205,6 +205,14 @@ message UnsubscribeSpectatorFromRegionResponse {
   bool successful = 2; 
 }
 
+// ----------------------
+// -- Remote Models
+// ----------------------
+message CreateRemoteModelRequest {
+  // API versioning: it is my best practice to specify version explicitly
+  string api = 1;
+}
+
 // Service to manage simulation
 service SimulationService {
   // Create new agent
@@ -278,5 +286,9 @@ service SimulationService {
   // Create a remote model
   // Receives Agent Action Execution requests
   // Returns observations
-  rpc CreateRemoteModel(stream ExecuteAgentActionRequest) returns (Observation) {}
+  rpc CreateRemoteModel(CreateRemoteModelRequest) returns (stream Observation) {
+    option (google.api.http) = {
+      get : "/v1/createRemoteModel"
+    };
+  }
 }

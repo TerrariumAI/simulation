@@ -2,24 +2,30 @@ package v1
 
 // Entity - data for entities that exist in cells
 type Entity struct {
-	id     int64
-	class  string
-	pos    Vec2
-	energy int32
-	health int32
+	id       int64
+	class    string
+	pos      Vec2
+	energy   int32
+	health   int32
+	ownerUID string
 }
 
 const initialEnergy = 100
 const initialHealth = 100
 
 // Create a new entity and add it to the simulation
-func (s *simulationServiceServer) newEntity(class string, pos Vec2) *Entity {
+func (s *simulationServiceServer) newEntity(class string, ownerUID string, pos Vec2) *Entity {
 	// Create the entity
 	id := s.nextEntityID
 	s.nextEntityID++
-	e := Entity{id, class, pos, initialEnergy, initialHealth}
+	e := Entity{id, class, pos, initialEnergy, initialHealth, ownerUID}
 	s.entities[id] = &e
 	s.posEntityMap[pos] = &e
+
+	// Add to agents map if it is an agent
+	if class == "AGENT" {
+		s.agents[id] = &e
+	}
 
 	// Broadcast update
 	s.broadcastCellUpdate(e.pos, &e)
@@ -34,6 +40,10 @@ func (s *simulationServiceServer) removeEntityByID(id int64) bool {
 	// Return false if an entitiy by that id doesn't exist
 	if !ok {
 		return false
+	}
+	// Remove from agents map if it is an agent
+	if e.class == "AGENT" {
+		delete(s.agents, e.id)
 	}
 	// Remove the entity
 	delete(s.entities, e.id)

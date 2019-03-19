@@ -171,6 +171,38 @@
         ]
       }
     },
+    "/v1/createRemoteModel": {
+      "get": {
+        "summary": "Create a remote model\nReceives Agent Action Execution requests\nReturns observations",
+        "operationId": "CreateRemoteModel",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "$ref": "#/x-stream-definitions/v1Observation"
+            }
+          },
+          "404": {
+            "description": "Returned when the resource does not exist.",
+            "schema": {
+              "format": "string"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "api",
+            "description": "API versioning: it is my best practice to specify version explicitly.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "SimulationService"
+        ]
+      }
+    },
     "/v1/entity/{id}": {
       "get": {
         "summary": "Get data for an entity",
@@ -701,6 +733,18 @@
     }
   },
   "x-stream-definitions": {
+    "v1Observation": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "$ref": "#/definitions/v1Observation"
+        },
+        "error": {
+          "$ref": "#/definitions/runtimeStreamError"
+        }
+      },
+      "title": "Stream result of v1Observation"
+    },
     "v1SpectateResponse": {
       "type": "object",
       "properties": {

@@ -30,12 +30,16 @@ type simulationServiceServer struct {
 	// Entity storage
 	nextEntityID int64
 	entities     map[int64]*Entity
+	// Map to keep track of agents
+	agents map[int64]*Entity
 	// Map from position -> *Entity
 	posEntityMap map[Vec2]*Entity
 	// Map from spectator id -> observation channel
 	spectIDChanMap map[string]chan v1.SpectateResponse
 	// Specators subscription to regions
 	spectRegionSubs map[Vec2][]string
+	// Map from user id to model channel
+	remoteModelMap map[string]chan v1.Observation
 	// Firebase app
 	firebaseApp *firebase.App
 	// Mutex to ensure data safety
@@ -47,27 +51,32 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 	s := &simulationServiceServer{
 		env:             env,
 		entities:        make(map[int64]*Entity),
+		agents:          make(map[int64]*Entity),
 		posEntityMap:    make(map[Vec2]*Entity),
 		spectIDChanMap:  make(map[string]chan v1.SpectateResponse),
 		spectRegionSubs: make(map[Vec2][]string),
+		remoteModelMap:  make(map[string]chan v1.Observation),
 		firebaseApp:     initializeFirebaseApp(env),
 	}
 
+	// Populate the world with food entities
 	if env != "testing" {
 		// Spawn food randomly
 		for i := 0; i < 200; i++ {
 			x := int32(rand.Intn(50) - 25)
 			y := int32(rand.Intn(50) - 25)
-			// x := int32(rand.Intn(32))
-			// y := int32(rand.Intn(16))
 			// Don't put anything at 0,0
 			if x == 0 && y == 0 {
 				continue
 			}
-			s.newEntity("FOOD", Vec2{x, y})
+			s.newEntity("FOOD", "", Vec2{x, y})
 		}
 	}
 
+	// Start the environment agent model stepper
+	if env == "prod" || env == "prodnoauth" {
+		go s.remoteModelStepper()
+	}
 	return s
 }
 
@@ -110,7 +119,7 @@ func (s *simulationServiceServer) CreateAgent(ctx context.Context, req *v1.Creat
 	}
 
 	// Create a new agent (which is an entity)
-	agent := s.newEntity("AGENT", Vec2{req.X, req.Y})
+	agent := s.newEntity("AGENT", token.UID, Vec2{req.X, req.Y})
 
 	return &v1.CreateAgentResponse{
 		Api: apiVersion,
@@ -261,6 +270,7 @@ func (s *simulationServiceServer) GetAgentObservation(ctx context.Context, req *
 		return &v1.GetAgentObservationResponse{
 			Api: apiVersion,
 			Observation: &v1.Observation{
+				Id:     e.id,
 				Alive:  true,
 				Cells:  cells,
 				Energy: e.energy,
@@ -272,12 +282,50 @@ func (s *simulationServiceServer) GetAgentObservation(ctx context.Context, req *
 	return &v1.GetAgentObservationResponse{
 		Api: apiVersion,
 		Observation: &v1.Observation{
+			Id:     0,
 			Alive:  false,
 			Cells:  []string{},
 			Energy: 0,
 			Health: 0,
 		},
 	}, nil
+}
+
+func (s *simulationServiceServer) ResetWorld(ctx context.Context, req *v1.ResetWorldRequest) (*v1.ResetWorldResponse, error) {
+	// Lock the data, defer unlock until end of call
+	s.m.Lock()
+	defer s.m.Unlock()
+	// check if the API version requested by client is supported by server
+	if err := s.checkAPI(req.Api); err != nil {
+		return nil, err
+	}
+	// Verify the auth token
+	token := verifyFirebaseIDToken(ctx, s.firebaseApp, s.env)
+	if token == nil {
+		err := errors.New("ResetWorld(): Unable to verify auth token")
+		return nil, err
+	}
+
+	s.entities = make(map[int64]*Entity)
+	s.posEntityMap = make(map[Vec2]*Entity)
+	// Spawn food randomly
+	for i := 0; i < 250; i++ {
+		x := int32(rand.Intn(50) - 25)
+		y := int32(rand.Intn(50) - 25)
+		// Don't put anything at 0,0
+		if x == 0 || y == 0 {
+			continue
+		}
+		s.newEntity("FOOD", "", Vec2{x, y})
+	}
+	// Broadcast the reset
+	s.broadcastServerAction("RESET")
+	// Broadcast new cells
+	for pos, e := range s.posEntityMap {
+		s.broadcastCellUpdate(pos, e)
+	}
+	// Return
+	return &v1.ResetWorldResponse{}, nil
 }
 
 // Remove an agent
@@ -414,39 +462,47 @@ func (s *simulationServiceServer) UnsubscribeSpectatorFromRegion(ctx context.Con
 	}, nil
 }
 
-func (s *simulationServiceServer) ResetWorld(ctx context.Context, req *v1.ResetWorldRequest) (*v1.ResetWorldResponse, error) {
+func (s *simulationServiceServer) CreateRemoteModel(req *v1.CreateRemoteModelRequest, stream v1.SimulationService_CreateRemoteModelServer) error {
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
-	defer s.m.Unlock()
-	// check if the API version requested by client is supported by server
+	// Check if the API version requested by client is supported by server
 	if err := s.checkAPI(req.Api); err != nil {
-		return nil, err
-	}
-	// Verify the auth token
-	token := verifyFirebaseIDToken(ctx, s.firebaseApp, s.env)
-	if token == nil {
-		err := errors.New("ResetWorld(): Unable to verify auth token")
-		return nil, err
+		return err
 	}
 
-	s.entities = make(map[int64]*Entity)
-	s.posEntityMap = make(map[Vec2]*Entity)
-	// Spawn food randomly
-	for i := 0; i < 250; i++ {
-		x := int32(rand.Intn(50) - 25)
-		y := int32(rand.Intn(50) - 25)
-		// Don't put anything at 0,0
-		if x == 0 || y == 0 {
-			continue
+	// Verify the auth token
+	token := verifyFirebaseIDToken(stream.Context(), s.firebaseApp, s.env)
+	if token == nil {
+		err := errors.New("CreateAgent(): Unable to verify auth token")
+		return err
+	}
+
+	// Make sure the user can actually create a remote model
+	if !s.canUserAddRemoteModel(token.UID) {
+		return errors.New("CreateRemoteModel(): You already have the maximum amount of models")
+	}
+
+	// Add a channel for this remote model
+	remoteModelChan := s.addRemoteModelChannel(token.UID)
+	// Unlock the data
+	s.m.Unlock()
+
+	// Listen for updates and send them to the client
+	for {
+		response := <-remoteModelChan
+		if err := stream.Send(&response); err != nil {
+			// Break the sending loop
+			break
 		}
-		s.newEntity("FOOD", Vec2{x, y})
 	}
-	// Broadcast the reset
-	s.broadcastServerAction("RESET")
-	// Broadcast new cells
-	for pos, e := range s.posEntityMap {
-		s.broadcastCellUpdate(pos, e)
-	}
-	// Return
-	return &v1.ResetWorldResponse{}, nil
+
+	// Remove the remote model and clean up
+	// Lock data until spectator is removed
+	s.m.Lock()
+	s.removeRemoteModelChannel(token.UID)
+	// Unlock data
+	s.m.Unlock()
+	log.Printf("Remote model removed...")
+
+	return nil
 }
