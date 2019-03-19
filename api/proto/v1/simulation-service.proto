@@ -44,12 +44,14 @@ message Action {
 }
 
 message Observation {
+  // Id of the agent
+  int64 id = 1;
   // Cells around the agent
-  repeated string cells = 1;
+  repeated string cells = 2;
   // Agent stats
-  bool alive = 2;
-  int32 energy = 3;
-  int32 health = 4;
+  bool alive = 3;
+  int32 energy = 4;
+  int32 health = 5;
 }
 
 message CellUpdate {
@@ -242,6 +244,13 @@ service SimulationService {
     };
   }
 
+  // Reset the world
+  rpc ResetWorld(ResetWorldRequest) returns (ResetWorldResponse) {
+    option (google.api.http) = {
+      put : "/v1/reset"
+      body : "*"
+    };
+  }
 
   // Create a new spectator stream
   rpc CreateSpectator(CreateSpectatorRequest) returns (stream SpectateResponse) {
@@ -266,11 +275,8 @@ service SimulationService {
     };
   }
 
-  // Reset the world
-  rpc ResetWorld(ResetWorldRequest) returns (ResetWorldResponse) {
-    option (google.api.http) = {
-      put : "/v1/reset"
-      body : "*"
-    };
-  }
+  // Create a remote model
+  // Receives Agent Action Execution requests
+  // Returns observations
+  rpc CreateRemoteModel(stream ExecuteAgentActionRequest) returns (Observation) {}
 }

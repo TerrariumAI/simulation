@@ -566,6 +566,11 @@
     "v1Observation": {
       "type": "object",
       "properties": {
+        "id": {
+          "type": "string",
+          "format": "int64",
+          "title": "Id of the agent"
+        },
         "cells": {
           "type": "array",
           "items": {

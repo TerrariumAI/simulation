@@ -55,9 +55,9 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 
 	if env != "testing" {
 		// Spawn food randomly
-		for i := 0; i < 800; i++ {
-			x := int32(rand.Intn(200) - 100)
-			y := int32(rand.Intn(200) - 100)
+		for i := 0; i < 200; i++ {
+			x := int32(rand.Intn(50) - 25)
+			y := int32(rand.Intn(50) - 25)
 			// x := int32(rand.Intn(32))
 			// y := int32(rand.Intn(16))
 			// Don't put anything at 0,0
@@ -432,7 +432,7 @@ func (s *simulationServiceServer) ResetWorld(ctx context.Context, req *v1.ResetW
 	s.entities = make(map[int64]*Entity)
 	s.posEntityMap = make(map[Vec2]*Entity)
 	// Spawn food randomly
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 250; i++ {
 		x := int32(rand.Intn(50) - 25)
 		y := int32(rand.Intn(50) - 25)
 		// Don't put anything at 0,0
