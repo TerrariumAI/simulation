@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"errors"
 
 	"github.com/olamai/simulation/pkg/logger"
 
@@ -9,6 +10,7 @@ import (
 
 	firebase "firebase.google.com/go"
 	"firebase.google.com/go/auth"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc/metadata"
 )
@@ -78,4 +80,40 @@ func verifyFirebaseIDToken(ctx context.Context, app *firebase.App, env string) *
 	}
 
 	return token
+}
+
+func getUserProfileWithSecret(ctx context.Context, app *firebase.App) (map[string]interface{}, error) {
+	// get the auth token from the context
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, nil
+	}
+	authTokenHeader, ok := md["auth-token"]
+	if !ok {
+		logger.Log.Warn("getUserProfileWithSecret(): No auth-token header in context")
+		return nil, nil
+	}
+	secret := authTokenHeader[0]
+
+	sa := option.WithCredentialsFile("./serviceAccountKey.json")
+	app, err := firebase.NewApp(context.Background(), nil, sa)
+	if err != nil {
+		return nil, err
+	}
+	client, err := app.Firestore(context.Background())
+	defer client.Close()
+	if err != nil {
+		return nil, err
+	}
+	iter := client.Collection("users").Where("secret", "==", secret).Documents(context.Background())
+	dsnap, err := iter.Next()
+	if err == iterator.Done {
+		return nil, errors.New("Invalid Secret Key")
+	}
+	if err != nil {
+		return nil, err
+	}
+	m := dsnap.Data()
+	m["id"] = dsnap.Ref.ID
+	return m, nil
 }

@@ -470,20 +470,24 @@ func (s *simulationServiceServer) CreateRemoteModel(req *v1.CreateRemoteModelReq
 		return err
 	}
 
-	// Verify the auth token
-	token := verifyFirebaseIDToken(stream.Context(), s.firebaseApp, s.env)
-	if token == nil {
-		err := errors.New("CreateAgent(): Unable to verify auth token")
+	// Get profile from
+	profile, err := getUserProfileWithSecret(stream.Context(), s.firebaseApp)
+	if err != nil {
 		return err
 	}
+	uidInterface, ok := profile["id"]
+	if !ok {
+		return errors.New("CreateRemoteModel(): Couldn't get id for profile with that secret key")
+	}
+	uid := uidInterface.(string)
 
 	// Make sure the user can actually create a remote model
-	if !s.canUserAddRemoteModel(token.UID) {
-		return errors.New("CreateRemoteModel(): You already have the maximum amount of models")
+	if !s.canUserAddRemoteModel(uid) {
+		return errors.New("CreateRemoteModel(): You can't create any more remote models")
 	}
 
 	// Add a channel for this remote model
-	remoteModelChan := s.addRemoteModelChannel(token.UID)
+	remoteModelChan := s.addRemoteModelChannel(uid)
 	// Unlock the data
 	s.m.Unlock()
 
@@ -499,7 +503,7 @@ func (s *simulationServiceServer) CreateRemoteModel(req *v1.CreateRemoteModelReq
 	// Remove the remote model and clean up
 	// Lock data until spectator is removed
 	s.m.Lock()
-	s.removeRemoteModelChannel(token.UID)
+	s.removeRemoteModelChannel(uid)
 	// Unlock data
 	s.m.Unlock()
 	log.Printf("Remote model removed...")
