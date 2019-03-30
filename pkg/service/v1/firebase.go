@@ -18,16 +18,20 @@ const mockSecret = "MOCK-SECRET"
 
 // Initialize a new firebase app instance
 func initializeFirebaseApp(env string) *firebase.App {
+	serviceAccountFileLocation := "./serviceAccountKey.json"
 	// -----------------------------------
-	// TESTING FUNCTIONALITY
+	// ENV CHECK
 	// -----------------------------------
 	//Return a testing token with fake uid
-	if env != "prod" {
+	if env == "training" {
 		return nil
+	}
+	if env == "testing" {
+		serviceAccountFileLocation = "./serviceAccountKey_testing.json"
 	}
 	// -----------------------------------
 	// Initialize firebase app
-	opt := option.WithCredentialsFile("./serviceAccountKey.json")
+	opt := option.WithCredentialsFile(serviceAccountFileLocation)
 	app, err := firebase.NewApp(context.Background(), nil, opt)
 	if err != nil {
 		logger.Log.Fatal("error initializing firebase app: %v\n", zap.String("reason", err.Error()))
@@ -91,8 +95,8 @@ func authenticateFirebaseAccountWithSecret(ctx context.Context, app *firebase.Ap
 	}
 	secretHeader, ok := md["auth-secret"]
 	if !ok {
-		logger.Log.Warn("getUserProfileWithSecret(): No secret token header in context")
-		return nil, nil
+		logger.Log.Warn("authenticateFirebaseAccountWithSecret(): No secret token header in context")
+		return nil, errors.New("Missing Secret Key In Metadata")
 	}
 	secret := secretHeader[0]
 
@@ -100,7 +104,7 @@ func authenticateFirebaseAccountWithSecret(ctx context.Context, app *firebase.Ap
 	// ENVIRONMENT CHECK
 	// -----------------------------------
 	// Training,  doesn't implement authentication
-	if env != "prod" {
+	if env == "training" {
 		if secret == mockSecret {
 			fakeUser := make(map[string]interface{})
 			fakeUser["id"] = "FAKE_USER_ID"
@@ -132,7 +136,7 @@ func authenticateFirebaseAccountWithSecret(ctx context.Context, app *firebase.Ap
 }
 
 func addRemoteModelToFirebase(app *firebase.App, uid string, name string, env string) error {
-	if env != "prod" {
+	if env == "training" {
 		return nil
 	}
 	// Create the client
@@ -162,7 +166,7 @@ func addRemoteModelToFirebase(app *firebase.App, uid string, name string, env st
 }
 
 func removeRemoteModelFromFirebase(app *firebase.App, uid string, name string, env string) error {
-	if env != "prod" {
+	if env == "training" {
 		return nil
 	}
 	// Create the client
@@ -181,7 +185,7 @@ func removeRemoteModelFromFirebase(app *firebase.App, uid string, name string, e
 }
 
 func removeAllRemoteModelsFromFirebase(app *firebase.App, env string) error {
-	if env != "prod" {
+	if env == "training" {
 		return nil
 	}
 	// Create the client
