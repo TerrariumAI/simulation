@@ -63,6 +63,7 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 	removeAllRemoteModelsFromFirebase(s.firebaseApp)
 
 	// Populate the world with food entities
+	// [ENV CHECK] - in testing we want a clear world so don't add any entities
 	if env != "testing" {
 		// Spawn food randomly
 		for i := 0; i < 200; i++ {
@@ -77,7 +78,8 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 	}
 
 	// Start the environment agent model stepper
-	if env == "prod" || env == "prodnoauth" {
+	// [ENV CHECK] - in training we don't use RMs so this is unecessary
+	if env != "training" {
 		go s.remoteModelStepper()
 	}
 	return s
@@ -105,11 +107,10 @@ func (s *simulationServiceServer) CreateAgent(ctx context.Context, req *v1.Creat
 		return nil, err
 	}
 
-	// Verify the auth token
-	token := verifyFirebaseIDToken(ctx, s.firebaseApp, s.env)
-	if token == nil {
-		err := errors.New("CreateAgent(): Unable to verify auth token")
-		return nil, err
+	// Verify the auth secret
+	profile, err := authenticateFirebaseAccountWithSecret(ctx, s.firebaseApp, s.env)
+	if err != nil {
+		return nil, errors.New("CreateAgent(): Unable to verify auth token")
 	}
 
 	// Get pos the user is trying to spawn an agent in
@@ -122,7 +123,7 @@ func (s *simulationServiceServer) CreateAgent(ctx context.Context, req *v1.Creat
 	}
 
 	// Create a new agent (which is an entity)
-	agent, err := s.newAgent("AGENT", token.UID, req.ModelName, Vec2{req.X, req.Y})
+	agent, err := s.newAgent("AGENT", profile["id"].(string), req.ModelName, Vec2{req.X, req.Y})
 	if err != nil {
 		return nil, err
 	}
@@ -161,6 +162,7 @@ func (s *simulationServiceServer) GetEntity(ctx context.Context, req *v1.GetEnti
 }
 
 // Remove an agent
+// REQUIRES SECRET KEY FOR AUTH METADATA
 func (s *simulationServiceServer) DeleteAgent(ctx context.Context, req *v1.DeleteAgentRequest) (*v1.DeleteAgentResponse, error) {
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
@@ -169,11 +171,10 @@ func (s *simulationServiceServer) DeleteAgent(ctx context.Context, req *v1.Delet
 	if err := s.checkAPI(req.Api); err != nil {
 		return nil, err
 	}
-	// Verify the auth token
-	token := verifyFirebaseIDToken(ctx, s.firebaseApp, s.env)
-	if token == nil {
-		err := errors.New("CreateAgent(): Unable to verify auth token")
-		return nil, err
+	// Verify the auth secret
+	_, err := authenticateFirebaseAccountWithSecret(ctx, s.firebaseApp, s.env)
+	if err != nil {
+		return nil, errors.New("CreateAgent(): Unable to verify auth token")
 	}
 
 	// Get the agent
@@ -306,10 +307,9 @@ func (s *simulationServiceServer) ResetWorld(ctx context.Context, req *v1.ResetW
 		return nil, err
 	}
 	// Verify the auth token
-	token := verifyFirebaseIDToken(ctx, s.firebaseApp, s.env)
-	if token == nil {
-		err := errors.New("ResetWorld(): Unable to verify auth token")
-		return nil, err
+	_, err := authenticateFirebaseAccountWithSecret(ctx, s.firebaseApp, s.env)
+	if err != nil {
+		return nil, errors.New("ResetWorld(): Unable to verify auth token")
 	}
 
 	s.entities = make(map[int64]*Entity)
@@ -478,22 +478,15 @@ func (s *simulationServiceServer) CreateRemoteModel(req *v1.CreateRemoteModelReq
 	s.m.Lock()
 
 	// Get profile from
-	profile, err := getUserProfileWithSecret(stream.Context(), s.firebaseApp)
+	profile, err := authenticateFirebaseAccountWithSecret(stream.Context(), s.firebaseApp, s.env)
 	if err != nil {
 		// Unlock the data
 		s.m.Unlock()
 		return err
 	}
-	uidInterface, ok := profile["id"]
-	if !ok {
-		// Unlock the data
-		s.m.Unlock()
-		return errors.New("CreateRemoteModel(): Couldn't get id for profile with that secret key")
-	}
-	uid := uidInterface.(string)
 
 	// Add a channel for this remote model
-	remoteModel, err := s.addRemoteModel(uid, req.Name)
+	remoteModel, err := s.addRemoteModel(profile["id"].(string), req.Name)
 	if err != nil {
 		// Unlock the data
 		s.m.Unlock()
@@ -514,7 +507,7 @@ func (s *simulationServiceServer) CreateRemoteModel(req *v1.CreateRemoteModelReq
 	// Remove the remote model and clean up
 	// Lock data until spectator is removed
 	s.m.Lock()
-	s.removeRemoteModelChannel(uid, req.Name)
+	s.removeRemoteModelChannel(profile["id"].(string), req.Name)
 	// Unlock data
 	s.m.Unlock()
 

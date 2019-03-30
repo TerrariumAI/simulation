@@ -40,7 +40,7 @@ metadata:
   labels:
     app: sim-dep
 spec:
-  type: NodePort
+  type: LoadBalancer
   selector:
     app: sim-dep
   ports:
