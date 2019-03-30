@@ -46,7 +46,7 @@ type simulationServiceServer struct {
 	m sync.Mutex
 }
 
-// NewSimulationServiceServer creates ToDo service
+// NewSimulationServiceServer creates simulation service
 func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 	s := &simulationServiceServer{
 		env:             env,
@@ -60,7 +60,7 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 	}
 
 	// Remove all remote models that were registered for this server before starting
-	removeAllRemoteModelsFromFirebase(s.firebaseApp)
+	removeAllRemoteModelsFromFirebase(s.firebaseApp, s.env)
 
 	// Populate the world with food entities
 	// [ENV CHECK] - in testing we want a clear world so don't add any entities
@@ -123,7 +123,7 @@ func (s *simulationServiceServer) CreateAgent(ctx context.Context, req *v1.Creat
 	}
 
 	// Create a new agent (which is an entity)
-	agent, err := s.newAgent("AGENT", profile["id"].(string), req.ModelName, Vec2{req.X, req.Y})
+	agent, err := s.newAgent(profile["id"].(string), req.ModelName, Vec2{req.X, req.Y})
 	if err != nil {
 		return nil, err
 	}

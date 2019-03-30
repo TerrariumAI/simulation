@@ -17,7 +17,7 @@ type remoteModel struct {
 // Add a remote model channel to the server
 func (s *simulationServiceServer) addRemoteModel(uid string, name string) (*remoteModel, error) {
 	// Add remote model to firestore
-	err := addRemoteModelToFirebase(s.firebaseApp, uid, name)
+	err := addRemoteModelToFirebase(s.firebaseApp, uid, name, s.env)
 	if err != nil {
 		return nil, errors.New("CreateRemoteModel(): Model with that name already exists")
 	}

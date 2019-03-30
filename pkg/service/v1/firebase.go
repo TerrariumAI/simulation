@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-const mockSecret = "MOCK_SECRET"
+const mockSecret = "MOCK-SECRET"
 
 // Initialize a new firebase app instance
 func initializeFirebaseApp(env string) *firebase.App {
@@ -89,12 +89,12 @@ func authenticateFirebaseAccountWithSecret(ctx context.Context, app *firebase.Ap
 	if !ok {
 		return nil, nil
 	}
-	authTokenHeader, ok := md["auth-token"]
+	secretHeader, ok := md["auth-secret"]
 	if !ok {
-		logger.Log.Warn("getUserProfileWithSecret(): No auth-token header in context")
+		logger.Log.Warn("getUserProfileWithSecret(): No secret token header in context")
 		return nil, nil
 	}
-	secret := authTokenHeader[0]
+	secret := secretHeader[0]
 
 	// -----------------------------------
 	// ENVIRONMENT CHECK
@@ -131,7 +131,10 @@ func authenticateFirebaseAccountWithSecret(ctx context.Context, app *firebase.Ap
 	return m, nil
 }
 
-func addRemoteModelToFirebase(app *firebase.App, uid string, name string) error {
+func addRemoteModelToFirebase(app *firebase.App, uid string, name string, env string) error {
+	if env != "prod" {
+		return nil
+	}
 	// Create the client
 	client, err := app.Firestore(context.Background())
 	defer client.Close()
@@ -158,7 +161,10 @@ func addRemoteModelToFirebase(app *firebase.App, uid string, name string) error 
 	return nil
 }
 
-func removeRemoteModelFromFirebase(app *firebase.App, uid string, name string) error {
+func removeRemoteModelFromFirebase(app *firebase.App, uid string, name string, env string) error {
+	if env != "prod" {
+		return nil
+	}
 	// Create the client
 	client, err := app.Firestore(context.Background())
 	defer client.Close()
@@ -174,7 +180,10 @@ func removeRemoteModelFromFirebase(app *firebase.App, uid string, name string) e
 	return nil
 }
 
-func removeAllRemoteModelsFromFirebase(app *firebase.App) error {
+func removeAllRemoteModelsFromFirebase(app *firebase.App, env string) error {
+	if env != "prod" {
+		return nil
+	}
 	// Create the client
 	client, err := app.Firestore(context.Background())
 	defer client.Close()
