@@ -3,6 +3,7 @@ package v1
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 	"sync"
@@ -214,19 +215,7 @@ func (s *simulationServiceServer) ExecuteAgentAction(ctx context.Context, req *v
 		err := errors.New("GetAgent(): Agent Not Found")
 		return nil, err
 	}
-	// Lower health immediatly if energy is 0
-	if agent.energy == 0 {
-		agent.health -= 10
-	}
-	// Kill the agent if they have no health and end call
-	if agent.health <= 0 {
-		s.removeEntityByID(agent.id)
-		return &v1.ExecuteAgentActionResponse{
-			Api:                 apiVersion,
-			IsAgentStillAlive:   false,
-			WasActionSuccessful: false,
-		}, nil
-	}
+
 	// Get the target position from the given direction
 	var targetPos Vec2
 	switch action.Direction {
@@ -250,12 +239,22 @@ func (s *simulationServiceServer) ExecuteAgentAction(ctx context.Context, req *v
 		actionSuccess = s.entityConsume(agent.id, targetPos)
 	}
 
-	// Take off living expense
-	agent.energy -= agentLivingEnergyCost
-	if agent.energy < 0 {
-		agent.energy = 0
+	// Only subtract living cost on actions during training, otherwise do it
+	//   in the agent stepper
+	if s.env == "training" {
+		s.agentLivingCost(agent)
 	}
 
+	// If the agent died during all this, return that
+	if !s.isAgentStillAlive(agent.id) {
+		return &v1.ExecuteAgentActionResponse{
+			Api:                 apiVersion,
+			IsAgentStillAlive:   false,
+			WasActionSuccessful: false,
+		}, nil
+	}
+
+	// Agent is still alive
 	return &v1.ExecuteAgentActionResponse{
 		Api:                 apiVersion,
 		IsAgentStillAlive:   true,
@@ -469,6 +468,7 @@ func (s *simulationServiceServer) UnsubscribeSpectatorFromRegion(ctx context.Con
 }
 
 func (s *simulationServiceServer) CreateRemoteModel(req *v1.CreateRemoteModelRequest, stream v1.SimulationService_CreateRemoteModelServer) error {
+	ctx := stream.Context()
 	// Check if the API version requested by client is supported by server
 	if err := s.checkAPI(req.Api); err != nil {
 		return err
@@ -478,7 +478,7 @@ func (s *simulationServiceServer) CreateRemoteModel(req *v1.CreateRemoteModelReq
 	s.m.Lock()
 
 	// Get profile from
-	profile, err := authenticateFirebaseAccountWithSecret(stream.Context(), s.firebaseApp, s.env)
+	profile, err := authenticateFirebaseAccountWithSecret(ctx, s.firebaseApp, s.env)
 	if err != nil {
 		// Unlock the data
 		s.m.Unlock()
@@ -496,13 +496,34 @@ func (s *simulationServiceServer) CreateRemoteModel(req *v1.CreateRemoteModelReq
 	s.m.Unlock()
 
 	// Listen for updates and send them to the client
+L:
 	for {
-		response := <-remoteModel.channel
-		if err := stream.Send(&response); err != nil {
-			// Break the sending loop
-			break
+		select {
+		case v := <-remoteModel.channel:
+			if err := stream.Send(&v); err != nil {
+				break L
+			}
+		case <-ctx.Done():
+			fmt.Println("CreateRemoteModel(): Stream is done!")
+			break L
 		}
+		err := ctx.Err()
+		if err != nil {
+			fmt.Println("CreateRemoteModel(): Stream hit an error!")
+			fmt.Println(err)
+			break L
+		}
+
+		err = stream.Context().Err()
+		if err != nil {
+			fmt.Println("CreateRemoteModel(): Stream context hit an error!")
+			fmt.Println(err)
+			break L
+		}
+
 	}
+
+	fmt.Println("CreateRemoteModel(): Model has disconnected or timed out")
 
 	// Remove the remote model and clean up
 	// Lock data until spectator is removed

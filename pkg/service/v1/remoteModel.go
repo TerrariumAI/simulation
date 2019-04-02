@@ -81,7 +81,8 @@ func (s *simulationServiceServer) remoteModelStepper() {
 					Health: agent.health,
 				}
 			}
-
+			// Cost of living, eg. remove energy/health
+			s.agentLivingCost(agent)
 		}
 		// Unlock the data
 		s.m.Unlock()

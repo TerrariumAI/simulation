@@ -71,7 +71,7 @@ require (
 	golang.org/x/tools v0.0.0-20190228203856-589c23e65e65 // indirect
 	google.golang.org/api v0.1.0
 	google.golang.org/genproto v0.0.0-20190227213309-4f5b463f9597
-	google.golang.org/grpc v1.19.0
+	google.golang.org/grpc v1.19.1
 	honnef.co/go/tools v0.0.0-20190215041234-466a0476246c // indirect
 	sourcegraph.com/sqs/pbtypes v1.0.0 // indirect
 )

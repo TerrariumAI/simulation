@@ -1,6 +1,8 @@
 package v1
 
-import "errors"
+import (
+	"errors"
+)
 
 // Entity - data for entities that exist in cells
 type Entity struct {
@@ -15,6 +17,30 @@ type Entity struct {
 
 const initialEnergy = 100
 const initialHealth = 100
+
+func (s *simulationServiceServer) agentLivingCost(a *Entity) (isStilAlive bool) {
+	// Lower health immediatly if energy is 0
+	if a.energy == 0 {
+		a.health -= 10
+	}
+	// Kill the agent if they have no health and end call
+	if a.health <= 0 {
+		s.removeEntityByID(a.id)
+		return false
+	}
+	// Take off living expense
+	a.energy -= agentLivingEnergyCost
+	if a.energy < 0 {
+		a.energy = 0
+	}
+	return true
+}
+
+func (s *simulationServiceServer) isAgentStillAlive(id int64) bool {
+	_, ok := s.entities[id]
+	// Return false if an entitiy by that id doesn't exist
+	return ok
+}
 
 // Create a new entity and add it to the simulation
 func (s *simulationServiceServer) newEntity(class string, ownerUID string, modelName string, pos Vec2) *Entity {

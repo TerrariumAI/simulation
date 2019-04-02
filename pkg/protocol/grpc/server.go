@@ -5,6 +5,9 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"time"
+
+	"google.golang.org/grpc/keepalive"
 
 	v1 "github.com/olamai/simulation/pkg/api/v1"
 	"github.com/olamai/simulation/pkg/logger"
@@ -20,7 +23,20 @@ func RunServer(ctx context.Context, v1API v1.SimulationServiceServer, port strin
 	}
 
 	// gRPC server statup options
-	opts := []grpc.ServerOption{}
+	opts := []grpc.ServerOption{
+		grpc.KeepaliveParams(
+			keepalive.ServerParameters{
+				Time:    (time.Duration(2) * time.Second),
+				Timeout: (time.Duration(2) * time.Second),
+			},
+		),
+		grpc.KeepaliveEnforcementPolicy(
+			keepalive.EnforcementPolicy{
+				MinTime:             (time.Duration(2) * time.Second),
+				PermitWithoutStream: false,
+			},
+		),
+	}
 
 	// add middleware
 	opts = middleware.AddLogging(logger.Log, opts)
