@@ -495,40 +495,35 @@ func (s *simulationServiceServer) CreateRemoteModel(req *v1.CreateRemoteModelReq
 	// Unlock the data
 	s.m.Unlock()
 
-	// Listen for updates and send them to the client
-L:
-	for {
-		select {
-		case v := <-remoteModel.channel:
+	// Channel that, when a value is sent to it, will stop this thread and
+	//  in turn gracefully remove this RM.
+	stopRM := make(chan int)
+	// Listen for outgoing messages for the RM and send them
+	go func() {
+		for {
+			v := <-remoteModel.channel
 			if err := stream.Send(&v); err != nil {
-				break L
+				fmt.Println("CreateRemoteModel(): Stream send error")
+				stopRM <- 1
 			}
-		case <-ctx.Done():
-			fmt.Println("CreateRemoteModel(): Stream is done!")
-			break L
 		}
-		err := ctx.Err()
-		if err != nil {
-			fmt.Println("CreateRemoteModel(): Stream hit an error!")
-			fmt.Println(err)
-			break L
+	}()
+	// Listen for Context Done message
+	go func() {
+		for {
+			<-ctx.Done()
+			stopRM <- 1
 		}
+	}()
 
-		err = stream.Context().Err()
-		if err != nil {
-			fmt.Println("CreateRemoteModel(): Stream context hit an error!")
-			fmt.Println(err)
-			break L
-		}
-
-	}
+	<-stopRM
 
 	fmt.Println("CreateRemoteModel(): Model has disconnected or timed out")
 
 	// Remove the remote model and clean up
 	// Lock data until spectator is removed
 	s.m.Lock()
-	s.removeRemoteModelChannel(profile["id"].(string), req.Name)
+	s.removeRemoteModel(profile["id"].(string), req.Name)
 	// Unlock data
 	s.m.Unlock()
 

@@ -33,12 +33,15 @@ func (s *simulationServiceServer) addRemoteModel(uid string, name string) (*remo
 }
 
 // Remove a remote model channel from the server
-func (s *simulationServiceServer) removeRemoteModelChannel(uid string, name string) bool {
+func (s *simulationServiceServer) removeRemoteModel(uid string, name string) bool {
 	userRMs := s.remoteModelMap[uid]
 	// Find the RM and remove it
 	for i, RM := range userRMs {
 		if RM.name == name {
+			// Remove the remote model from the server
 			s.remoteModelMap[uid] = append(userRMs[:i], userRMs[i+1:]...)
+			// Remove the remote model from the DB
+			removeRemoteModelFromFirebase(s.firebaseApp, uid, name, s.env)
 			return true
 		}
 	}
