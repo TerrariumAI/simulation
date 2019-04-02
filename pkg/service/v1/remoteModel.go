@@ -14,7 +14,7 @@ type remoteModel struct {
 	channel chan v1.Observation
 }
 
-// Add a remote model channel to the server
+// Add a remote model channel to the server memory and DB
 func (s *simulationServiceServer) addRemoteModel(uid string, name string) (*remoteModel, error) {
 	// Add remote model to firestore
 	err := addRemoteModelToFirebase(s.firebaseApp, uid, name, s.env)
@@ -32,7 +32,7 @@ func (s *simulationServiceServer) addRemoteModel(uid string, name string) (*remo
 	return newRM, nil
 }
 
-// Remove a remote model channel from the server
+// Remove a remote model channel from the server memory and DB
 func (s *simulationServiceServer) removeRemoteModel(uid string, name string) bool {
 	userRMs := s.remoteModelMap[uid]
 	// Find the RM and remove it
@@ -48,7 +48,8 @@ func (s *simulationServiceServer) removeRemoteModel(uid string, name string) boo
 	return false
 }
 
-func (s *simulationServiceServer) doesModelExist(uid string, name string) bool {
+// Checks if a remote model exists ONLY in server memory
+func (s *simulationServiceServer) doesRemoteModelExist(uid string, name string) bool {
 	userRMs := s.remoteModelMap[uid]
 	// Find the RM and remove it
 	for _, RM := range userRMs {
@@ -59,6 +60,7 @@ func (s *simulationServiceServer) doesModelExist(uid string, name string) bool {
 	return false
 }
 
+// Steps over every agent, then sends an action request to it's RM
 func (s *simulationServiceServer) remoteModelStepper() {
 	for {
 		// Lock the data, defer unlock until end of call

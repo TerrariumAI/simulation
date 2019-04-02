@@ -37,6 +37,8 @@ func (s *simulationServiceServer) isSpectatorAlreadySubscribedToRegion(spectator
 	return false, -1
 }
 
+// Broadcast a Server Action to everyone on this server. This is usually
+//  a WORLDRESET message
 func (s *simulationServiceServer) broadcastServerAction(action string) {
 	for _, channel := range s.spectIDChanMap {
 		channel <- v1.SpectateResponse{
@@ -49,7 +51,7 @@ func (s *simulationServiceServer) broadcastServerAction(action string) {
 	}
 }
 
-// Broadcast a cell update
+// Broadcast a cell update only to those listening on that specific region
 func (s *simulationServiceServer) broadcastCellUpdate(pos Vec2, entity *Entity) {
 	// Get region for this position
 	region := pos.getRegion()

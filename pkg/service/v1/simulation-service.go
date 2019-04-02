@@ -246,7 +246,7 @@ func (s *simulationServiceServer) ExecuteAgentAction(ctx context.Context, req *v
 	}
 
 	// If the agent died during all this, return that
-	if !s.isAgentStillAlive(agent.id) {
+	if !s.doesEntityExist(agent.id) {
 		return &v1.ExecuteAgentActionResponse{
 			Api:                 apiVersion,
 			IsAgentStillAlive:   false,

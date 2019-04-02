@@ -18,6 +18,8 @@ type Entity struct {
 const initialEnergy = 100
 const initialHealth = 100
 
+// Given an entity, it will perform all living cost calculations, AND remove
+//  the entity if it dies returning whether or not it is still alive.
 func (s *simulationServiceServer) agentLivingCost(a *Entity) (isStilAlive bool) {
 	// Lower health immediatly if energy is 0
 	if a.energy == 0 {
@@ -28,7 +30,7 @@ func (s *simulationServiceServer) agentLivingCost(a *Entity) (isStilAlive bool) 
 		s.removeEntityByID(a.id)
 		return false
 	}
-	// Take off living expense
+	// Take away energy
 	a.energy -= agentLivingEnergyCost
 	if a.energy < 0 {
 		a.energy = 0
@@ -36,7 +38,8 @@ func (s *simulationServiceServer) agentLivingCost(a *Entity) (isStilAlive bool) 
 	return true
 }
 
-func (s *simulationServiceServer) isAgentStillAlive(id int64) bool {
+// Check to see if an entity still exists by ID
+func (s *simulationServiceServer) doesEntityExist(id int64) bool {
 	_, ok := s.entities[id]
 	// Return false if an entitiy by that id doesn't exist
 	return ok
@@ -62,9 +65,11 @@ func (s *simulationServiceServer) newEntity(class string, ownerUID string, model
 	return &e
 }
 
+// Creates a new agent. Agents are just an abstraction of an entity, essentially
+//  just a group of entities.
 func (s *simulationServiceServer) newAgent(ownerUID string, modelName string, pos Vec2) (*Entity, error) {
 	if s.env == "prod" {
-		if !s.doesModelExist(ownerUID, modelName) {
+		if !s.doesRemoteModelExist(ownerUID, modelName) {
 			return nil, errors.New("CreateNewEntity(): That model does not exist")
 		}
 	}
@@ -123,7 +128,7 @@ func (s *simulationServiceServer) entityMove(id int64, targetPos Vec2) bool {
 	return true
 }
 
-// Entity consume another cell's coccupant
+// Entity will consume another cell's coccupant
 func (s *simulationServiceServer) entityConsume(id int64, targetPos Vec2) bool {
 	// Get the entity by id
 	e, ok := s.entities[id]
@@ -152,6 +157,7 @@ func (s *simulationServiceServer) entityConsume(id int64, targetPos Vec2) bool {
 	return true
 }
 
+// Checks if a cell is currently occupied
 func (s *simulationServiceServer) isCellOccupied(pos Vec2) bool {
 	if _, ok := s.posEntityMap[pos]; ok {
 		return true
