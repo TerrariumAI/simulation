@@ -4,3 +4,4 @@
 .env
 serviceAccountKey.json
 serviceAccountKey_testing.json
+main

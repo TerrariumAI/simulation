@@ -3,6 +3,7 @@ package v1
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/olamai/simulation/pkg/logger"
 
@@ -192,11 +193,18 @@ func removeAllRemoteModelsFromFirebase(app *firebase.App, env string) error {
 	client, err := app.Firestore(context.Background())
 	defer client.Close()
 	if err != nil {
+		logger.Log.Warn("removeAllRemoteModelsFromFirebase(): Error creating Firestore client")
+		fmt.Println(err)
 		return err
 	}
 	// Make sure we can add the new RM
 	iter := client.Collection("remoteModels").Documents(context.Background())
 	snaps, err := iter.GetAll()
+	if err != nil {
+		logger.Log.Warn("removeAllRemoteModelsFromFirebase(): Error getting all remoteModels")
+		fmt.Println(err)
+		return err
+	}
 	for _, snap := range snaps {
 		snap.Ref.Delete(context.Background())
 	}
