@@ -3,3 +3,5 @@
 .DS_STORE
 .env
 serviceAccountKey.json
+serviceAccountKey_testing.json
+main

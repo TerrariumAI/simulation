@@ -6,12 +6,12 @@ help: ## Display this help screen
 go-build: ## build the server executable (for linux/docker use only)
 	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/server
 
-run: ## run the server locally
-	go run ./cmd/server/main.go -grpc-port=9090 -http-port=8080 -log-level=99 -env=prod
-run-debug: ## run the server locally
+run-testing: ## run the server locally with env set to testing
+	go run -race ./cmd/server/main.go -grpc-port=9090 -http-port=8080 -log-level=-1 -env=testing
+run-training: ## run the server locally with env set to training
 	go run -race ./cmd/server/main.go -grpc-port=9090 -http-port=8080 -log-level=-1 -env=training
-run-prodnoauth: ## run the server locally
-	go run -race ./cmd/server/main.go -grpc-port=9090 -http-port=8080 -log-level=-1 -env=prodnoauth
+run-prod: ## run the server locally with env set to prod
+	go run -race ./cmd/server/main.go -grpc-port=9090 -http-port=8080 -log-level=-1 -env=prod
 
 # Proto compilation
 compile-proto: compile-proto-go compile-proto-py compile-proto-js # Compile proto in all languages

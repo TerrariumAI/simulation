@@ -36,12 +36,14 @@ func (s *simulationServiceServer) newEntity(class string, ownerUID string, model
 	return &e
 }
 
-func (s *simulationServiceServer) newAgent(class string, ownerUID string, modelName string, pos Vec2) (*Entity, error) {
-	if s.env == "prod" && !s.doesModelExist(ownerUID, modelName) {
-		return nil, errors.New("CreateNewEntity(): That model does not exist")
+func (s *simulationServiceServer) newAgent(ownerUID string, modelName string, pos Vec2) (*Entity, error) {
+	if s.env == "prod" {
+		if !s.doesModelExist(ownerUID, modelName) {
+			return nil, errors.New("CreateNewEntity(): That model does not exist")
+		}
 	}
 
-	return s.newEntity(class, ownerUID, modelName, pos), nil
+	return s.newEntity("AGENT", ownerUID, modelName, pos), nil
 }
 
 // Remove an entity by Id and broadcast the update
