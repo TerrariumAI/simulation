@@ -46,7 +46,13 @@ func (s *simulationServiceServer) doesEntityExist(id int64) bool {
 }
 
 // Create a new entity and add it to the simulation
-func (s *simulationServiceServer) newEntity(class string, ownerUID string, modelName string, pos Vec2) *Entity {
+func (s *simulationServiceServer) newEntity(class string, ownerUID string, modelName string, pos Vec2) (*Entity, error) {
+	// Make sure the cell is empty
+	if s.isCellOccupied(pos) {
+		err := errors.New("NewEntity(): Cell is already occupied")
+		return nil, err
+	}
+
 	// Create the entity
 	id := s.nextEntityID
 	s.nextEntityID++
@@ -62,7 +68,7 @@ func (s *simulationServiceServer) newEntity(class string, ownerUID string, model
 	// Broadcast update
 	s.broadcastCellUpdate(e.pos, &e)
 
-	return &e
+	return &e, nil
 }
 
 // Creates a new agent. Agents are just an abstraction of an entity, essentially
@@ -74,7 +80,7 @@ func (s *simulationServiceServer) newAgent(ownerUID string, modelName string, po
 		}
 	}
 
-	return s.newEntity("AGENT", ownerUID, modelName, pos), nil
+	return s.newEntity("AGENT", ownerUID, modelName, pos)
 }
 
 // Remove an entity by Id and broadcast the update

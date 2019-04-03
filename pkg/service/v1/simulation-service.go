@@ -3,9 +3,7 @@ package v1
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -64,19 +62,7 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 	removeAllRemoteModelsFromFirebase(s.firebaseApp, s.env)
 
 	// Populate the world with food entities
-	// [ENV CHECK] - in testing we want a clear world so don't add any entities
-	if env != "testing" {
-		// Spawn food randomly
-		for i := 0; i < 200; i++ {
-			x := int32(rand.Intn(50) - 25)
-			y := int32(rand.Intn(50) - 25)
-			// Don't put anything at 0,0
-			if x == 0 && y == 0 {
-				continue
-			}
-			s.newEntity("FOOD", "", "", Vec2{x, y})
-		}
-	}
+	s.spawnRandomFood()
 
 	// Start the environment agent model stepper
 	// [ENV CHECK] - in training we don't use RMs so this is unecessary
@@ -112,15 +98,6 @@ func (s *simulationServiceServer) CreateAgent(ctx context.Context, req *v1.Creat
 	profile, err := authenticateFirebaseAccountWithSecret(ctx, s.firebaseApp, s.env)
 	if err != nil {
 		return nil, errors.New("CreateAgent(): Unable to verify auth token")
-	}
-
-	// Get pos the user is trying to spawn an agent in
-	targetPos := Vec2{req.X, req.Y}
-
-	// Make sure the cell is empty
-	if s.isCellOccupied(targetPos) {
-		err := errors.New("CreateAgent(): Cell is already occupied")
-		return nil, err
 	}
 
 	// Create a new agent (which is an entity)
@@ -175,7 +152,7 @@ func (s *simulationServiceServer) DeleteAgent(ctx context.Context, req *v1.Delet
 	// Verify the auth secret
 	_, err := authenticateFirebaseAccountWithSecret(ctx, s.firebaseApp, s.env)
 	if err != nil {
-		return nil, errors.New("CreateAgent(): Unable to verify auth token")
+		return nil, err
 	}
 
 	// Get the agent
@@ -212,23 +189,17 @@ func (s *simulationServiceServer) ExecuteAgentAction(ctx context.Context, req *v
 	agent, ok := s.entities[req.Id]
 	// Throw an error if an agent by that id doesn't exist
 	if !ok {
-		err := errors.New("GetAgent(): Agent Not Found")
-		return nil, err
+		return &v1.ExecuteAgentActionResponse{
+			Api:                 apiVersion,
+			IsAgentStillAlive:   false,
+			WasActionSuccessful: false,
+		}, nil
 	}
 
-	// Get the target position from the given direction
-	var targetPos Vec2
-	switch action.Direction {
-	case "UP":
-		targetPos = Vec2{agent.pos.x, agent.pos.y + 1}
-	case "DOWN":
-		targetPos = Vec2{agent.pos.x, agent.pos.y - 1}
-	case "LEFT":
-		targetPos = Vec2{agent.pos.x - 1, agent.pos.y}
-	case "RIGHT":
-		targetPos = Vec2{agent.pos.x + 1, agent.pos.y}
-	default: // Direction not correct
-		return nil, errors.New("ExecuteAgentAction(): Invalid Action.Direction")
+	// Get the target position from the given direction and agent
+	targetPos, err := getTargetPosFromDirectionAndAgent(action.Direction, agent)
+	if err != nil {
+		return nil, err
 	}
 
 	// Perform the action
@@ -240,7 +211,7 @@ func (s *simulationServiceServer) ExecuteAgentAction(ctx context.Context, req *v
 	}
 
 	// Only subtract living cost on actions during training, otherwise do it
-	//   in the agent stepper
+	//   in the RM stepper
 	if s.env == "training" {
 		s.agentLivingCost(agent)
 	}
@@ -314,15 +285,7 @@ func (s *simulationServiceServer) ResetWorld(ctx context.Context, req *v1.ResetW
 	s.entities = make(map[int64]*Entity)
 	s.posEntityMap = make(map[Vec2]*Entity)
 	// Spawn food randomly
-	for i := 0; i < 250; i++ {
-		x := int32(rand.Intn(50) - 25)
-		y := int32(rand.Intn(50) - 25)
-		// Don't put anything at 0,0
-		if x == 0 || y == 0 {
-			continue
-		}
-		s.newEntity("FOOD", "", "", Vec2{x, y})
-	}
+	s.spawnRandomFood()
 	// Broadcast the reset
 	s.broadcastServerAction("RESET")
 	// Broadcast new cells
@@ -402,6 +365,7 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 		// Unlock the data
 		s.m.Unlock()
 	}
+
 	// If after the retrys it still hasn't found a channel throw an error
 	if channel == nil {
 		return nil, errors.New("SubscribeSpectatorToRegion(): Couldn't find a spectator by that id")
@@ -503,7 +467,6 @@ func (s *simulationServiceServer) CreateRemoteModel(req *v1.CreateRemoteModelReq
 		for {
 			v := <-remoteModel.channel
 			if err := stream.Send(&v); err != nil {
-				fmt.Println("CreateRemoteModel(): Stream send error")
 				stopRM <- 1
 			}
 		}
@@ -516,9 +479,10 @@ func (s *simulationServiceServer) CreateRemoteModel(req *v1.CreateRemoteModelReq
 		}
 	}()
 
+	// Wait for the channel to receive a value before stopping
 	<-stopRM
 
-	fmt.Println("CreateRemoteModel(): Model has disconnected or timed out")
+	logger.Log.Warn("CreateRemoteModel(): Model has disconnected or timed out")
 
 	// Remove the remote model and clean up
 	// Lock data until spectator is removed

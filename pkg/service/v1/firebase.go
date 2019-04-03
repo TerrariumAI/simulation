@@ -49,8 +49,8 @@ func authenticateFirebaseAccountWithSecret(ctx context.Context, app *firebase.Ap
 	}
 	secretHeader, ok := md["auth-secret"]
 	if !ok {
-		logger.Log.Warn("authenticateFirebaseAccountWithSecret(): No secret token header in context")
-		return nil, errors.New("Missing Secret Key In Metadata")
+		logger.Log.Warn("Authentication(): No secret token header in context")
+		return nil, errors.New("Authentication(): Missing Secret Key In Metadata")
 	}
 	secret := secretHeader[0]
 
@@ -64,7 +64,7 @@ func authenticateFirebaseAccountWithSecret(ctx context.Context, app *firebase.Ap
 			fakeUser["id"] = "FAKE_USER_ID"
 			return fakeUser, nil
 		}
-		return nil, errors.New("Invalid Secret Key")
+		return nil, errors.New("Authentication(): Invalid Secret Key")
 	}
 	// -----------------------------------
 
@@ -78,7 +78,7 @@ func authenticateFirebaseAccountWithSecret(ctx context.Context, app *firebase.Ap
 	iter := client.Collection("users").Where("secret", "==", secret).Documents(context.Background())
 	dsnap, err := iter.Next()
 	if err == iterator.Done {
-		return nil, errors.New("Invalid Secret Key")
+		return nil, errors.New("Authentication(): Invalid Secret Key")
 	}
 	if err != nil {
 		return nil, err
