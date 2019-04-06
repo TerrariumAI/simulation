@@ -5,7 +5,8 @@ help: ## Display this help screen
 
 go-build: ## build the server executable (for linux/docker use only)
 	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/server
-
+go-build-mac: ## Build the mac binary
+	go build -o neuralshift ./cmd/server
 run-testing: ## run the server locally with env set to testing
 	go run -race ./cmd/server/main.go -grpc-port=9090 -http-port=8080 -log-level=-1 -env=testing
 run-training: ## run the server locally with env set to training

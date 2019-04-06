@@ -141,6 +141,7 @@ func (s *simulationServiceServer) GetEntity(ctx context.Context, req *v1.GetEnti
 
 // Remove an agent
 // REQUIRES SECRET KEY FOR AUTH METADATA
+// NOT PROD
 func (s *simulationServiceServer) DeleteAgent(ctx context.Context, req *v1.DeleteAgentRequest) (*v1.DeleteAgentResponse, error) {
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
@@ -148,6 +149,10 @@ func (s *simulationServiceServer) DeleteAgent(ctx context.Context, req *v1.Delet
 	// check if the API version requested by client is supported by server
 	if err := s.checkAPI(req.Api); err != nil {
 		return nil, err
+	}
+	// Env check
+	if s.env == "prod" {
+		return nil, errors.New("DeleteAgent(): This function is not available in production")
 	}
 	// Verify the auth secret
 	_, err := authenticateFirebaseAccountWithSecret(ctx, s.firebaseApp, s.env)
@@ -240,6 +245,10 @@ func (s *simulationServiceServer) GetAgentObservation(ctx context.Context, req *
 	defer s.m.Unlock()
 	// Get the agent
 	e, ok := s.entities[req.Id]
+	// Env check
+	if s.env == "prod" {
+		return nil, errors.New("GetAgentObservation(): This function is not available in production. Agent observations are sent directly to Remote Models")
+	}
 
 	if ok {
 		cells := s.getObservationCellsForPosition(e.pos)
@@ -277,9 +286,16 @@ func (s *simulationServiceServer) ResetWorld(ctx context.Context, req *v1.ResetW
 		return nil, err
 	}
 	// Verify the auth token
-	_, err := authenticateFirebaseAccountWithSecret(ctx, s.firebaseApp, s.env)
+	profile, err := authenticateFirebaseAccountWithSecret(ctx, s.firebaseApp, s.env)
 	if err != nil {
 		return nil, errors.New("ResetWorld(): Unable to verify auth token")
+	}
+	// Only admins can do this in prod
+	// Env check
+	if s.env == "prod" {
+		if profile["role"].(string) != "admin" {
+			return nil, errors.New("ResetWorld(): This function is not available in production")
+		}
 	}
 
 	s.entities = make(map[int64]*Entity)

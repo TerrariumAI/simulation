@@ -4,7 +4,7 @@ This is the code that runs the AI environment simulation. You can also use this 
 
 NOTE: If you are trying to run the Web-Client and connect to this, you will first need to start up an Envoy-Proxy service and connect to that in order to translate the messages.
 
-## Tags
+## Flags
 
 **-grpc-port=<PORT_NUMBER>** The port the gRPC server will run on  
 **-http-port=<PORT_NUMBER>** The port the REST server will run on  
