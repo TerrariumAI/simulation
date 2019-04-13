@@ -27,10 +27,9 @@ metadata:
     app: envoy-proxy
 spec:
   type: LoadBalancer
-  loadBalancerIP: "35.193.119.21"
   selector:
     app: envoy-proxy
   ports:
     - port: 9091
       protocol: TCP
-      nodePort: 31036
+      nodePort: 31037

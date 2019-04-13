@@ -1,0 +1,11 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: envoy-proxy-ingress
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: envoy-proxy-ip
+    networking.gke.io/managed-certificates: simulation-certificate
+spec:
+  backend:
+    serviceName: envoy-proxy
+    servicePort: 9091
