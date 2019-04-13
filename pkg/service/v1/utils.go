@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"time"
 )
 
 const (
@@ -99,6 +100,7 @@ func (s *simulationServiceServer) getObservationCellsForPosition(pos Vec2) []str
 	return cells
 }
 
+// Spawn random food entities around the world
 func (s *simulationServiceServer) spawnRandomFood() {
 	for i := 0; i < 200; i++ {
 		x := int32(rand.Intn(50) - 25)
@@ -107,6 +109,26 @@ func (s *simulationServiceServer) spawnRandomFood() {
 		if x == 0 && y == 0 {
 			continue
 		}
-		s.newEntity("FOOD", "", "", Vec2{x, y})
+		s.newFood(Vec2{x, y})
 	}
+}
+
+func (s *simulationServiceServer) startFoodSpawnTimer() {
+	// Creates a ticker and a quit channel, in case we want to stop this
+	//  timer in the future. At the moment there is no need for it though
+	ticker := time.NewTicker(1 * time.Minute)
+	quit := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				if s.foodCount < minFoodBeforeRespawn {
+					s.spawnRandomFood()
+				}
+			case <-quit:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
 }

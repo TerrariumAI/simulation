@@ -20,6 +20,7 @@ const (
 	// apiVersion is version of API is provided by server
 	apiVersion            = "v1"
 	agentLivingEnergyCost = 2
+	minFoodBeforeRespawn  = 200
 )
 
 // toDoServiceServer is implementation of v1.ToDoServiceServer proto interface
@@ -28,17 +29,23 @@ type simulationServiceServer struct {
 	env string
 	// Entity storage
 	nextEntityID int64
-	entities     map[int64]*Entity
+	// ---- Entity Storage ----
+	// Map of all entities
+	entities map[int64]*Entity
 	// Map to keep track of agents
 	agents map[int64]*Entity
 	// Map from position -> *Entity
 	posEntityMap map[Vec2]*Entity
+	// --- Spectators ----
 	// Map from spectator id -> observation channel
 	spectIDChanMap map[string]chan v1.SpectateResponse
 	// Specators subscription to regions
 	spectRegionSubs map[Vec2][]string
 	// Map from user id to map from model name to channel
 	remoteModelMap map[string][]*remoteModel
+	// --- Stats ----
+	foodCount int
+	// --- Firebase ---
 	// Firebase app
 	firebaseApp *firebase.App
 	// Mutex to ensure data safety
@@ -63,6 +70,8 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 
 	// Populate the world with food entities
 	s.spawnRandomFood()
+	// Create a timer that spawns food randomly every x seconds
+	s.startFoodSpawnTimer()
 
 	// Start the environment agent model stepper
 	// [ENV CHECK] - in training we don't use RMs so this is unecessary

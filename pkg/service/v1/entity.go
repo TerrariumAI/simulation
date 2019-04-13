@@ -83,6 +83,13 @@ func (s *simulationServiceServer) newAgent(ownerUID string, modelName string, po
 	return s.newEntity("AGENT", ownerUID, modelName, pos)
 }
 
+func (s *simulationServiceServer) newFood(pos Vec2) (*Entity, error) {
+	// Add to foodCount stat
+	s.foodCount++
+	// Create the entity
+	return s.newEntity("FOOD", "", "", pos)
+}
+
 // Remove an entity by Id and broadcast the update
 func (s *simulationServiceServer) removeEntityByID(id int64) bool {
 	// Get the entitiy
@@ -91,10 +98,16 @@ func (s *simulationServiceServer) removeEntityByID(id int64) bool {
 	if !ok {
 		return false
 	}
-	// Remove from agents map if it is an agent
+
+	// Handle class specific removals
 	if e.class == "AGENT" {
+		// Remove from agents map if it is an agent
 		delete(s.agents, e.id)
+	} else if e.class == "FOOD" {
+		// Subtract from foodCount
+		s.foodCount--
 	}
+
 	// Remove the entity
 	delete(s.entities, e.id)
 	delete(s.posEntityMap, e.pos)
