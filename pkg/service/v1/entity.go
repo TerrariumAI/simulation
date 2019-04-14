@@ -15,8 +15,12 @@ type Entity struct {
 	modelName string
 }
 
-const initialEnergy = 100
-const initialHealth = 100
+const (
+	initialEnergy     = 100
+	initialHealth     = 100
+	moveEnergyCost    = 4
+	consumeEnergyGain = 10
+)
 
 // Given an entity, it will perform all living cost calculations, AND remove
 //  the entity if it dies returning whether or not it is still alive.
@@ -140,6 +144,7 @@ func (s *simulationServiceServer) entityMove(id int64, targetPos Vec2) bool {
 
 	// Move the entity to new position
 	e.pos = targetPos
+	e.energy -= moveEnergyCost
 	s.posEntityMap[targetPos] = e
 	// Send to observation
 	s.broadcastCellUpdate(e.pos, e)
@@ -171,7 +176,7 @@ func (s *simulationServiceServer) entityConsume(id int64, targetPos Vec2) bool {
 	// Remove food entity
 	s.removeEntityByID(targetEntity.id)
 	// Add to current entity's energy
-	e.energy += 10
+	e.energy += consumeEnergyGain
 
 	return true
 }
