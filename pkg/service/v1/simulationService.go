@@ -12,6 +12,8 @@ import (
 
 	firebase "firebase.google.com/go"
 
+	"github.com/olamai/simulation/pkg/world/v1"
+
 	v1 "github.com/olamai/simulation/pkg/api/v1"
 	"github.com/olamai/simulation/pkg/logger"
 )
@@ -67,6 +69,8 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 
 	// Remove all remote models that were registered for this server before starting
 	removeAllRemoteModelsFromFirebase(s.firebaseApp, s.env)
+
+	world.Test()
 
 	// Populate the world with food entities
 	s.spawnRandomFood()
