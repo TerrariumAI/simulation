@@ -30,7 +30,8 @@ const (
 // toDoServiceServer is implementation of v1.ToDoServiceServer proto interface
 type simulationServiceServer struct {
 	// Environment the server is running in
-	env   string
+	env string
+	// World that handles entities
 	world world.World
 	// --- Spectators ----
 	// Map from spectator id -> observation channel
@@ -39,8 +40,6 @@ type simulationServiceServer struct {
 	spectRegionSubs map[vec2.Vec2][]string
 	// Map from user id to map from model name to channel
 	remoteModelMap map[string][]*remoteModel
-	// --- Stats ----
-	foodCount int
 	// --- Firebase ---
 	// Firebase app
 	firebaseApp *firebase.App
