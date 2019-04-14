@@ -50,11 +50,11 @@ type simulationServiceServer struct {
 func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 	s := &simulationServiceServer{
 		env:            env,
-		stadium:        stadium.NewStadium(),
+		stadium:        stadium.NewStadium(regionSize),
 		remoteModelMap: make(map[string][]*remoteModel),
 		firebaseApp:    initializeFirebaseApp(env),
 	}
-	s.world = world.NewWorld(regionSize, s.onCellUpdate, true)
+	s.world = world.NewWorld(regionSize, s.stadium.BroadcastCellUpdate, true)
 
 	// Remove all remote models that were registered for this server before starting
 	removeAllRemoteModelsFromFirebase(s.firebaseApp, s.env)
@@ -65,10 +65,6 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 		go s.remoteModelStepper()
 	}
 	return s
-}
-
-func (s *simulationServiceServer) onCellUpdate(pos vec2.Vec2, e *world.Entity) {
-	s.stadium.BroadcastCellUpdate(pos, regionSize, e)
 }
 
 // checkAPI checks if the API version requested by client is supported by server

@@ -12,13 +12,16 @@ type Stadium struct {
 	spectIDChanMap map[string]chan v1.SpectateResponse
 	// Specators subscription to regions
 	spectRegionSubs map[vec2.Vec2][]string
+	// Size of the region
+	regionSize int32
 }
 
 // NewStadium creates a new stadium
-func NewStadium() Stadium {
+func NewStadium(regionSize int32) Stadium {
 	return Stadium{
 		spectIDChanMap:  make(map[string]chan v1.SpectateResponse),
 		spectRegionSubs: make(map[vec2.Vec2][]string),
+		regionSize:      regionSize,
 	}
 }
 
@@ -102,9 +105,9 @@ func (s *Stadium) BroadcastServerAction(action string) {
 }
 
 // BroadcastCellUpdate broadcasts a cell update only to those listening on that specific region
-func (s *Stadium) BroadcastCellUpdate(pos vec2.Vec2, regionSize int32, entity *world.Entity) {
+func (s *Stadium) BroadcastCellUpdate(pos vec2.Vec2, entity *world.Entity) {
 	// Get region for this position
-	region := pos.GetRegion(regionSize)
+	region := pos.GetRegion(s.regionSize)
 	// Get subs for this region
 	subs := s.spectRegionSubs[region]
 	// Loop over and send to channel
