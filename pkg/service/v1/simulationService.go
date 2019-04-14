@@ -38,6 +38,7 @@ type simulationServiceServer struct {
 	spectIDChanMap map[string]chan v1.SpectateResponse
 	// Specators subscription to regions
 	spectRegionSubs map[vec2.Vec2][]string
+	// --- Remote Models ---
 	// Map from user id to map from model name to channel
 	remoteModelMap map[string][]*remoteModel
 	// --- Firebase ---
@@ -423,10 +424,10 @@ func (s *simulationServiceServer) UnsubscribeSpectatorFromRegion(ctx context.Con
 
 	// Lock the data while creating the spectator
 	s.m.Lock()
+	defer s.m.Unlock()
 	// If the user is NOT already subbed, successful is false
 	isAlreadySubbed, i := s.isSpectatorAlreadySubscribedToRegion(id, region)
 	if !isAlreadySubbed {
-		s.m.Unlock()
 		return &v1.UnsubscribeSpectatorFromRegionResponse{
 			Api:        apiVersion,
 			Successful: false,
@@ -438,8 +439,6 @@ func (s *simulationServiceServer) UnsubscribeSpectatorFromRegion(ctx context.Con
 	if len(s.spectRegionSubs[region]) == 0 {
 		delete(s.spectRegionSubs, region)
 	}
-	// Unlock the data
-	s.m.Unlock()
 
 	return &v1.UnsubscribeSpectatorFromRegionResponse{
 		Api:        apiVersion,

@@ -17,11 +17,13 @@ run-training: ## run the server locally with env set to training
 run-prod: ## run the server locally with env set to prod
 	go run -race ./cmd/server/main.go -grpc-port=9090 -http-port=8080 -log-level=-1 -env=prod
 
-test: test-vec2 test-world ## test all internal packages
+test: test-vec2 test-world test-stadium ## test all internal packages
 test-vec2: ## run tests for Vec2
 	go test ./pkg/vec2/v1
-test-world: ## run tests for Vec2
+test-world: ## run tests for World
 	go test ./pkg/world/v1
+test-stadium: ## run tests for Stadium
+	go test ./pkg/stadium/v1
 
 # Proto compilation
 compile-proto: compile-proto-go compile-proto-py compile-proto-js # Compile proto in all languages
