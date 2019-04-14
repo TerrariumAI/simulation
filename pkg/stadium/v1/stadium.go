@@ -29,6 +29,12 @@ func (s *Stadium) AddSpectator(id string) chan v1.SpectateResponse {
 	return channel
 }
 
+// DoesSpectatorExist Checks if a spectator exists by this id
+func (s *Stadium) DoesSpectatorExist(id string) bool {
+	_, ok := s.spectIDChanMap[id]
+	return ok
+}
+
 // IsSpectatorAlreadySubscribedToRegion checks if a spectator is already subbed to a region
 func (s *Stadium) IsSpectatorAlreadySubscribedToRegion(spectatorID string, region vec2.Vec2) (isAlreadySubbed bool, index int) {
 	// Get subs for this region

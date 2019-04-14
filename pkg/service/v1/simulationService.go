@@ -12,6 +12,7 @@ import (
 
 	firebase "firebase.google.com/go"
 
+	"github.com/olamai/simulation/pkg/stadium/v1"
 	"github.com/olamai/simulation/pkg/vec2/v1"
 	"github.com/olamai/simulation/pkg/world/v1"
 
@@ -33,11 +34,8 @@ type simulationServiceServer struct {
 	env string
 	// World that handles entities
 	world world.World
-	// --- Spectators ----
-	// Map from spectator id -> observation channel
-	spectIDChanMap map[string]chan v1.SpectateResponse
-	// Specators subscription to regions
-	spectRegionSubs map[vec2.Vec2][]string
+	// Stadium handles spectators
+	stadium stadium.Stadium
 	// --- Remote Models ---
 	// Map from user id to map from model name to channel
 	remoteModelMap map[string][]*remoteModel
@@ -51,11 +49,10 @@ type simulationServiceServer struct {
 // NewSimulationServiceServer creates simulation service
 func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 	s := &simulationServiceServer{
-		env:             env,
-		spectIDChanMap:  make(map[string]chan v1.SpectateResponse),
-		spectRegionSubs: make(map[vec2.Vec2][]string),
-		remoteModelMap:  make(map[string][]*remoteModel),
-		firebaseApp:     initializeFirebaseApp(env),
+		env:            env,
+		stadium:        stadium.NewStadium(),
+		remoteModelMap: make(map[string][]*remoteModel),
+		firebaseApp:    initializeFirebaseApp(env),
 	}
 	s.world = world.NewWorld(regionSize, s.onCellUpdate, true)
 
@@ -71,7 +68,7 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 }
 
 func (s *simulationServiceServer) onCellUpdate(pos vec2.Vec2, e *world.Entity) {
-	s.broadcastCellUpdate(pos, e)
+	s.stadium.BroadcastCellUpdate(pos, regionSize, e)
 }
 
 // checkAPI checks if the API version requested by client is supported by server
@@ -308,7 +305,7 @@ func (s *simulationServiceServer) ResetWorld(ctx context.Context, req *v1.ResetW
 	// Reset the world
 	s.world.Reset()
 	// Broadcast the reset
-	s.broadcastServerAction("RESET")
+	s.stadium.BroadcastServerAction("RESET")
 	// Return
 	return &v1.ResetWorldResponse{}, nil
 }
@@ -319,8 +316,7 @@ func (s *simulationServiceServer) CreateSpectator(req *v1.CreateSpectatorRequest
 	spectatorID := req.Id
 	// Lock the data, unlock after spectator is added
 	s.m.Lock()
-	s.addSpectatorChannel(spectatorID)
-	channel := s.spectIDChanMap[spectatorID]
+	channel := s.stadium.AddSpectator(spectatorID)
 	// Unlock data
 	s.m.Unlock()
 
@@ -336,7 +332,7 @@ func (s *simulationServiceServer) CreateSpectator(req *v1.CreateSpectatorRequest
 	// Remove the spectator and clean up
 	// Lock data until spectator is removed
 	s.m.Lock()
-	s.removeSpectatorChannel(spectatorID)
+	s.stadium.RemoveSpectator(spectatorID)
 	// Unlock data
 	s.m.Unlock()
 	log.Printf("Spectator left...")
@@ -353,38 +349,36 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 	// Lock the data while creating the spectator
 	s.m.Lock()
 	// If the user is already subbed, successful is false
-	isAlreadySubbed, _ := s.isSpectatorAlreadySubscribedToRegion(id, region)
-	if isAlreadySubbed {
+	successful := s.stadium.SubscribeSpectatorToRegion(id, region)
+	if !successful {
 		s.m.Unlock()
 		return &v1.SubscribeSpectatorToRegionResponse{
 			Api:        apiVersion,
 			Successful: false,
 		}, nil
 	}
-	// Add spectator id to subscription slice
-	s.spectRegionSubs[region] = append(s.spectRegionSubs[region], id)
 	// Get spectator channel
-	channel := s.spectIDChanMap[id]
+	exists := s.stadium.DoesSpectatorExist(id)
 	// Unlock the data
 	s.m.Unlock()
 
 	// If the channel hasn't been created yet, try waiting a couple seconds then trying again
 	//  Try this 3 times
 	for i := 1; i < 4; i++ {
-		if channel != nil {
+		if exists {
 			break
 		}
 		logger.Log.Warn("SubscribeSpectatorToRegion(): Spectator channel is nil, sleeping and trying again. Try #" + string(i))
 		time.Sleep(2 * time.Second)
 		// Lock the data when attempting to read from spect map
 		s.m.Lock()
-		channel = s.spectIDChanMap[id]
+		exists = s.stadium.DoesSpectatorExist(id)
 		// Unlock the data
 		s.m.Unlock()
 	}
 
 	// If after the retrys it still hasn't found a channel throw an error
-	if channel == nil {
+	if !exists {
 		return nil, errors.New("SubscribeSpectatorToRegion(): Couldn't find a spectator by that id")
 	}
 
@@ -396,18 +390,7 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 	positions := region.GetPositionsInRegion(regionSize)
 	for _, pos := range positions {
 		if entity := s.world.GetEntityByPos(pos); entity != nil {
-			channel <- v1.SpectateResponse{
-				Data: &v1.SpectateResponse_CellUpdate{
-					CellUpdate: &v1.CellUpdate{
-						X: pos.X,
-						Y: pos.Y,
-						Entity: &v1.Entity{
-							Id:    entity.ID,
-							Class: entity.Class,
-						},
-					},
-				},
-			}
+			s.stadium.SendCellUpdate(id, pos, entity)
 		}
 	}
 
@@ -425,19 +408,13 @@ func (s *simulationServiceServer) UnsubscribeSpectatorFromRegion(ctx context.Con
 	// Lock the data while creating the spectator
 	s.m.Lock()
 	defer s.m.Unlock()
-	// If the user is NOT already subbed, successful is false
-	isAlreadySubbed, i := s.isSpectatorAlreadySubscribedToRegion(id, region)
-	if !isAlreadySubbed {
+	// Attempt to unsub
+	successful := s.stadium.UnsubscribeSpectatorFromRegion(id, region)
+	if !successful {
 		return &v1.UnsubscribeSpectatorFromRegionResponse{
 			Api:        apiVersion,
 			Successful: false,
 		}, nil
-	}
-	// Remove spectator id from subscription slice
-	s.spectRegionSubs[region] = append(s.spectRegionSubs[region][:i], s.spectRegionSubs[region][i+1:]...)
-	// Remove the key if there are no more spectators in the region
-	if len(s.spectRegionSubs[region]) == 0 {
-		delete(s.spectRegionSubs, region)
 	}
 
 	return &v1.UnsubscribeSpectatorFromRegionResponse{
