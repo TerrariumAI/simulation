@@ -39,7 +39,7 @@ func TestGetRegion(t *testing.T) {
 	}
 
 	for i, vector := range vectors {
-		region := vector.getRegion(regionSize)
+		region := vector.GetRegion(regionSize)
 		expectedRegion := expectedRegions[i]
 		if region != expectedRegion {
 			t.Errorf("Region for Vect2 %v was %v, expected %v", vector, region, expectedRegion)
@@ -50,7 +50,7 @@ func TestGetRegion(t *testing.T) {
 func TestGetPositionsInRegion(t *testing.T) {
 	position := Vec2{0, 0}
 
-	positions := position.getPositionsInRegion(regionSize)
+	positions := position.GetPositionsInRegion(regionSize)
 	expectedPositions := []Vec2{}
 	for x := 0; x < regionSize; x++ {
 		for y := 0; y < regionSize; y++ {

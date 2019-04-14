@@ -13,7 +13,8 @@ func TestNewFoodEntity(t *testing.T) {
 		16,
 		func(vec2.Vec2, *Entity) {
 			cellUpdateCount++
-		})
+		},
+		false)
 
 	expectedPos := vec2.Vec2{X: 0, Y: 0}
 	expectedClass := "FOOD"
@@ -41,7 +42,8 @@ func TestNewAgentEntity(t *testing.T) {
 		16,
 		func(vec2.Vec2, *Entity) {
 			cellUpdateCount++
-		})
+		},
+		false)
 
 	expectedPos := vec2.Vec2{X: 0, Y: 0}
 	expectedClass := "AGENT"
@@ -69,7 +71,8 @@ func TestNewEntityOnOccupiedCell(t *testing.T) {
 		16,
 		func(vec2.Vec2, *Entity) {
 			cellUpdateCount++
-		})
+		},
+		false)
 
 	w.NewAgentEntity("", "", vec2.Vec2{X: 0, Y: 0})
 	_, err := w.NewAgentEntity("", "", vec2.Vec2{X: 0, Y: 0})
@@ -89,7 +92,8 @@ func TestDeleteEntity(t *testing.T) {
 		16,
 		func(vec2.Vec2, *Entity) {
 			cellUpdateCount++
-		})
+		},
+		false)
 
 	agent, _ := w.NewAgentEntity("", "", vec2.Vec2{X: 0, Y: 0})
 	deleted := w.DeleteEntity(agent.ID)
@@ -109,7 +113,8 @@ func TestEntityMove(t *testing.T) {
 		16,
 		func(vec2.Vec2, *Entity) {
 			cellUpdateCount++
-		})
+		},
+		false)
 
 	agent, _ := w.NewAgentEntity("", "", vec2.Vec2{X: 0, Y: 0})
 	moved := w.EntityMove(agent.ID, vec2.Vec2{X: 0, Y: 1})
@@ -134,7 +139,8 @@ func TestEntityConsume(t *testing.T) {
 		16,
 		func(vec2.Vec2, *Entity) {
 			cellUpdateCount++
-		})
+		},
+		false)
 
 	agent, _ := w.NewAgentEntity("", "", vec2.Vec2{X: 0, Y: 0})
 	agent.Energy = 80
@@ -154,26 +160,6 @@ func TestEntityConsume(t *testing.T) {
 	}
 }
 
-func TestDoesEntityExist(t *testing.T) {
-	cellUpdateCount := 0
-	expectedCellUpdateCount := 1
-	w := NewWorld(
-		16,
-		func(vec2.Vec2, *Entity) {
-			cellUpdateCount++
-		})
-
-	agent, _ := w.NewAgentEntity("", "", vec2.Vec2{X: 0, Y: 0})
-	exists := w.DoesEntityExist(agent.ID)
-
-	if exists == false {
-		t.Error("DoesEntityExist returned false, expected true")
-	}
-	if cellUpdateCount != expectedCellUpdateCount {
-		t.Errorf("Cell updated count was %v, expected %v", cellUpdateCount, expectedCellUpdateCount)
-	}
-}
-
 func TestAgentLivingCostUpdate(t *testing.T) {
 	cellUpdateCount := 0
 	expectedCellUpdateCount := 1
@@ -181,7 +167,8 @@ func TestAgentLivingCostUpdate(t *testing.T) {
 		16,
 		func(vec2.Vec2, *Entity) {
 			cellUpdateCount++
-		})
+		},
+		false)
 
 	agent, _ := w.NewAgentEntity("", "", vec2.Vec2{X: 0, Y: 0})
 
@@ -210,5 +197,94 @@ func TestAgentLivingCostUpdate(t *testing.T) {
 
 	if cellUpdateCount != expectedCellUpdateCount {
 		t.Errorf("Cell updated count was %v, expected %v", cellUpdateCount, expectedCellUpdateCount)
+	}
+}
+
+func TestDoesEntityExist(t *testing.T) {
+	cellUpdateCount := 0
+	expectedCellUpdateCount := 1
+	w := NewWorld(
+		16,
+		func(vec2.Vec2, *Entity) {
+			cellUpdateCount++
+		},
+		false)
+
+	agent, _ := w.NewAgentEntity("", "", vec2.Vec2{X: 0, Y: 0})
+	exists := w.DoesEntityExist(agent.ID)
+
+	if exists == false {
+		t.Error("DoesEntityExist returned false, expected true")
+	}
+	if cellUpdateCount != expectedCellUpdateCount {
+		t.Errorf("Cell updated count was %v, expected %v", cellUpdateCount, expectedCellUpdateCount)
+	}
+}
+
+func TestGetEntity(t *testing.T) {
+	cellUpdateCount := 0
+	expectedCellUpdateCount := 1
+	w := NewWorld(
+		16,
+		func(vec2.Vec2, *Entity) {
+			cellUpdateCount++
+		},
+		false)
+
+	agent, _ := w.NewAgentEntity("", "", vec2.Vec2{X: 0, Y: 0})
+	entity := w.GetEntity(agent.ID)
+
+	if entity == nil {
+		t.Errorf("Got entity %v, expected %v", entity, agent)
+	}
+	if cellUpdateCount != expectedCellUpdateCount {
+		t.Errorf("Cell updated count was %v, expected %v", cellUpdateCount, expectedCellUpdateCount)
+	}
+}
+
+func TestGetEntityByPos(t *testing.T) {
+	cellUpdateCount := 0
+	expectedCellUpdateCount := 1
+	w := NewWorld(
+		16,
+		func(vec2.Vec2, *Entity) {
+			cellUpdateCount++
+		},
+		false)
+
+	agent, _ := w.NewAgentEntity("", "", vec2.Vec2{X: 0, Y: 0})
+	entity := w.GetEntityByPos(agent.Pos)
+
+	if entity == nil {
+		t.Errorf("Got entity %v, expected %v", entity, agent)
+	}
+	if entity.ID != agent.ID {
+		t.Errorf("Got entity with id %v, expected %v", entity.ID, agent.ID)
+	}
+	if cellUpdateCount != expectedCellUpdateCount {
+		t.Errorf("Cell updated count was %v, expected %v", cellUpdateCount, expectedCellUpdateCount)
+	}
+}
+
+func TestReset(t *testing.T) {
+	cellUpdateCount := 0
+	w := NewWorld(
+		16,
+		func(vec2.Vec2, *Entity) {
+			cellUpdateCount++
+		},
+		false)
+
+	agent, _ := w.NewAgentEntity("", "", vec2.Vec2{X: 0, Y: 0})
+	agent2, _ := w.NewAgentEntity("", "", vec2.Vec2{X: 1, Y: 0})
+	w.Reset()
+	agent = w.GetEntity(agent.ID)
+	agent2 = w.GetEntity(agent2.ID)
+
+	if agent != nil {
+		t.Errorf("Got entity %v, expected %v", agent, nil)
+	}
+	if agent2 != nil {
+		t.Errorf("Got entity %v, expected %v", agent2, nil)
 	}
 }

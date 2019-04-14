@@ -43,7 +43,7 @@ func (w *World) newEntity(class string, ownerUID string, modelName string, pos v
 
 	// Add to agents map if it is an agent
 	if class == "AGENT" {
-		w.agents[id] = &e
+		w.Agents[id] = &e
 	}
 
 	// Broadcast update
@@ -78,7 +78,7 @@ func (w *World) DeleteEntity(id int64) bool {
 	// Handle class specific removals
 	if e.Class == "AGENT" {
 		// Remove from agents map if it is an agent
-		delete(w.agents, e.ID)
+		delete(w.Agents, e.ID)
 	} else if e.Class == "FOOD" {
 		// Subtract from foodCount
 		w.foodCount--
@@ -91,6 +91,24 @@ func (w *World) DeleteEntity(id int64) bool {
 	w.onCellUpdate(e.Pos, nil)
 
 	return true
+}
+
+// GetEntity returns the entity with the given id
+func (w *World) GetEntity(id int64) *Entity {
+	entity, ok := w.entities[id]
+	if !ok {
+		return nil
+	}
+	return entity
+}
+
+// GetEntityByPos returns the entity with the given position
+func (w *World) GetEntityByPos(pos vec2.Vec2) *Entity {
+	entity, ok := w.posEntityMap[pos]
+	if !ok {
+		return nil
+	}
+	return entity
 }
 
 // EntityMove moves an entity, returns if the move was successful

@@ -7,7 +7,7 @@ type Vec2 struct {
 }
 
 // GetRegion - Returns the region that a position is in
-func (v *Vec2) getRegion(regionSize int32) Vec2 {
+func (v *Vec2) GetRegion(regionSize int32) Vec2 {
 	x := v.X
 	y := v.Y
 	if x < 0 {
@@ -20,7 +20,7 @@ func (v *Vec2) getRegion(regionSize int32) Vec2 {
 }
 
 // GetPositionsInRegion - Returns all positions that are in a specfic region
-func (v *Vec2) getPositionsInRegion(regionSize int32) []Vec2 {
+func (v *Vec2) GetPositionsInRegion(regionSize int32) []Vec2 {
 	positions := []Vec2{}
 	for x := v.X * regionSize; x < v.X*regionSize+regionSize; x++ {
 		for y := v.Y * regionSize; y < v.Y*regionSize+regionSize; y++ {

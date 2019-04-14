@@ -1,6 +1,10 @@
 package v1
 
-import v1 "github.com/olamai/simulation/pkg/api/v1"
+import (
+	v1 "github.com/olamai/simulation/pkg/api/v1"
+	"github.com/olamai/simulation/pkg/vec2/v1"
+	"github.com/olamai/simulation/pkg/world/v1"
+)
 
 // Add a spectator channel to the server
 func (s *simulationServiceServer) addSpectatorChannel(id string) string {
@@ -25,7 +29,7 @@ func (s *simulationServiceServer) removeSpectatorChannel(id string) {
 }
 
 // Check if a spectator is already subbed to a region
-func (s *simulationServiceServer) isSpectatorAlreadySubscribedToRegion(spectatorID string, region Vec2) (isAlreadySubbed bool, index int) {
+func (s *simulationServiceServer) isSpectatorAlreadySubscribedToRegion(spectatorID string, region vec2.Vec2) (isAlreadySubbed bool, index int) {
 	// Get subs for this region
 	subs := s.spectRegionSubs[region]
 	// Loop over and send to channel
@@ -43,7 +47,7 @@ func (s *simulationServiceServer) broadcastServerAction(action string) {
 	for _, channel := range s.spectIDChanMap {
 		channel <- v1.SpectateResponse{
 			Data: &v1.SpectateResponse_ServerAction{
-				&v1.ServerAction{
+				ServerAction: &v1.ServerAction{
 					Action: action,
 				},
 			},
@@ -52,9 +56,9 @@ func (s *simulationServiceServer) broadcastServerAction(action string) {
 }
 
 // Broadcast a cell update only to those listening on that specific region
-func (s *simulationServiceServer) broadcastCellUpdate(pos Vec2, entity *Entity) {
+func (s *simulationServiceServer) broadcastCellUpdate(pos vec2.Vec2, entity *world.Entity) {
 	// Get region for this position
-	region := pos.getRegion()
+	region := pos.GetRegion(regionSize)
 	// Get subs for this region
 	subs := s.spectRegionSubs[region]
 	// Loop over and send to channel
@@ -63,9 +67,9 @@ func (s *simulationServiceServer) broadcastCellUpdate(pos Vec2, entity *Entity) 
 		if entity == nil {
 			channel <- v1.SpectateResponse{
 				Data: &v1.SpectateResponse_CellUpdate{
-					&v1.CellUpdate{
-						X:      pos.x,
-						Y:      pos.y,
+					CellUpdate: &v1.CellUpdate{
+						X:      pos.X,
+						Y:      pos.Y,
 						Entity: nil,
 					},
 				},
@@ -73,12 +77,12 @@ func (s *simulationServiceServer) broadcastCellUpdate(pos Vec2, entity *Entity) 
 		} else {
 			channel <- v1.SpectateResponse{
 				Data: &v1.SpectateResponse_CellUpdate{
-					&v1.CellUpdate{
-						X: pos.x,
-						Y: pos.y,
+					CellUpdate: &v1.CellUpdate{
+						X: pos.X,
+						Y: pos.Y,
 						Entity: &v1.Entity{
-							Id:    entity.id,
-							Class: entity.class,
+							Id:    entity.ID,
+							Class: entity.Class,
 						},
 					},
 				},

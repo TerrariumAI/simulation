@@ -22,7 +22,7 @@ type World struct {
 	// Map of all entities
 	entities map[int64]*Entity
 	// Map to keep track of agents
-	agents map[int64]*Entity
+	Agents map[int64]*Entity
 	// Map from position -> *Entity
 	posEntityMap map[vec2.Vec2]*Entity
 	// Function callbacks
@@ -30,17 +30,49 @@ type World struct {
 }
 
 // NewWorld creates a new world objects
-func NewWorld(regionSize int32, onCellUpdate onCellUpdate) *World {
+func NewWorld(regionSize int32, onCellUpdate onCellUpdate, shouldSpawnFood bool) World {
 	world := World{
 		regionSize:   regionSize,
 		entities:     map[int64]*Entity{},
-		agents:       map[int64]*Entity{},
+		Agents:       map[int64]*Entity{},
 		posEntityMap: map[vec2.Vec2]*Entity{},
 		onCellUpdate: onCellUpdate,
 	}
-	world.startFoodSpawnTimer()
-	world.spawnRandomFood()
-	return &world
+	if shouldSpawnFood {
+		world.startFoodSpawnTimer()
+		world.spawnRandomFood()
+	}
+
+	return world
+}
+
+// Reset resets the world's entities
+func (w *World) Reset() {
+	w.entities = make(map[int64]*Entity)
+	w.posEntityMap = make(map[vec2.Vec2]*Entity)
+	w.spawnRandomFood()
+}
+
+// GetObservationCellsForPosition gets all observations for a specific position
+func (w *World) GetObservationCellsForPosition(pos vec2.Vec2) []string {
+	var cells []string
+	// TODO - implement this
+	for y := pos.Y + 1; y >= pos.Y-1; y-- {
+		for x := pos.X - 1; x <= pos.X+1; x++ {
+			var posToObserve = vec2.Vec2{X: x, Y: y}
+			// Make sure we don't observe ourselves
+			if posToObserve == pos {
+				continue
+			}
+			// Add value from cell
+			if entity, ok := w.posEntityMap[posToObserve]; ok {
+				cells = append(cells, entity.Class)
+			} else {
+				cells = append(cells, "EMPTY")
+			}
+		}
+	}
+	return cells
 }
 
 // Checks if a cell is currently occupied

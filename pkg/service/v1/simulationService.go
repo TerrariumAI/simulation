@@ -12,6 +12,7 @@ import (
 
 	firebase "firebase.google.com/go"
 
+	"github.com/olamai/simulation/pkg/vec2/v1"
 	"github.com/olamai/simulation/pkg/world/v1"
 
 	v1 "github.com/olamai/simulation/pkg/api/v1"
@@ -23,6 +24,7 @@ const (
 	apiVersion            = "v1"
 	agentLivingEnergyCost = 2
 	minFoodBeforeRespawn  = 200
+	regionSize            = 16
 )
 
 // toDoServiceServer is implementation of v1.ToDoServiceServer proto interface
@@ -34,7 +36,7 @@ type simulationServiceServer struct {
 	// Map from spectator id -> observation channel
 	spectIDChanMap map[string]chan v1.SpectateResponse
 	// Specators subscription to regions
-	spectRegionSubs map[Vec2][]string
+	spectRegionSubs map[vec2.Vec2][]string
 	// Map from user id to map from model name to channel
 	remoteModelMap map[string][]*remoteModel
 	// --- Stats ----
@@ -50,22 +52,15 @@ type simulationServiceServer struct {
 func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 	s := &simulationServiceServer{
 		env:             env,
-		entities:        make(map[int64]*Entity),
-		agents:          make(map[int64]*Entity),
-		posEntityMap:    make(map[Vec2]*Entity),
 		spectIDChanMap:  make(map[string]chan v1.SpectateResponse),
-		spectRegionSubs: make(map[Vec2][]string),
+		spectRegionSubs: make(map[vec2.Vec2][]string),
 		remoteModelMap:  make(map[string][]*remoteModel),
 		firebaseApp:     initializeFirebaseApp(env),
 	}
+	s.world = world.NewWorld(regionSize, s.onCellUpdate, true)
 
 	// Remove all remote models that were registered for this server before starting
 	removeAllRemoteModelsFromFirebase(s.firebaseApp, s.env)
-
-	// Populate the world with food entities
-	s.spawnRandomFood()
-	// Create a timer that spawns food randomly every x seconds
-	s.startFoodSpawnTimer()
 
 	// Start the environment agent model stepper
 	// [ENV CHECK] - in training we don't use RMs so this is unecessary
@@ -73,6 +68,10 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 		go s.remoteModelStepper()
 	}
 	return s
+}
+
+func (s *simulationServiceServer) onCellUpdate(pos vec2.Vec2, e *world.Entity) {
+	s.broadcastCellUpdate(pos, e)
 }
 
 // checkAPI checks if the API version requested by client is supported by server
@@ -103,15 +102,20 @@ func (s *simulationServiceServer) CreateAgent(ctx context.Context, req *v1.Creat
 		return nil, errors.New("CreateAgent(): Unable to verify auth token")
 	}
 
-	// Create a new agent (which is an entity)
-	agent, err := s.newAgent(profile["id"].(string), req.ModelName, Vec2{req.X, req.Y})
+	// Create a new agent
+	if s.env == "prod" {
+		if !s.doesRemoteModelExist(profile["id"].(string), req.ModelName) {
+			return nil, errors.New("CreateNewEntity(): That model does not exist")
+		}
+	}
+	agent, err := s.world.NewAgentEntity(profile["id"].(string), req.ModelName, vec2.Vec2{X: req.X, Y: req.Y})
 	if err != nil {
 		return nil, err
 	}
 
 	return &v1.CreateAgentResponse{
 		Api: apiVersion,
-		Id:  agent.id,
+		Id:  agent.ID,
 	}, nil
 }
 
@@ -125,9 +129,9 @@ func (s *simulationServiceServer) GetEntity(ctx context.Context, req *v1.GetEnti
 		return nil, err
 	}
 	// Get the entity from the map
-	entity, ok := s.entities[req.Id]
+	entity := s.world.GetEntity(req.Id)
 	// Throw an error if an agent by that id doesn't exist
-	if !ok {
+	if entity == nil {
 		err := errors.New("GetEntity(): Entity Not Found")
 		return nil, err
 	}
@@ -136,8 +140,8 @@ func (s *simulationServiceServer) GetEntity(ctx context.Context, req *v1.GetEnti
 	return &v1.GetEntityResponse{
 		Api: apiVersion,
 		Entity: &v1.Entity{
-			Id:    entity.id,
-			Class: entity.class,
+			Id:    entity.ID,
+			Class: entity.Class,
 		},
 	}, nil
 }
@@ -164,15 +168,15 @@ func (s *simulationServiceServer) DeleteAgent(ctx context.Context, req *v1.Delet
 	}
 
 	// Get the agent
-	agent, ok := s.entities[req.Id]
+	agent := s.world.GetEntity(req.Id)
 	// Throw an error if an agent by that id doesn't exist
-	if !ok {
+	if agent == nil {
 		err := errors.New("GetAgent(): Agent Not Found")
 		return nil, err
 	}
 
 	// Remove the entity
-	s.removeEntityByID(agent.id)
+	s.world.DeleteEntity(agent.ID)
 
 	// Return the data for the agent
 	return &v1.DeleteAgentResponse{
@@ -194,9 +198,9 @@ func (s *simulationServiceServer) ExecuteAgentAction(ctx context.Context, req *v
 		return nil, err
 	}
 	// Get the agent
-	agent, ok := s.entities[req.Id]
+	agent := s.world.GetEntity(req.Id)
 	// Throw an error if an agent by that id doesn't exist
-	if !ok {
+	if agent == nil {
 		return &v1.ExecuteAgentActionResponse{
 			Api:                 apiVersion,
 			IsAgentStillAlive:   false,
@@ -213,19 +217,19 @@ func (s *simulationServiceServer) ExecuteAgentAction(ctx context.Context, req *v
 	// Perform the action
 	switch action.Id {
 	case "MOVE":
-		actionSuccess = s.entityMove(agent.id, targetPos)
+		actionSuccess = s.world.EntityMove(agent.ID, targetPos)
 	case "CONSUME":
-		actionSuccess = s.entityConsume(agent.id, targetPos)
+		actionSuccess = s.world.EntityConsume(agent.ID, targetPos)
 	}
 
 	// Only subtract living cost on actions during training, otherwise do it
 	//   in the RM stepper
 	if s.env == "training" {
-		s.agentLivingCost(agent)
+		s.world.EntityLivingCostUpdate(agent)
 	}
 
 	// If the agent died during all this, return that
-	if !s.doesEntityExist(agent.id) {
+	if !s.world.DoesEntityExist(agent.ID) {
 		return &v1.ExecuteAgentActionResponse{
 			Api:                 apiVersion,
 			IsAgentStillAlive:   false,
@@ -247,23 +251,23 @@ func (s *simulationServiceServer) GetAgentObservation(ctx context.Context, req *
 	s.m.Lock()
 	defer s.m.Unlock()
 	// Get the agent
-	e, ok := s.entities[req.Id]
+	e := s.world.GetEntity(req.Id)
 	// Env check
 	if s.env == "prod" {
 		return nil, errors.New("GetAgentObservation(): This function is not available in production. Agent observations are sent directly to Remote Models")
 	}
 
-	if ok {
-		cells := s.getObservationCellsForPosition(e.pos)
+	if e != nil {
+		cells := s.world.GetObservationCellsForPosition(e.Pos)
 		// Agent is alive and well... maybe, at least it's alive
 		return &v1.GetAgentObservationResponse{
 			Api: apiVersion,
 			Observation: &v1.Observation{
-				Id:     e.id,
+				Id:     e.ID,
 				Alive:  true,
 				Cells:  cells,
-				Energy: e.energy,
-				Health: e.health,
+				Energy: e.Energy,
+				Health: e.Health,
 			},
 		}, nil
 	}
@@ -301,16 +305,10 @@ func (s *simulationServiceServer) ResetWorld(ctx context.Context, req *v1.ResetW
 		}
 	}
 
-	s.entities = make(map[int64]*Entity)
-	s.posEntityMap = make(map[Vec2]*Entity)
-	// Spawn food randomly
-	s.spawnRandomFood()
+	// Reset the world
+	s.world.Reset()
 	// Broadcast the reset
 	s.broadcastServerAction("RESET")
-	// Broadcast new cells
-	for pos, e := range s.posEntityMap {
-		s.broadcastCellUpdate(pos, e)
-	}
 	// Return
 	return &v1.ResetWorldResponse{}, nil
 }
@@ -350,7 +348,7 @@ func (s *simulationServiceServer) CreateSpectator(req *v1.CreateSpectatorRequest
 func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context, req *v1.SubscribeSpectatorToRegionRequest) (*v1.SubscribeSpectatorToRegionResponse, error) {
 	// customHeader := ctx.Value("custom-header=1")
 	id := req.Id
-	region := Vec2{req.Region.X, req.Region.Y}
+	region := vec2.Vec2{X: req.Region.X, Y: req.Region.Y}
 
 	// Lock the data while creating the spectator
 	s.m.Lock()
@@ -394,18 +392,18 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 	s.m.Lock()
 	defer s.m.Unlock()
 
-	// Send initial world state
-	positions := region.getPositionsInRegion()
+	// Send initial region state
+	positions := region.GetPositionsInRegion(regionSize)
 	for _, pos := range positions {
-		if entity, ok := s.posEntityMap[pos]; ok {
+		if entity := s.world.GetEntityByPos(pos); entity != nil {
 			channel <- v1.SpectateResponse{
 				Data: &v1.SpectateResponse_CellUpdate{
-					&v1.CellUpdate{
-						X: pos.x,
-						Y: pos.y,
+					CellUpdate: &v1.CellUpdate{
+						X: pos.X,
+						Y: pos.Y,
 						Entity: &v1.Entity{
-							Id:    entity.id,
-							Class: entity.class,
+							Id:    entity.ID,
+							Class: entity.Class,
 						},
 					},
 				},
@@ -422,7 +420,7 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 func (s *simulationServiceServer) UnsubscribeSpectatorFromRegion(ctx context.Context, req *v1.UnsubscribeSpectatorFromRegionRequest) (*v1.UnsubscribeSpectatorFromRegionResponse, error) {
 	// customHeader := ctx.Value("custom-header=1")
 	id := req.Id
-	region := Vec2{req.Region.X, req.Region.Y}
+	region := vec2.Vec2{X: req.Region.X, Y: req.Region.Y}
 
 	// Lock the data while creating the spectator
 	s.m.Lock()

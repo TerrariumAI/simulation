@@ -5,10 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-)
 
-const (
-	regionSize = 16
+	"github.com/olamai/simulation/pkg/vec2/v1"
+	"github.com/olamai/simulation/pkg/world/v1"
 )
 
 // newUUID generates a random UUID according to RFC 4122
@@ -27,43 +26,17 @@ func newUUID() (string, error) {
 
 // Given a direction and an agent, return the target position
 //  i.e. an agent at (0,0) and direction "UP" returns (0, 1)
-func getTargetPosFromDirectionAndAgent(dir string, agent *Entity) (Vec2, error) {
+func getTargetPosFromDirectionAndAgent(dir string, agent *world.Entity) (vec2.Vec2, error) {
 	switch dir {
 	case "UP":
-		return Vec2{agent.pos.x, agent.pos.y + 1}, nil
+		return vec2.Vec2{X: agent.Pos.X, Y: agent.Pos.Y + 1}, nil
 	case "DOWN":
-		return Vec2{agent.pos.x, agent.pos.y - 1}, nil
+		return vec2.Vec2{X: agent.Pos.X, Y: agent.Pos.Y - 1}, nil
 	case "LEFT":
-		return Vec2{agent.pos.x - 1, agent.pos.y}, nil
+		return vec2.Vec2{X: agent.Pos.X - 1, Y: agent.Pos.Y}, nil
 	case "RIGHT":
-		return Vec2{agent.pos.x + 1, agent.pos.y}, nil
+		return vec2.Vec2{X: agent.Pos.X + 1, Y: agent.Pos.Y}, nil
 	default: // Direction not correct
-		return Vec2{}, errors.New("GetTargetPosFromDirectionAndAgent(): Invalid Action.Direction")
+		return vec2.Vec2{}, errors.New("GetTargetPosFromDirectionAndAgent(): Invalid Action.Direction")
 	}
-}
-
-// ---------------------
-// Simulation utils
-// ---------------------
-
-// Get all observations for a specific position
-func (s *simulationServiceServer) getObservationCellsForPosition(pos Vec2) []string {
-	var cells []string
-	// TODO - implement this
-	for y := pos.y + 1; y >= pos.y-1; y-- {
-		for x := pos.x - 1; x <= pos.x+1; x++ {
-			var posToObserve = Vec2{x, y}
-			// Make sure we don't observe ourselves
-			if posToObserve == pos {
-				continue
-			}
-			// Add value from cell
-			if entity, ok := s.posEntityMap[posToObserve]; ok {
-				cells = append(cells, entity.class)
-			} else {
-				cells = append(cells, "EMPTY")
-			}
-		}
-	}
-	return cells
 }
