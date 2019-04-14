@@ -5,43 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
-	"time"
 )
 
 const (
 	regionSize = 16
 )
-
-// Vec2 - Simple struct for holding positions
-type Vec2 struct {
-	x int32
-	y int32
-}
-
-// GetRegion - Returns the region that a position is in
-func (v *Vec2) getRegion() Vec2 {
-	x := v.x
-	y := v.y
-	if x < 0 {
-		x -= regionSize
-	}
-	if y < 0 {
-		y -= regionSize
-	}
-	return Vec2{x / regionSize, y / regionSize}
-}
-
-// GetPositionsInRegion - Returns all positions that are in a specfic region
-func (v *Vec2) getPositionsInRegion() []Vec2 {
-	positions := []Vec2{}
-	for x := v.x * regionSize; x < v.x*regionSize+regionSize; x++ {
-		for y := v.y * regionSize; y < v.y*regionSize+regionSize; y++ {
-			positions = append(positions, Vec2{x, y})
-		}
-	}
-	return positions
-}
 
 // newUUID generates a random UUID according to RFC 4122
 func newUUID() (string, error) {
@@ -98,37 +66,4 @@ func (s *simulationServiceServer) getObservationCellsForPosition(pos Vec2) []str
 		}
 	}
 	return cells
-}
-
-// Spawn random food entities around the world
-func (s *simulationServiceServer) spawnRandomFood() {
-	for i := 0; i < 200; i++ {
-		x := int32(rand.Intn(50) - 25)
-		y := int32(rand.Intn(50) - 25)
-		// Don't put anything at 0,0
-		if x == 0 && y == 0 {
-			continue
-		}
-		s.newFood(Vec2{x, y})
-	}
-}
-
-func (s *simulationServiceServer) startFoodSpawnTimer() {
-	// Creates a ticker and a quit channel, in case we want to stop this
-	//  timer in the future. At the moment there is no need for it though
-	ticker := time.NewTicker(1 * time.Minute)
-	quit := make(chan struct{})
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				if s.foodCount < minFoodBeforeRespawn {
-					s.spawnRandomFood()
-				}
-			case <-quit:
-				ticker.Stop()
-				return
-			}
-		}
-	}()
 }

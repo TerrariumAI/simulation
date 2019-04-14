@@ -28,16 +28,8 @@ const (
 // toDoServiceServer is implementation of v1.ToDoServiceServer proto interface
 type simulationServiceServer struct {
 	// Environment the server is running in
-	env string
-	// Entity storage
-	nextEntityID int64
-	// ---- Entity Storage ----
-	// Map of all entities
-	entities map[int64]*Entity
-	// Map to keep track of agents
-	agents map[int64]*Entity
-	// Map from position -> *Entity
-	posEntityMap map[Vec2]*Entity
+	env   string
+	world world.World
 	// --- Spectators ----
 	// Map from spectator id -> observation channel
 	spectIDChanMap map[string]chan v1.SpectateResponse
@@ -69,8 +61,6 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 
 	// Remove all remote models that were registered for this server before starting
 	removeAllRemoteModelsFromFirebase(s.firebaseApp, s.env)
-
-	world.Test()
 
 	// Populate the world with food entities
 	s.spawnRandomFood()
