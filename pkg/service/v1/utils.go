@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"io"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/olamai/simulation/pkg/vec2/v1"
 	"github.com/olamai/simulation/pkg/world/v1"
 )
@@ -39,4 +42,16 @@ func getTargetPosFromDirectionAndAgent(dir string, agent *world.Entity) (vec2.Ve
 	default: // Direction not correct
 		return vec2.Vec2{}, errors.New("GetTargetPosFromDirectionAndAgent(): Invalid Action.Direction")
 	}
+}
+
+// checkAPI checks if the API version requested by client is supported by server
+func (s *simulationServiceServer) checkAPI(api string) error {
+	// API version is "" means use current version of the service
+	if len(api) > 0 {
+		if apiVersion != api {
+			return status.Errorf(codes.Unimplemented,
+				"unsupported API version: service implements API version '%s', but asked for '%s'", apiVersion, api)
+		}
+	}
+	return nil
 }
