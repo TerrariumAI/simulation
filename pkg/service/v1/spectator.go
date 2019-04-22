@@ -69,7 +69,7 @@ func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context
 		if exists {
 			break
 		}
-		logger.Log.Warn("SubscribeSpectatorToRegion(): Spectator channel is nil, sleeping and trying again. Try #" + string(i))
+		logger.Log.Warn("SubscribeSpectatorToRegion(): Spectator channel is nil for spectator " + id + ", sleeping and trying again. Try #" + string(i))
 		time.Sleep(2 * time.Second)
 		// Lock the data when attempting to read from spect map
 		s.m.Lock()

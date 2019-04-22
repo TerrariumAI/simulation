@@ -63,7 +63,7 @@ func (s *simulationServiceServer) doesRemoteModelExist(uid string, name string) 
 // Steps over every agent, then sends an action request to it's RM
 func (s *simulationServiceServer) remoteModelStepper() {
 	for {
-		// Lock the data, defer unlock until end of call
+		// Lock the dataxs
 		s.m.Lock()
 		for _, agent := range s.world.Agents {
 			// Get the RM array for the owner of this agent

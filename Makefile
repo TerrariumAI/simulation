@@ -26,7 +26,7 @@ test-stadium: ## run tests for Stadium
 	go test ./pkg/stadium/v1
 
 # Proto compilation
-compile-proto: compile-proto-go compile-proto-py compile-proto-js # Compile proto in all languages
+compile-proto: compile-proto-go compile-proto-py compile-proto-js # compile proto in all languages
 compile-proto-go:
 	./third_party/protoc-gen-go.sh
 compile-proto-py:
