@@ -117,9 +117,13 @@ func (s *Stadium) BroadcastCellUpdate(pos vec2.Vec2, entity *world.Entity) {
 			channel <- v1.SpectateResponse{
 				Data: &v1.SpectateResponse_CellUpdate{
 					CellUpdate: &v1.CellUpdate{
-						X:      pos.X,
-						Y:      pos.Y,
-						Entity: nil,
+						Entity: &v1.Entity{
+							Class: "EMPTY",
+							Pos: &v1.Vec2{
+								X: pos.X,
+								Y: pos.Y,
+							},
+						},
 					},
 				},
 			}
@@ -127,11 +131,13 @@ func (s *Stadium) BroadcastCellUpdate(pos vec2.Vec2, entity *world.Entity) {
 			channel <- v1.SpectateResponse{
 				Data: &v1.SpectateResponse_CellUpdate{
 					CellUpdate: &v1.CellUpdate{
-						X: pos.X,
-						Y: pos.Y,
 						Entity: &v1.Entity{
 							Id:    entity.ID,
 							Class: entity.Class,
+							Pos: &v1.Vec2{
+								X: pos.X,
+								Y: pos.Y,
+							},
 						},
 					},
 				},
@@ -150,9 +156,13 @@ func (s *Stadium) SendCellUpdate(id string, pos vec2.Vec2, entity *world.Entity)
 		channel <- v1.SpectateResponse{
 			Data: &v1.SpectateResponse_CellUpdate{
 				CellUpdate: &v1.CellUpdate{
-					X:      pos.X,
-					Y:      pos.Y,
-					Entity: nil,
+					Entity: &v1.Entity{
+						Class: "EMPTY",
+						Pos: &v1.Vec2{
+							X: pos.X,
+							Y: pos.Y,
+						},
+					},
 				},
 			},
 		}
@@ -160,11 +170,13 @@ func (s *Stadium) SendCellUpdate(id string, pos vec2.Vec2, entity *world.Entity)
 		channel <- v1.SpectateResponse{
 			Data: &v1.SpectateResponse_CellUpdate{
 				CellUpdate: &v1.CellUpdate{
-					X: pos.X,
-					Y: pos.Y,
 					Entity: &v1.Entity{
 						Id:    entity.ID,
 						Class: entity.Class,
+						Pos: &v1.Vec2{
+							X: pos.X,
+							Y: pos.Y,
+						},
 					},
 				},
 			},

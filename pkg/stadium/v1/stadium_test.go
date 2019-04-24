@@ -13,7 +13,7 @@ const (
 )
 
 func TestAddSpectator(t *testing.T) {
-	s := NewStadium()
+	s := NewStadium(regionSize)
 	id := "test-id"
 	s.AddSpectator(id)
 	if _, ok := s.spectIDChanMap[id]; !ok {
@@ -22,7 +22,7 @@ func TestAddSpectator(t *testing.T) {
 }
 
 func TestIsSpectatorSubscribedToRegion(t *testing.T) {
-	s := NewStadium()
+	s := NewStadium(regionSize)
 	id := "test-id"
 	region := vec2.Vec2{X: 0, Y: 0}
 	// Test without spectator subbed
@@ -45,7 +45,7 @@ func TestIsSpectatorSubscribedToRegion(t *testing.T) {
 }
 
 func TestSubscribeSpectatorToRegion(t *testing.T) {
-	s := NewStadium()
+	s := NewStadium(regionSize)
 	id := "test-id"
 	region := vec2.Vec2{X: 0, Y: 0}
 	s.SubscribeSpectatorToRegion(id, region)
@@ -60,7 +60,7 @@ func TestSubscribeSpectatorToRegion(t *testing.T) {
 }
 
 func TestUnsubscribeSpectatorFromRegion(t *testing.T) {
-	s := NewStadium()
+	s := NewStadium(regionSize)
 	id := "test-id"
 	region := vec2.Vec2{X: 0, Y: 0}
 	s.SubscribeSpectatorToRegion(id, region)
@@ -76,7 +76,7 @@ func TestUnsubscribeSpectatorFromRegion(t *testing.T) {
 }
 
 func TestRemoveSpectator(t *testing.T) {
-	s := NewStadium()
+	s := NewStadium(regionSize)
 	id := "test-id"
 	region := vec2.Vec2{X: 0, Y: 0}
 	// Add the new spectator
@@ -99,7 +99,7 @@ func TestRemoveSpectator(t *testing.T) {
 }
 
 func TestBroadcastServerAction(t *testing.T) {
-	s := NewStadium()
+	s := NewStadium(regionSize)
 	id := "test-id"
 	expectedAction := "ACTION"
 	// Add the new spectator
@@ -120,7 +120,7 @@ func TestBroadcastServerAction(t *testing.T) {
 }
 
 func TestBroadcastCellUpdate(t *testing.T) {
-	s := NewStadium()
+	s := NewStadium(regionSize)
 	id := "test-id"
 	region := vec2.Vec2{X: 0, Y: 0}
 	expectedPos := vec2.Vec2{X: 1, Y: 1}
@@ -131,7 +131,7 @@ func TestBroadcastCellUpdate(t *testing.T) {
 	// Add the new spectator
 	channel := s.AddSpectator(id)
 	s.SubscribeSpectatorToRegion(id, region)
-	s.BroadcastCellUpdate(expectedPos, regionSize, &entity)
+	s.BroadcastCellUpdate(expectedPos, &entity)
 	cellUpdateResp := v1.SpectateResponse{}
 	select {
 	case cellUpdateResp = <-channel:
@@ -153,7 +153,7 @@ func TestBroadcastCellUpdate(t *testing.T) {
 }
 
 func TestSendCellUpdate(t *testing.T) {
-	s := NewStadium()
+	s := NewStadium(regionSize)
 	id1 := "test-id-1"
 	id2 := "test-id-2"
 	expectedPos := vec2.Vec2{X: 1, Y: 1}

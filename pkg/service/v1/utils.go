@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	v1 "github.com/olamai/simulation/pkg/api/v1"
 	"github.com/olamai/simulation/pkg/vec2/v1"
 	"github.com/olamai/simulation/pkg/world/v1"
 )
@@ -29,15 +31,15 @@ func newUUID() (string, error) {
 
 // Given a direction and an agent, return the target position
 //  i.e. an agent at (0,0) and direction "UP" returns (0, 1)
-func getTargetPosFromDirectionAndAgent(dir string, agent *world.Entity) (vec2.Vec2, error) {
+func getTargetPosFromDirectionAndAgent(dir uint32, agent *world.Entity) (vec2.Vec2, error) {
 	switch dir {
-	case "UP":
+	case 0: // UP
 		return vec2.Vec2{X: agent.Pos.X, Y: agent.Pos.Y + 1}, nil
-	case "DOWN":
+	case 1: // DOWN
 		return vec2.Vec2{X: agent.Pos.X, Y: agent.Pos.Y - 1}, nil
-	case "LEFT":
+	case 2: // LEFT
 		return vec2.Vec2{X: agent.Pos.X - 1, Y: agent.Pos.Y}, nil
-	case "RIGHT":
+	case 3: // RIGHT
 		return vec2.Vec2{X: agent.Pos.X + 1, Y: agent.Pos.Y}, nil
 	default: // Direction not correct
 		return vec2.Vec2{}, errors.New("GetTargetPosFromDirectionAndAgent(): Invalid Action.Direction")
@@ -54,4 +56,56 @@ func (s *simulationServiceServer) checkAPI(api string) error {
 		}
 	}
 	return nil
+}
+
+// Performs a single steo which goes through every agent and
+//  if it has a remote model, sends out an observation.
+//  If not, it simply applies living cost to the agent.
+func (s *simulationServiceServer) stepWorldOnce() {
+	for _, e := range s.world.Agents {
+		// Get the RM array for the owner of this agent
+		ownerUID := e.OwnerUID
+		userRMs := s.remoteModelMap[ownerUID]
+		for _, RM := range userRMs {
+			// Only use the model connected to this agent
+			if RM.name != e.ModelName {
+				continue
+			}
+			// Get the channel for the RM
+			RMChannel := RM.channel
+			// Get and send the observation to the RM
+			cells := s.world.GetObservationCellsForPosition(e.Pos)
+			RMChannel <- v1.Observation{
+				IsAlive: true,
+				Entity: &v1.Entity{
+					Id:    e.ID,
+					Class: e.Class,
+					Pos: &v1.Vec2{
+						X: e.Pos.X,
+						Y: e.Pos.Y,
+					},
+					Energy:    e.Energy,
+					Health:    e.Health,
+					OwnerUID:  e.OwnerUID,
+					ModelName: e.ModelName,
+				},
+				Cells: cells,
+			}
+		}
+		// Cost of living, eg. remove energy/health
+		s.world.EntityLivingCostUpdate(e)
+	}
+}
+
+// Steps over every agent, then sends an action request to it's RM
+func (s *simulationServiceServer) stepWorldContinuous() {
+	for {
+		// Lock the data
+		s.m.Lock()
+		s.stepWorldOnce()
+		// Unlock the data
+		s.m.Unlock()
+		// Sleep
+		time.Sleep((1000 / fps) * time.Millisecond)
+	}
 }

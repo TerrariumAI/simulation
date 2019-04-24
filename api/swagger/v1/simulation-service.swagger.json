@@ -196,7 +196,7 @@
           },
           {
             "name": "name",
-            "description": "Name of the mode.",
+            "description": "Name of the model.",
             "in": "query",
             "required": false,
             "type": "string"
@@ -442,10 +442,6 @@
     "v1CellUpdate": {
       "type": "object",
       "properties": {
-        "pos": {
-          "$ref": "#/definitions/v1Vec2",
-          "title": "Position"
-        },
         "entity": {
           "$ref": "#/definitions/v1Entity",
           "title": "The entity occupying a cell"
@@ -638,6 +634,9 @@
           "$ref": "#/definitions/v1ServerAction"
         }
       }
+    },
+    "v1StepWorldResponse": {
+      "type": "object"
     },
     "v1SubscribeSpectatorToRegionRequest": {
       "type": "object",

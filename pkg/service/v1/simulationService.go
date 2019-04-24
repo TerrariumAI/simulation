@@ -56,7 +56,7 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 	// Start the environment agent model stepper
 	// [ENV CHECK] - in training we don't use RMs so this is unecessary
 	if env != "training" {
-		go s.remoteModelStepper()
+		go s.stepWorldContinuous()
 	}
 	return s
 }
@@ -178,4 +178,23 @@ func (s *simulationServiceServer) CreateRemoteModel(req *v1.CreateRemoteModelReq
 	s.m.Unlock()
 
 	return nil
+}
+
+func (s *simulationServiceServer) StepWorld(ctx context.Context, req *v1.StepWorldRequest) (*v1.StepWorldResponse, error) {
+	// Lock the data, defer unlock until end of call
+	s.m.Lock()
+	defer s.m.Unlock()
+	// check if the API version requested by client is supported by server
+	if err := s.checkAPI(req.Api); err != nil {
+		return nil, err
+	}
+	// only available when not in prod
+	if s.env == "prod" {
+		return nil, errors.New("StepWorld(): This function is not available")
+	}
+
+	// Reset the world
+	s.stepWorldOnce()
+	// Return
+	return &v1.StepWorldResponse{}, nil
 }

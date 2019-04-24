@@ -55,8 +55,6 @@ message Observation {
 }
 
 message CellUpdate {
-  // Position
-  Vec2 pos = 1;
   // The entity occupying a cell
   Entity entity = 2;
 }
@@ -136,6 +134,9 @@ message GetAgentObservationResponse {
 message ResetWorldRequest { string api = 1; }
 message ResetWorldResponse {}
 
+message StepWorldRequest { string api = 1; }
+message StepWorldResponse {}
+
 // ----------------------
 // -- Generic Entity
 // ----------------------
@@ -192,7 +193,7 @@ message UnsubscribeSpectatorFromRegionResponse {
 // ----------------------
 message CreateRemoteModelRequest {
   string api = 1;
-  // Name of the mode
+  // Name of the model
   string name = 2;
 }
 
@@ -244,6 +245,8 @@ service SimulationService {
       body : "*"
     };
   }
+
+  rpc StepWorld(StepWorldRequest) returns (StepWorldResponse) {}
 
   // Create a new spectator stream
   rpc CreateSpectator(CreateSpectatorRequest)
