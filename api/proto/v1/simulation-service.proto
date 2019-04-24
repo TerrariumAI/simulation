@@ -26,40 +26,37 @@ option (grpc.gateway.protoc_gen_swagger.options.openapiv2_swagger) = {
   }
 };
 
+message Vec2 {
+  int32 x = 1;
+  int32 y = 2;
+}
+
 // Taks we have to do
 message Entity {
   // Unique integer identifier of the agent
   int64 id = 1;
-  // Entity class
-  string class = 4;
-}
-
-message Action {
-  // identifier for the action
-  // Ex. Move, Eat, etc.
-  string id = 1;
-  // direction to perform the action in
-  // Ex. Up, Down, etc.
-  string direction = 2;
+  // Entity stats
+  string class = 2;
+  Vec2 pos = 3;
+  int32 energy = 4;
+  int32 health = 5;
+  // Owner details
+  string ownerUID = 6;
+  string modelName = 7;
 }
 
 message Observation {
-  // Id of the agent
-  int64 id = 1;
+  // Whether this agent is still alive
+  bool isAlive = 1;
+  // The agent
+  Entity entity = 2;
   // Cells around the agent
-  repeated string cells = 2;
-  // Agent stats
-  bool alive = 3;
-  int32 energy = 4;
-  int32 health = 5;
+  repeated string cells = 3;
 }
 
 message CellUpdate {
-  // Position
-  int32 x = 1;
-  int32 y = 2;
   // The entity occupying a cell
-  Entity entity = 4;
+  Entity entity = 2;
 }
 message ServerAction {
   // action the server wants clients to take
@@ -72,28 +69,17 @@ message SpectateResponse {
   }
 }
 
-message Region {
-  int32 x = 1;
-  int32 y = 2;
-}
-
 // ----------------------
 // -- Agent
 // ----------------------
 // Request data to create new agent
 message CreateAgentRequest {
-  // API versioning: it is my best practice to specify version explicitly
   string api = 1;
-  // Name of the model for this agent
-  string modelName = 2;
-  // Agent to add
-  // Entity agent = 2;
-  int32 x = 3;
-  int32 y = 4;
+  // agent
+  Entity agent = 2;
 }
 // Contains data of created agent
 message CreateAgentResponse {
-  // API versioning: it is my best practice to specify version explicitly
   string api = 1;
   // ID of created agent
   int64 id = 2;
@@ -101,14 +87,12 @@ message CreateAgentResponse {
 
 // Request data to delete agent
 message DeleteAgentRequest {
-  // API versioning: it is my best practice to specify version explicitly
   string api = 1;
   // Unique integer identifier of the agent to delete
   int64 id = 2;
 }
 // Contains status of delete operation
 message DeleteAgentResponse {
-  // API versioning: it is my best practice to specify version explicitly
   string api = 1;
   // Contains number of entities have beed deleted
   // Equals 1 in case of successful delete
@@ -116,52 +100,54 @@ message DeleteAgentResponse {
 }
 
 message ExecuteAgentActionRequest {
-  // API versioning: it is my best practice to specify version explicitly
   string api = 1;
   // Id for the agent that should perform the action
   int64 id = 2;
-  // Action id
-  Action action = 3;
+  // identifier for the action
+  // 0: MOVE
+  // 1: EAT
+  uint32 action = 3;
+  // direction to perform the action in
+  // 0: UP
+  // 1: DOWN
+  // 2: LEFT
+  // 3: RIGHT
+  uint32 direction = 4;
 }
 message ExecuteAgentActionResponse {
-  // API versioning: it is my best practice to specify version explicitly
   string api = 1;
-  bool isAgentStillAlive = 2;
   // Was the agent able to perform the action
-  bool wasActionSuccessful = 3;
+  bool wasSuccessful = 3;
 }
 
 message GetAgentObservationRequest {
-  // API versioning: it is my best practice to specify version explicitly
   string api = 1;
   // Agent that should perform the action
   int64 id = 2;
 }
 message GetAgentObservationResponse {
-  // API versioning: it is my best practice to specify version explicitly
   string api = 1;
   // Was the agent able to perform the action
   Observation observation = 2;
 }
 
-message ResetWorldRequest {
-  string api = 1;
-}
+message ResetWorldRequest { string api = 1; }
 message ResetWorldResponse {}
+
+message StepWorldRequest { string api = 1; }
+message StepWorldResponse {}
 
 // ----------------------
 // -- Generic Entity
 // ----------------------
 // Request data to read entity
 message GetEntityRequest {
-  // API versioning: it is my best practice to specify version explicitly
   string api = 1;
   // Unique integer identifier of the agent
   int64 id = 2;
 }
 // Contains entity data specified in by ID request
 message GetEntityResponse {
-  // API versioning: it is my best practice to specify version explicitly
   string api = 1;
   // Task entity read by ID
   Entity entity = 2;
@@ -171,49 +157,43 @@ message GetEntityResponse {
 // -- Spectate
 // ----------------------
 message CreateSpectatorRequest {
-  // API versioning: it is my best practice to specify version explicitly
   string api = 1;
   // Id of the spectator
   string id = 2;
 }
 
 message SubscribeSpectatorToRegionRequest {
-  // API versioning: it is my best practice to specify version explicitly
   string api = 1;
   // Id of the spectator
   string id = 2;
   // What region to add to
-  Region region = 3;
+  Vec2 region = 3;
 }
 message SubscribeSpectatorToRegionResponse {
-  // API versioning: it is my best practice to specify version explicitly
   string api = 1;
   // Success status
-  bool successful = 2; 
+  bool successful = 2;
 }
 
 message UnsubscribeSpectatorFromRegionRequest {
-  // API versioning: it is my best practice to specify version explicitly
   string api = 1;
   // Id of the spectator
   string id = 2;
   // What region to add to
-  Region region = 3;
+  Vec2 region = 3;
 }
 message UnsubscribeSpectatorFromRegionResponse {
-  // API versioning: it is my best practice to specify version explicitly
   string api = 1;
   // Success status
-  bool successful = 2; 
+  bool successful = 2;
 }
 
 // ----------------------
 // -- Remote Models
 // ----------------------
 message CreateRemoteModelRequest {
-  // API versioning: it is my best practice to specify version explicitly
   string api = 1;
-  // Name of the mode
+  // Name of the model
   string name = 2;
 }
 
@@ -242,7 +222,8 @@ service SimulationService {
   }
 
   // Perform an action for an agent
-  rpc ExecuteAgentAction(ExecuteAgentActionRequest) returns (ExecuteAgentActionResponse) {
+  rpc ExecuteAgentAction(ExecuteAgentActionRequest)
+      returns (ExecuteAgentActionResponse) {
     option (google.api.http) = {
       put : "/v1/agent/{id}"
       body : "*"
@@ -250,7 +231,8 @@ service SimulationService {
   }
 
   // Get the observation for an agent
-  rpc GetAgentObservation(GetAgentObservationRequest) returns (GetAgentObservationResponse) {
+  rpc GetAgentObservation(GetAgentObservationRequest)
+      returns (GetAgentObservationResponse) {
     option (google.api.http) = {
       get : "/v1/agent/{id}/observation"
     };
@@ -264,15 +246,19 @@ service SimulationService {
     };
   }
 
+  rpc StepWorld(StepWorldRequest) returns (StepWorldResponse) {}
+
   // Create a new spectator stream
-  rpc CreateSpectator(CreateSpectatorRequest) returns (stream SpectateResponse) {
+  rpc CreateSpectator(CreateSpectatorRequest)
+      returns (stream SpectateResponse) {
     option (google.api.http) = {
       get : "/v1/spectator"
     };
   }
 
   // Subscribe the spectator of given id to a region
-  rpc SubscribeSpectatorToRegion(SubscribeSpectatorToRegionRequest) returns (SubscribeSpectatorToRegionResponse) {
+  rpc SubscribeSpectatorToRegion(SubscribeSpectatorToRegionRequest)
+      returns (SubscribeSpectatorToRegionResponse) {
     option (google.api.http) = {
       put : "/v1/spectator/{id}/subscribeToRegion"
       body : "*"
@@ -280,7 +266,8 @@ service SimulationService {
   }
 
   // Subscribe the spectator of given id to a region
-  rpc UnsubscribeSpectatorFromRegion(UnsubscribeSpectatorFromRegionRequest) returns (UnsubscribeSpectatorFromRegionResponse) {
+  rpc UnsubscribeSpectatorFromRegion(UnsubscribeSpectatorFromRegionRequest)
+      returns (UnsubscribeSpectatorFromRegionResponse) {
     option (google.api.http) = {
       put : "/v1/spectator/{id}/unsubscribeFromRegion"
       body : "*"

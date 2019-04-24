@@ -5,42 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
+	"time"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	v1 "github.com/olamai/simulation/pkg/api/v1"
+	"github.com/olamai/simulation/pkg/vec2/v1"
+	"github.com/olamai/simulation/pkg/world/v1"
 )
-
-const (
-	regionSize = 16
-)
-
-// Vec2 - Simple struct for holding positions
-type Vec2 struct {
-	x int32
-	y int32
-}
-
-// GetRegion - Returns the region that a position is in
-func (v *Vec2) getRegion() Vec2 {
-	x := v.x
-	y := v.y
-	if x < 0 {
-		x -= regionSize
-	}
-	if y < 0 {
-		y -= regionSize
-	}
-	return Vec2{x / regionSize, y / regionSize}
-}
-
-// GetPositionsInRegion - Returns all positions that are in a specfic region
-func (v *Vec2) getPositionsInRegion() []Vec2 {
-	positions := []Vec2{}
-	for x := v.x * regionSize; x < v.x*regionSize+regionSize; x++ {
-		for y := v.y * regionSize; y < v.y*regionSize+regionSize; y++ {
-			positions = append(positions, Vec2{x, y})
-		}
-	}
-	return positions
-}
 
 // newUUID generates a random UUID according to RFC 4122
 func newUUID() (string, error) {
@@ -58,55 +31,81 @@ func newUUID() (string, error) {
 
 // Given a direction and an agent, return the target position
 //  i.e. an agent at (0,0) and direction "UP" returns (0, 1)
-func getTargetPosFromDirectionAndAgent(dir string, agent *Entity) (Vec2, error) {
+func getTargetPosFromDirectionAndAgent(dir uint32, agent *world.Entity) (vec2.Vec2, error) {
 	switch dir {
-	case "UP":
-		return Vec2{agent.pos.x, agent.pos.y + 1}, nil
-	case "DOWN":
-		return Vec2{agent.pos.x, agent.pos.y - 1}, nil
-	case "LEFT":
-		return Vec2{agent.pos.x - 1, agent.pos.y}, nil
-	case "RIGHT":
-		return Vec2{agent.pos.x + 1, agent.pos.y}, nil
+	case 0: // UP
+		return vec2.Vec2{X: agent.Pos.X, Y: agent.Pos.Y + 1}, nil
+	case 1: // DOWN
+		return vec2.Vec2{X: agent.Pos.X, Y: agent.Pos.Y - 1}, nil
+	case 2: // LEFT
+		return vec2.Vec2{X: agent.Pos.X - 1, Y: agent.Pos.Y}, nil
+	case 3: // RIGHT
+		return vec2.Vec2{X: agent.Pos.X + 1, Y: agent.Pos.Y}, nil
 	default: // Direction not correct
-		return Vec2{}, errors.New("GetTargetPosFromDirectionAndAgent(): Invalid Action.Direction")
+		return vec2.Vec2{}, errors.New("GetTargetPosFromDirectionAndAgent(): Invalid Action.Direction")
 	}
 }
 
-// ---------------------
-// Simulation utils
-// ---------------------
+// checkAPI checks if the API version requested by client is supported by server
+func (s *simulationServiceServer) checkAPI(api string) error {
+	// API version is "" means use current version of the service
+	if len(api) > 0 {
+		if apiVersion != api {
+			return status.Errorf(codes.Unimplemented,
+				"unsupported API version: service implements API version '%s', but asked for '%s'", apiVersion, api)
+		}
+	}
+	return nil
+}
 
-// Get all observations for a specific position
-func (s *simulationServiceServer) getObservationCellsForPosition(pos Vec2) []string {
-	var cells []string
-	// TODO - implement this
-	for y := pos.y + 1; y >= pos.y-1; y-- {
-		for x := pos.x - 1; x <= pos.x+1; x++ {
-			var posToObserve = Vec2{x, y}
-			// Make sure we don't observe ourselves
-			if posToObserve == pos {
+// Performs a single steo which goes through every agent and
+//  if it has a remote model, sends out an observation.
+//  If not, it simply applies living cost to the agent.
+func (s *simulationServiceServer) stepWorldOnce() {
+	for _, e := range s.world.Agents {
+		// Get the RM array for the owner of this agent
+		ownerUID := e.OwnerUID
+		userRMs := s.remoteModelMap[ownerUID]
+		for _, RM := range userRMs {
+			// Only use the model connected to this agent
+			if RM.name != e.ModelName {
 				continue
 			}
-			// Add value from cell
-			if entity, ok := s.posEntityMap[posToObserve]; ok {
-				cells = append(cells, entity.class)
-			} else {
-				cells = append(cells, "EMPTY")
+			// Get the channel for the RM
+			RMChannel := RM.channel
+			// Get and send the observation to the RM
+			cells := s.world.GetObservationCellsForPosition(e.Pos)
+			RMChannel <- v1.Observation{
+				IsAlive: true,
+				Entity: &v1.Entity{
+					Id:    e.ID,
+					Class: e.Class,
+					Pos: &v1.Vec2{
+						X: e.Pos.X,
+						Y: e.Pos.Y,
+					},
+					Energy:    e.Energy,
+					Health:    e.Health,
+					OwnerUID:  e.OwnerUID,
+					ModelName: e.ModelName,
+				},
+				Cells: cells,
 			}
 		}
+		// Cost of living, eg. remove energy/health
+		s.world.EntityLivingCostUpdate(e)
 	}
-	return cells
 }
 
-func (s *simulationServiceServer) spawnRandomFood() {
-	for i := 0; i < 200; i++ {
-		x := int32(rand.Intn(50) - 25)
-		y := int32(rand.Intn(50) - 25)
-		// Don't put anything at 0,0
-		if x == 0 && y == 0 {
-			continue
-		}
-		s.newEntity("FOOD", "", "", Vec2{x, y})
+// Steps over every agent, then sends an action request to it's RM
+func (s *simulationServiceServer) stepWorldContinuous() {
+	for {
+		// Lock the data
+		s.m.Lock()
+		s.stepWorldOnce()
+		// Unlock the data
+		s.m.Unlock()
+		// Sleep
+		time.Sleep((1000 / fps) * time.Millisecond)
 	}
 }

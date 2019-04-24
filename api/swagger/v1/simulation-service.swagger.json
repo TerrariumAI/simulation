@@ -81,7 +81,6 @@
           },
           {
             "name": "api",
-            "description": "API versioning: it is my best practice to specify version explicitly.",
             "in": "query",
             "required": false,
             "type": "string"
@@ -160,7 +159,6 @@
           },
           {
             "name": "api",
-            "description": "API versioning: it is my best practice to specify version explicitly.",
             "in": "query",
             "required": false,
             "type": "string"
@@ -192,14 +190,13 @@
         "parameters": [
           {
             "name": "api",
-            "description": "API versioning: it is my best practice to specify version explicitly.",
             "in": "query",
             "required": false,
             "type": "string"
           },
           {
             "name": "name",
-            "description": "Name of the mode.",
+            "description": "Name of the model.",
             "in": "query",
             "required": false,
             "type": "string"
@@ -239,7 +236,6 @@
           },
           {
             "name": "api",
-            "description": "API versioning: it is my best practice to specify version explicitly.",
             "in": "query",
             "required": false,
             "type": "string"
@@ -304,7 +300,6 @@
         "parameters": [
           {
             "name": "api",
-            "description": "API versioning: it is my best practice to specify version explicitly.",
             "in": "query",
             "required": false,
             "type": "string"
@@ -444,31 +439,9 @@
         }
       }
     },
-    "v1Action": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "identifier for the action\nEx. Move, Eat, etc."
-        },
-        "direction": {
-          "type": "string",
-          "description": "direction to perform the action in\nEx. Up, Down, etc."
-        }
-      }
-    },
     "v1CellUpdate": {
       "type": "object",
       "properties": {
-        "x": {
-          "type": "integer",
-          "format": "int32",
-          "title": "Position"
-        },
-        "y": {
-          "type": "integer",
-          "format": "int32"
-        },
         "entity": {
           "$ref": "#/definitions/v1Entity",
           "title": "The entity occupying a cell"
@@ -479,21 +452,11 @@
       "type": "object",
       "properties": {
         "api": {
-          "type": "string",
-          "title": "API versioning: it is my best practice to specify version explicitly"
+          "type": "string"
         },
-        "modelName": {
-          "type": "string",
-          "title": "Name of the model for this agent"
-        },
-        "x": {
-          "type": "integer",
-          "format": "int32",
-          "title": "Agent to add\nEntity agent = 2;"
-        },
-        "y": {
-          "type": "integer",
-          "format": "int32"
+        "agent": {
+          "$ref": "#/definitions/v1Entity",
+          "title": "agent"
         }
       },
       "title": "----------------------\n-- Agent\n----------------------\nRequest data to create new agent"
@@ -502,8 +465,7 @@
       "type": "object",
       "properties": {
         "api": {
-          "type": "string",
-          "title": "API versioning: it is my best practice to specify version explicitly"
+          "type": "string"
         },
         "id": {
           "type": "string",
@@ -517,8 +479,7 @@
       "type": "object",
       "properties": {
         "api": {
-          "type": "string",
-          "title": "API versioning: it is my best practice to specify version explicitly"
+          "type": "string"
         },
         "deleted": {
           "type": "string",
@@ -538,7 +499,25 @@
         },
         "class": {
           "type": "string",
-          "title": "Entity class"
+          "title": "Entity stats"
+        },
+        "pos": {
+          "$ref": "#/definitions/v1Vec2"
+        },
+        "energy": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "health": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "ownerUID": {
+          "type": "string",
+          "title": "Owner details"
+        },
+        "modelName": {
+          "type": "string"
         }
       },
       "title": "Taks we have to do"
@@ -547,8 +526,7 @@
       "type": "object",
       "properties": {
         "api": {
-          "type": "string",
-          "title": "API versioning: it is my best practice to specify version explicitly"
+          "type": "string"
         },
         "id": {
           "type": "string",
@@ -556,8 +534,14 @@
           "title": "Id for the agent that should perform the action"
         },
         "action": {
-          "$ref": "#/definitions/v1Action",
-          "title": "Action id"
+          "type": "integer",
+          "format": "int64",
+          "title": "identifier for the action\n0: MOVE\n1: EAT"
+        },
+        "direction": {
+          "type": "integer",
+          "format": "int64",
+          "title": "direction to perform the action in\n0: UP\n1: DOWN\n2: LEFT\n3: RIGHT"
         }
       }
     },
@@ -565,14 +549,9 @@
       "type": "object",
       "properties": {
         "api": {
-          "type": "string",
-          "title": "API versioning: it is my best practice to specify version explicitly"
+          "type": "string"
         },
-        "isAgentStillAlive": {
-          "type": "boolean",
-          "format": "boolean"
-        },
-        "wasActionSuccessful": {
+        "wasSuccessful": {
           "type": "boolean",
           "format": "boolean",
           "title": "Was the agent able to perform the action"
@@ -583,8 +562,7 @@
       "type": "object",
       "properties": {
         "api": {
-          "type": "string",
-          "title": "API versioning: it is my best practice to specify version explicitly"
+          "type": "string"
         },
         "observation": {
           "$ref": "#/definitions/v1Observation",
@@ -596,8 +574,7 @@
       "type": "object",
       "properties": {
         "api": {
-          "type": "string",
-          "title": "API versioning: it is my best practice to specify version explicitly"
+          "type": "string"
         },
         "entity": {
           "$ref": "#/definitions/v1Entity",
@@ -609,10 +586,14 @@
     "v1Observation": {
       "type": "object",
       "properties": {
-        "id": {
-          "type": "string",
-          "format": "int64",
-          "title": "Id of the agent"
+        "isAlive": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "Whether this agent is still alive"
+        },
+        "entity": {
+          "$ref": "#/definitions/v1Entity",
+          "title": "The agent"
         },
         "cells": {
           "type": "array",
@@ -620,32 +601,6 @@
             "type": "string"
           },
           "title": "Cells around the agent"
-        },
-        "alive": {
-          "type": "boolean",
-          "format": "boolean",
-          "title": "Agent stats"
-        },
-        "energy": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "health": {
-          "type": "integer",
-          "format": "int32"
-        }
-      }
-    },
-    "v1Region": {
-      "type": "object",
-      "properties": {
-        "x": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "y": {
-          "type": "integer",
-          "format": "int32"
         }
       }
     },
@@ -680,19 +635,21 @@
         }
       }
     },
+    "v1StepWorldResponse": {
+      "type": "object"
+    },
     "v1SubscribeSpectatorToRegionRequest": {
       "type": "object",
       "properties": {
         "api": {
-          "type": "string",
-          "title": "API versioning: it is my best practice to specify version explicitly"
+          "type": "string"
         },
         "id": {
           "type": "string",
           "title": "Id of the spectator"
         },
         "region": {
-          "$ref": "#/definitions/v1Region",
+          "$ref": "#/definitions/v1Vec2",
           "title": "What region to add to"
         }
       }
@@ -701,8 +658,7 @@
       "type": "object",
       "properties": {
         "api": {
-          "type": "string",
-          "title": "API versioning: it is my best practice to specify version explicitly"
+          "type": "string"
         },
         "successful": {
           "type": "boolean",
@@ -715,15 +671,14 @@
       "type": "object",
       "properties": {
         "api": {
-          "type": "string",
-          "title": "API versioning: it is my best practice to specify version explicitly"
+          "type": "string"
         },
         "id": {
           "type": "string",
           "title": "Id of the spectator"
         },
         "region": {
-          "$ref": "#/definitions/v1Region",
+          "$ref": "#/definitions/v1Vec2",
           "title": "What region to add to"
         }
       }
@@ -732,13 +687,25 @@
       "type": "object",
       "properties": {
         "api": {
-          "type": "string",
-          "title": "API versioning: it is my best practice to specify version explicitly"
+          "type": "string"
         },
         "successful": {
           "type": "boolean",
           "format": "boolean",
           "title": "Success status"
+        }
+      }
+    },
+    "v1Vec2": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "y": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     }

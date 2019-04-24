@@ -1,88 +1,125 @@
 package v1
 
-import v1 "github.com/olamai/simulation/pkg/api/v1"
+import (
+	"context"
+	"errors"
+	"log"
+	"time"
 
-// Add a spectator channel to the server
-func (s *simulationServiceServer) addSpectatorChannel(id string) string {
-	// id := uuid.Must(uuid.NewV4()).String()
-	s.spectIDChanMap[id] = make(chan v1.SpectateResponse, 100)
-	return id
-}
+	v1 "github.com/olamai/simulation/pkg/api/v1"
+	"github.com/olamai/simulation/pkg/logger"
+	"github.com/olamai/simulation/pkg/vec2/v1"
+)
 
-// Remove a spectator channel from the server AND all it's subscriptions
-func (s *simulationServiceServer) removeSpectatorChannel(id string) {
-	// Loop over regions
-	for region, spectatorIDs := range s.spectRegionSubs {
-		// If the user is subscribed to this region, remove their subscription
-		for i, spectatorID := range spectatorIDs {
-			if spectatorID == id {
-				s.spectRegionSubs[region] = append(spectatorIDs[:i], spectatorIDs[i+1:]...)
-				break
-			}
+// Remove an agent
+func (s *simulationServiceServer) CreateSpectator(req *v1.CreateSpectatorRequest, stream v1.SimulationService_CreateSpectatorServer) error {
+	// Get spectator ID from client in the request
+	spectatorID := req.Id
+	// Lock the data, unlock after spectator is added
+	s.m.Lock()
+	channel := s.stadium.AddSpectator(spectatorID)
+	// Unlock data
+	s.m.Unlock()
+
+	// Listen for updates and send them to the client
+	for {
+		response := <-channel
+		if err := stream.Send(&response); err != nil {
+			// Break the sending loop
+			break
 		}
 	}
-	delete(s.spectIDChanMap, id)
+
+	// Remove the spectator and clean up
+	// Lock data until spectator is removed
+	s.m.Lock()
+	s.stadium.RemoveSpectator(spectatorID)
+	// Unlock data
+	s.m.Unlock()
+	log.Printf("Spectator left...")
+
+	return nil
 }
 
-// Check if a spectator is already subbed to a region
-func (s *simulationServiceServer) isSpectatorAlreadySubscribedToRegion(spectatorID string, region Vec2) (isAlreadySubbed bool, index int) {
-	// Get subs for this region
-	subs := s.spectRegionSubs[region]
-	// Loop over and send to channel
-	for i, _spectatorID := range subs {
-		if _spectatorID == spectatorID {
-			return true, i
+// Get an observation for an agent
+func (s *simulationServiceServer) SubscribeSpectatorToRegion(ctx context.Context, req *v1.SubscribeSpectatorToRegionRequest) (*v1.SubscribeSpectatorToRegionResponse, error) {
+	// customHeader := ctx.Value("custom-header=1")
+	id := req.Id
+	region := vec2.Vec2{X: req.Region.X, Y: req.Region.Y}
+
+	// Lock the data while creating the spectator
+	s.m.Lock()
+	// If the user is already subbed, successful is false
+	successful := s.stadium.SubscribeSpectatorToRegion(id, region)
+	if !successful {
+		s.m.Unlock()
+		return &v1.SubscribeSpectatorToRegionResponse{
+			Api:        apiVersion,
+			Successful: false,
+		}, nil
+	}
+	// Get spectator channel
+	exists := s.stadium.DoesSpectatorExist(id)
+	// Unlock the data
+	s.m.Unlock()
+
+	// If the channel hasn't been created yet, try waiting a couple seconds then trying again
+	//  Try this 3 times
+	for i := 1; i < 4; i++ {
+		if exists {
+			break
+		}
+		logger.Log.Warn("SubscribeSpectatorToRegion(): Spectator channel is nil for spectator " + id + ", sleeping and trying again. Try #" + string(i))
+		time.Sleep(2 * time.Second)
+		// Lock the data when attempting to read from spect map
+		s.m.Lock()
+		exists = s.stadium.DoesSpectatorExist(id)
+		// Unlock the data
+		s.m.Unlock()
+	}
+
+	// If after the retrys it still hasn't found a channel throw an error
+	if !exists {
+		return nil, errors.New("SubscribeSpectatorToRegion(): Couldn't find a spectator by that id")
+	}
+
+	// Lock the data while sending the spectator the initial region data
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	// Send initial region state
+	positions := region.GetPositionsInRegion(regionSize)
+	for _, pos := range positions {
+		if entity := s.world.GetEntityByPos(pos); entity != nil {
+			s.stadium.SendCellUpdate(id, pos, entity)
 		}
 	}
-	return false, -1
+
+	return &v1.SubscribeSpectatorToRegionResponse{
+		Api:        apiVersion,
+		Successful: true,
+	}, nil
 }
 
-// Broadcast a Server Action to everyone on this server. This is usually
-//  a WORLDRESET message
-func (s *simulationServiceServer) broadcastServerAction(action string) {
-	for _, channel := range s.spectIDChanMap {
-		channel <- v1.SpectateResponse{
-			Data: &v1.SpectateResponse_ServerAction{
-				&v1.ServerAction{
-					Action: action,
-				},
-			},
-		}
-	}
-}
+func (s *simulationServiceServer) UnsubscribeSpectatorFromRegion(ctx context.Context, req *v1.UnsubscribeSpectatorFromRegionRequest) (*v1.UnsubscribeSpectatorFromRegionResponse, error) {
+	// customHeader := ctx.Value("custom-header=1")
+	id := req.Id
+	region := vec2.Vec2{X: req.Region.X, Y: req.Region.Y}
 
-// Broadcast a cell update only to those listening on that specific region
-func (s *simulationServiceServer) broadcastCellUpdate(pos Vec2, entity *Entity) {
-	// Get region for this position
-	region := pos.getRegion()
-	// Get subs for this region
-	subs := s.spectRegionSubs[region]
-	// Loop over and send to channel
-	for _, spectatorID := range subs {
-		channel := s.spectIDChanMap[spectatorID]
-		if entity == nil {
-			channel <- v1.SpectateResponse{
-				Data: &v1.SpectateResponse_CellUpdate{
-					&v1.CellUpdate{
-						X:      pos.x,
-						Y:      pos.y,
-						Entity: nil,
-					},
-				},
-			}
-		} else {
-			channel <- v1.SpectateResponse{
-				Data: &v1.SpectateResponse_CellUpdate{
-					&v1.CellUpdate{
-						X: pos.x,
-						Y: pos.y,
-						Entity: &v1.Entity{
-							Id:    entity.id,
-							Class: entity.class,
-						},
-					},
-				},
-			}
-		}
+	// Lock the data while creating the spectator
+	s.m.Lock()
+	defer s.m.Unlock()
+	// Attempt to unsub
+	successful := s.stadium.UnsubscribeSpectatorFromRegion(id, region)
+	if !successful {
+		return &v1.UnsubscribeSpectatorFromRegionResponse{
+			Api:        apiVersion,
+			Successful: false,
+		}, nil
 	}
+
+	return &v1.UnsubscribeSpectatorFromRegionResponse{
+		Api:        apiVersion,
+		Successful: true,
+	}, nil
 }

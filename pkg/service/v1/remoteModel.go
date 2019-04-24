@@ -2,7 +2,6 @@ package v1
 
 import (
 	"errors"
-	"time"
 
 	v1 "github.com/olamai/simulation/pkg/api/v1"
 )
@@ -58,41 +57,4 @@ func (s *simulationServiceServer) doesRemoteModelExist(uid string, name string) 
 		}
 	}
 	return false
-}
-
-// Steps over every agent, then sends an action request to it's RM
-func (s *simulationServiceServer) remoteModelStepper() {
-	for {
-		// Lock the data, defer unlock until end of call
-		s.m.Lock()
-		for _, agent := range s.agents {
-			// Get the RM array for the owner of this agent
-			ownerUID := agent.ownerUID
-			userRMs := s.remoteModelMap[ownerUID]
-			for _, RM := range userRMs {
-				// Only use the model connected to this agent
-				if RM.name != agent.modelName {
-					continue
-				}
-				// Get the channel for the RM
-				RMChannel := RM.channel
-				// Get and send the observation to the RM
-				cells := s.getObservationCellsForPosition(agent.pos)
-				RMChannel <- v1.Observation{
-					Id:     agent.id,
-					Alive:  true,
-					Cells:  cells,
-					Energy: agent.energy,
-					Health: agent.health,
-				}
-			}
-			// Cost of living, eg. remove energy/health
-			s.agentLivingCost(agent)
-		}
-		// Unlock the data
-		s.m.Unlock()
-		// Sleep
-		time.Sleep((1000 / fps) * time.Millisecond)
-	}
-
 }
