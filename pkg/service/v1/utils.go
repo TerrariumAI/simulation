@@ -106,6 +106,8 @@ func (s *simulationServiceServer) stepWorldContinuous() {
 		// Unlock the data
 		s.m.Unlock()
 		// Sleep
-		time.Sleep((1000 / fps) * time.Millisecond)
+		if s.env != "training" {
+			time.Sleep((1000 / fps) * time.Millisecond)
+		}
 	}
 }

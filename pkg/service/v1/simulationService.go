@@ -55,9 +55,9 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 
 	// Start the environment agent model stepper
 	// [ENV CHECK] - in training we don't use RMs so this is unecessary
-	if env != "training" {
-		go s.stepWorldContinuous()
-	}
+	// if env != "training" {
+	go s.stepWorldContinuous()
+	// }
 	return s
 }
 
@@ -142,6 +142,7 @@ func (s *simulationServiceServer) CreateRemoteModel(req *v1.CreateRemoteModelReq
 		s.m.Unlock()
 		return err
 	}
+
 	// Unlock the data
 	s.m.Unlock()
 

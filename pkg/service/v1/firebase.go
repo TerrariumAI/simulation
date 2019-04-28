@@ -61,7 +61,7 @@ func authenticateFirebaseAccountWithSecret(ctx context.Context, app *firebase.Ap
 	if env == "training" {
 		if secret == mockSecret {
 			fakeUser := make(map[string]interface{})
-			fakeUser["id"] = "FAKE_USER_ID"
+			fakeUser["id"] = "MOCK_USER_ID"
 			return fakeUser, nil
 		}
 		return nil, errors.New("Authentication(): Invalid Secret Key")

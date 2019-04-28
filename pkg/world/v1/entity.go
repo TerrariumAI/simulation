@@ -87,6 +87,7 @@ func (w *World) DeleteEntity(id int64) bool {
 	// Remove the entity
 	delete(w.entities, e.ID)
 	delete(w.posEntityMap, e.Pos)
+
 	// Broadcast update
 	w.onCellUpdate(e.Pos, nil)
 
