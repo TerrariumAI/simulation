@@ -65,7 +65,7 @@ require (
 	golang.org/x/exp v0.0.0-20190301171323-01c40f57f5f6 // indirect
 	golang.org/x/lint v0.0.0-20190301231843-5614ed5bae6f // indirect
 	golang.org/x/net v0.0.0-20190301231341-16b79f2e4e95 // indirect
-	golang.org/x/oauth2 v0.0.0-20190226205417-e64efc72b421 // indirect
+	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a // indirect
 	golang.org/x/perf v0.0.0-20190124201629-844a5f5b46f4 // indirect
 	golang.org/x/sys v0.0.0-20190303192550-c2f5717e611c // indirect
 	golang.org/x/tools v0.0.0-20190228203856-589c23e65e65 // indirect

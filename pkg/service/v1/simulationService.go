@@ -2,7 +2,11 @@ package v1
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io/ioutil"
+	"os"
 	"sync"
 
 	firebase "firebase.google.com/go"
@@ -40,6 +44,20 @@ type simulationServiceServer struct {
 	m sync.Mutex
 }
 
+// Web which stores google ids.
+type Web struct {
+	ClientID     string `json:"client_id"`
+	ProjectID    string `json:"project_id"`
+	AuthURI      string `json:"auth_uri"`
+	TokenURI     string `json:"token_uri"`
+	ClientSecret string `json:"client_secret"`
+}
+
+// OAuthCredentials which stores google ids.
+type OAuthCredentials struct {
+	Web Web `json:"web"`
+}
+
 // NewSimulationServiceServer creates simulation service
 func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 	s := &simulationServiceServer{
@@ -55,9 +73,30 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 
 	// Start the environment agent model stepper
 	// [ENV CHECK] - in training we don't use RMs so this is unecessary
-	// if env != "training" {
 	go s.stepWorldContinuous()
-	// }
+
+	// ----------------
+	// -- OAUTH TESTING
+	// ----------------
+	var c OAuthCredentials
+	file, err := ioutil.ReadFile("./oauthCreds.json")
+	if err != nil {
+		fmt.Printf("File error: %v\n", err)
+		os.Exit(1)
+	}
+	json.Unmarshal(file, &c)
+	println(c.Web.ClientID)
+
+	conf := &oauth2.Config{
+		ClientID:     c.Web.ClientID,
+		ClientSecret: c.Web.ClientSecret,
+		RedirectURL:  "http://localhost:3000/auth",
+		Scopes: []string{
+			"https://www.googleapis.com/auth/userinfo.email", // You have to select your own scope from here -> https://developers.google.com/identity/protocols/googlescopes#google_sign-in
+		},
+		Endpoint: google.Endpoint,
+	}
+
 	return s
 }
 
