@@ -10,7 +10,7 @@ option (grpc.gateway.protoc_gen_swagger.options.openapiv2_swagger) = {
     version : "1.0"
     contact : {
       name : "simulation project"
-      url : "https://github.com/olamai/simulation"
+      url : "https://github.com/terrariumai/simulation"
       email : "zacharyholland@gmail.com"
     }
   }
@@ -45,61 +45,37 @@ message Entity {
   string modelName = 7;
 }
 
-message Observation {
-  // Whether this agent is still alive
-  bool isAlive = 1;
-  // The agent
-  Entity entity = 2;
-  // Cells around the agent
-  repeated string cells = 3;
-}
-
-message CellUpdate {
-  // The entity occupying a cell
-  Entity entity = 2;
-}
-message ServerAction {
-  // action the server wants clients to take
-  string action = 1;
-}
-message SpectateResponse {
-  oneof data {
-    CellUpdate cellUpdate = 1;
-    ServerAction serverAction = 2;
-  }
-}
-
 // ----------------------
 // -- Agent
 // ----------------------
 // Request data to create new agent
-message CreateAgentRequest {
+message CreateEntityRequest {
   string api = 1;
   // agent
   Entity agent = 2;
 }
 // Contains data of created agent
-message CreateAgentResponse {
+message CreateEntityResponse {
   string api = 1;
   // ID of created agent
   int64 id = 2;
 }
 
 // Request data to delete agent
-message DeleteAgentRequest {
+message DeleteEntityRequest {
   string api = 1;
   // Unique integer identifier of the agent to delete
   int64 id = 2;
 }
 // Contains status of delete operation
-message DeleteAgentResponse {
+message DeleteEntityResponse {
   string api = 1;
   // Contains number of entities have beed deleted
   // Equals 1 in case of successful delete
   int64 deleted = 2;
 }
 
-message ExecuteAgentActionRequest {
+message ExecuteEntityActionRequest {
   string api = 1;
   // Id for the agent that should perform the action
   int64 id = 2;
@@ -114,28 +90,14 @@ message ExecuteAgentActionRequest {
   // 3: RIGHT
   uint32 direction = 4;
 }
-message ExecuteAgentActionResponse {
+message ExecuteEntityActionResponse {
   string api = 1;
   // Was the agent able to perform the action
   bool wasSuccessful = 3;
 }
 
-message GetAgentObservationRequest {
-  string api = 1;
-  // Agent that should perform the action
-  int64 id = 2;
-}
-message GetAgentObservationResponse {
-  string api = 1;
-  // Was the agent able to perform the action
-  Observation observation = 2;
-}
-
 message ResetWorldRequest { string api = 1; }
 message ResetWorldResponse {}
-
-message StepWorldRequest { string api = 1; }
-message StepWorldResponse {}
 
 // ----------------------
 // -- Generic Entity
@@ -153,56 +115,28 @@ message GetEntityResponse {
   Entity entity = 2;
 }
 
-// ----------------------
-// -- Spectate
-// ----------------------
-message CreateSpectatorRequest {
-  string api = 1;
-  // Id of the spectator
-  string id = 2;
-}
-
-message SubscribeSpectatorToRegionRequest {
-  string api = 1;
-  // Id of the spectator
-  string id = 2;
-  // What region to add to
-  Vec2 region = 3;
-}
-message SubscribeSpectatorToRegionResponse {
-  string api = 1;
-  // Success status
-  bool successful = 2;
-}
-
-message UnsubscribeSpectatorFromRegionRequest {
-  string api = 1;
-  // Id of the spectator
-  string id = 2;
-  // What region to add to
-  Vec2 region = 3;
-}
-message UnsubscribeSpectatorFromRegionResponse {
-  string api = 1;
-  // Success status
-  bool successful = 2;
-}
-
-// ----------------------
-// -- Remote Models
-// ----------------------
-message CreateRemoteModelRequest {
-  string api = 1;
-  // Name of the model
-  string name = 2;
-}
-
 // Service to manage simulation
 service SimulationService {
   // Create new agent
-  rpc CreateAgent(CreateAgentRequest) returns (CreateAgentResponse) {
+  rpc CreateEntity(CreateEntityRequest) returns (CreateEntityResponse) {
     option (google.api.http) = {
       post : "/v1/agent"
+      body : "*"
+    };
+  }
+
+  // Delete an agent
+  rpc DeleteEntity(DeleteEntityRequest) returns (DeleteEntityResponse) {
+    option (google.api.http) = {
+      get : "/v1/agent/{id}"
+    };
+  }
+
+  // Perform an action for an agent
+  rpc ExecuteEntityAction(ExecuteEntityActionRequest)
+      returns (ExecuteEntityActionResponse) {
+    option (google.api.http) = {
+      put : "/v1/agent/{id}"
       body : "*"
     };
   }
@@ -214,72 +148,11 @@ service SimulationService {
     };
   }
 
-  // Delete an agent
-  rpc DeleteAgent(DeleteAgentRequest) returns (DeleteAgentResponse) {
-    option (google.api.http) = {
-      get : "/v1/agent/{id}"
-    };
-  }
-
-  // Perform an action for an agent
-  rpc ExecuteAgentAction(ExecuteAgentActionRequest)
-      returns (ExecuteAgentActionResponse) {
-    option (google.api.http) = {
-      put : "/v1/agent/{id}"
-      body : "*"
-    };
-  }
-
-  // Get the observation for an agent
-  rpc GetAgentObservation(GetAgentObservationRequest)
-      returns (GetAgentObservationResponse) {
-    option (google.api.http) = {
-      get : "/v1/agent/{id}/observation"
-    };
-  }
-
   // Reset the world
   rpc ResetWorld(ResetWorldRequest) returns (ResetWorldResponse) {
     option (google.api.http) = {
       put : "/v1/reset"
       body : "*"
-    };
-  }
-
-  rpc StepWorld(StepWorldRequest) returns (StepWorldResponse) {}
-
-  // Create a new spectator stream
-  rpc CreateSpectator(CreateSpectatorRequest)
-      returns (stream SpectateResponse) {
-    option (google.api.http) = {
-      get : "/v1/spectator"
-    };
-  }
-
-  // Subscribe the spectator of given id to a region
-  rpc SubscribeSpectatorToRegion(SubscribeSpectatorToRegionRequest)
-      returns (SubscribeSpectatorToRegionResponse) {
-    option (google.api.http) = {
-      put : "/v1/spectator/{id}/subscribeToRegion"
-      body : "*"
-    };
-  }
-
-  // Subscribe the spectator of given id to a region
-  rpc UnsubscribeSpectatorFromRegion(UnsubscribeSpectatorFromRegionRequest)
-      returns (UnsubscribeSpectatorFromRegionResponse) {
-    option (google.api.http) = {
-      put : "/v1/spectator/{id}/unsubscribeFromRegion"
-      body : "*"
-    };
-  }
-
-  // Create a remote model
-  // Receives Agent Action Execution requests
-  // Returns observations
-  rpc CreateRemoteModel(CreateRemoteModelRequest) returns (stream Observation) {
-    option (google.api.http) = {
-      get : "/v1/createRemoteModel"
     };
   }
 }

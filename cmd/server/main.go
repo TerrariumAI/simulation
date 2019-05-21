@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/olamai/simulation/pkg/cmd"
+	"github.com/terrariumai/simulation/pkg/cmd"
 )
 
 func main() {

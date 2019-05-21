@@ -5,19 +5,13 @@
     "version": "1.0",
     "contact": {
       "name": "simulation project",
-      "url": "https://github.com/olamai/simulation",
+      "url": "https://github.com/terrariumai/simulation",
       "email": "zacharyholland@gmail.com"
     }
   },
-  "schemes": [
-    "http"
-  ],
-  "consumes": [
-    "application/json"
-  ],
-  "produces": [
-    "application/json"
-  ],
+  "schemes": ["http"],
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
   "paths": {
     "/v1/agent": {
       "post": {
@@ -47,9 +41,7 @@
             }
           }
         ],
-        "tags": [
-          "SimulationService"
-        ]
+        "tags": ["SimulationService"]
       }
     },
     "/v1/agent/{id}": {
@@ -86,9 +78,7 @@
             "type": "string"
           }
         ],
-        "tags": [
-          "SimulationService"
-        ]
+        "tags": ["SimulationService"]
       },
       "put": {
         "summary": "Perform an action for an agent",
@@ -125,9 +115,7 @@
             }
           }
         ],
-        "tags": [
-          "SimulationService"
-        ]
+        "tags": ["SimulationService"]
       }
     },
     "/v1/agent/{id}/observation": {
@@ -164,9 +152,7 @@
             "type": "string"
           }
         ],
-        "tags": [
-          "SimulationService"
-        ]
+        "tags": ["SimulationService"]
       }
     },
     "/v1/createRemoteModel": {
@@ -202,9 +188,7 @@
             "type": "string"
           }
         ],
-        "tags": [
-          "SimulationService"
-        ]
+        "tags": ["SimulationService"]
       }
     },
     "/v1/entity/{id}": {
@@ -241,9 +225,7 @@
             "type": "string"
           }
         ],
-        "tags": [
-          "SimulationService"
-        ]
+        "tags": ["SimulationService"]
       }
     },
     "/v1/reset": {
@@ -274,9 +256,7 @@
             }
           }
         ],
-        "tags": [
-          "SimulationService"
-        ]
+        "tags": ["SimulationService"]
       }
     },
     "/v1/spectator": {
@@ -312,9 +292,7 @@
             "type": "string"
           }
         ],
-        "tags": [
-          "SimulationService"
-        ]
+        "tags": ["SimulationService"]
       }
     },
     "/v1/spectator/{id}/subscribeToRegion": {
@@ -352,9 +330,7 @@
             }
           }
         ],
-        "tags": [
-          "SimulationService"
-        ]
+        "tags": ["SimulationService"]
       }
     },
     "/v1/spectator/{id}/unsubscribeFromRegion": {
@@ -392,9 +368,7 @@
             }
           }
         ],
-        "tags": [
-          "SimulationService"
-        ]
+        "tags": ["SimulationService"]
       }
     }
   },
