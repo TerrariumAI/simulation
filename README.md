@@ -20,6 +20,11 @@ When running the Simulation service, you need Firebase credentials in order to c
 `-env=testing`  
 The testing environment runs completely offline. This is used for unit testing.
 
+### Staging
+
+`-env=staging`  
+The staging environment runs using our staging Firebase servers and a local Redis server.
+
 ### Prod
 
 `-env=prod`  
@@ -28,7 +33,3 @@ Looks for a file called `serviceAccountKey.json` in the root directory to use th
 ### Getting Firebase Creds
 
 If you are trying to run this service locally, you can go [here](https://firebase.google.com/docs/admin/setup) to get a tutorial on generating these keys under the "Add Firebase to your app" section.
-
-## Progressive notes
-
-We should progress away from using service account keys (pass each value in through env variables) or have an env variable that gives the option to chose one. This is to move away from setting the servers "environment" to "testing" and having that use the testing servers for Firebase etc. Testing should be completely offline for unit testing.

@@ -3,6 +3,6 @@
 .DS_STORE
 .env
 serviceAccountKey.json
-serviceAccountKey_testing.json
+serviceAccountKey_staging.json
 oauthCreds.json
 main

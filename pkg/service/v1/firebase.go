@@ -27,6 +27,9 @@ func initializeFirebaseApp(env string) *firebase.App {
 	if env == "testing" {
 		return nil
 	}
+	if env == "staging" {
+		serviceAccountFileLocation = "./serviceAccountKey_staging.json"
+	}
 	// -----------------------------------
 	// Initialize firebase app
 	opt := option.WithCredentialsFile(serviceAccountFileLocation)
