@@ -26,28 +26,21 @@ option (grpc.gateway.protoc_gen_swagger.options.openapiv2_swagger) = {
   }
 };
 
-message Vec2 {
-  int32 x = 1;
-  int32 y = 2;
-}
-
 // Taks we have to do
 message Entity {
   // Unique integer identifier of the agent
   int64 id = 1;
   // Entity stats
   string class = 2;
-  Vec2 pos = 3;
-  int32 energy = 4;
-  int32 health = 5;
+  int32 x = 3;
+  int32 y = 4;
+  int32 energy = 5;
+  int32 health = 6;
   // Owner details
-  string ownerUID = 6;
-  string modelName = 7;
+  string ownerUID = 7;
+  string modelName = 8;
 }
 
-// ----------------------
-// -- Agent
-// ----------------------
 // Request data to create new agent
 message CreateEntityRequest {
   string api = 1;
@@ -59,6 +52,19 @@ message CreateEntityResponse {
   string api = 1;
   // ID of created agent
   int64 id = 2;
+}
+
+// Request data to read entity
+message GetEntityRequest {
+  string api = 1;
+  // Unique integer identifier of the agent
+  int64 id = 2;
+}
+// Contains entity data specified in by ID request
+message GetEntityResponse {
+  string api = 1;
+  // Task entity read by ID
+  Entity entity = 2;
 }
 
 // Request data to delete agent
@@ -75,7 +81,7 @@ message DeleteEntityResponse {
   int64 deleted = 2;
 }
 
-message ExecuteEntityActionRequest {
+message ExecuteAgentActionRequest {
   string api = 1;
   // Id for the agent that should perform the action
   int64 id = 2;
@@ -90,7 +96,7 @@ message ExecuteEntityActionRequest {
   // 3: RIGHT
   uint32 direction = 4;
 }
-message ExecuteEntityActionResponse {
+message ExecuteAgentActionResponse {
   string api = 1;
   // Was the agent able to perform the action
   bool wasSuccessful = 3;
@@ -102,18 +108,6 @@ message ResetWorldResponse {}
 // ----------------------
 // -- Generic Entity
 // ----------------------
-// Request data to read entity
-message GetEntityRequest {
-  string api = 1;
-  // Unique integer identifier of the agent
-  int64 id = 2;
-}
-// Contains entity data specified in by ID request
-message GetEntityResponse {
-  string api = 1;
-  // Task entity read by ID
-  Entity entity = 2;
-}
 
 // Service to manage simulation
 service SimulationService {
@@ -125,6 +119,13 @@ service SimulationService {
     };
   }
 
+  // Get data for an entity
+  rpc GetEntity(GetEntityRequest) returns (GetEntityResponse) {
+    option (google.api.http) = {
+      get : "/v1/entity/{id}"
+    };
+  }
+
   // Delete an agent
   rpc DeleteEntity(DeleteEntityRequest) returns (DeleteEntityResponse) {
     option (google.api.http) = {
@@ -133,18 +134,11 @@ service SimulationService {
   }
 
   // Perform an action for an agent
-  rpc ExecuteEntityAction(ExecuteEntityActionRequest)
-      returns (ExecuteEntityActionResponse) {
+  rpc ExecuteAgentAction(ExecuteAgentActionRequest)
+      returns (ExecuteAgentActionResponse) {
     option (google.api.http) = {
       put : "/v1/agent/{id}"
       body : "*"
-    };
-  }
-
-  // Get data for an entity
-  rpc GetEntity(GetEntityRequest) returns (GetEntityResponse) {
-    option (google.api.http) = {
-      get : "/v1/entity/{id}"
     };
   }
 

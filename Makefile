@@ -29,13 +29,11 @@ run-prod: ## run the server locally with env set to prod
 ## ------ Testing
 ## ----------------------
 
-test: test-vec2 test-world test-stadium ## test all internal packages
+test: test-vec2 test-simulation ## test all internal packages
 test-vec2: ## run tests for Vec2
 	go test ./pkg/vec2/v1
-test-world: ## run tests for World
-	go test ./pkg/world/v1
-test-stadium: ## run tests for Stadium
-	go test ./pkg/stadium/v1
+test-simulation: ## run tests for the simulation service
+	go test ./pkg/service/v1
 
 ## ----------------------
 ## ------ Protobuf

@@ -24,11 +24,8 @@ func initializeFirebaseApp(env string) *firebase.App {
 	// ENV CHECK
 	// -----------------------------------
 	//Return a testing token with fake uid
-	if env == "training" {
-		return nil
-	}
 	if env == "testing" {
-		serviceAccountFileLocation = "./serviceAccountKey_testing.json"
+		return nil
 	}
 	// -----------------------------------
 	// Initialize firebase app

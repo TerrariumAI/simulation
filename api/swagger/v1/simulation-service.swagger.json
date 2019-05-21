@@ -92,12 +92,12 @@
       },
       "put": {
         "summary": "Perform an action for an agent",
-        "operationId": "ExecuteEntityAction",
+        "operationId": "ExecuteAgentAction",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1ExecuteEntityActionResponse"
+              "$ref": "#/definitions/v1ExecuteAgentActionResponse"
             }
           },
           "404": {
@@ -121,7 +121,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/v1ExecuteEntityActionRequest"
+              "$ref": "#/definitions/v1ExecuteAgentActionRequest"
             }
           }
         ],
@@ -215,7 +215,7 @@
           "title": "agent"
         }
       },
-      "title": "----------------------\n-- Agent\n----------------------\nRequest data to create new agent"
+      "title": "Request data to create new agent"
     },
     "v1CreateEntityResponse": {
       "type": "object",
@@ -257,8 +257,13 @@
           "type": "string",
           "title": "Entity stats"
         },
-        "pos": {
-          "$ref": "#/definitions/v1Vec2"
+        "x": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "y": {
+          "type": "integer",
+          "format": "int32"
         },
         "energy": {
           "type": "integer",
@@ -278,7 +283,7 @@
       },
       "title": "Taks we have to do"
     },
-    "v1ExecuteEntityActionRequest": {
+    "v1ExecuteAgentActionRequest": {
       "type": "object",
       "properties": {
         "api": {
@@ -301,7 +306,7 @@
         }
       }
     },
-    "v1ExecuteEntityActionResponse": {
+    "v1ExecuteAgentActionResponse": {
       "type": "object",
       "properties": {
         "api": {
@@ -337,19 +342,6 @@
     },
     "v1ResetWorldResponse": {
       "type": "object"
-    },
-    "v1Vec2": {
-      "type": "object",
-      "properties": {
-        "x": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "y": {
-          "type": "integer",
-          "format": "int32"
-        }
-      }
     }
   }
 }

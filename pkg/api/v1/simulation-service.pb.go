@@ -24,65 +24,19 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-type Vec2 struct {
-	X                    int32    `protobuf:"varint,1,opt,name=x,proto3" json:"x,omitempty"`
-	Y                    int32    `protobuf:"varint,2,opt,name=y,proto3" json:"y,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *Vec2) Reset()         { *m = Vec2{} }
-func (m *Vec2) String() string { return proto.CompactTextString(m) }
-func (*Vec2) ProtoMessage()    {}
-func (*Vec2) Descriptor() ([]byte, []int) {
-	return fileDescriptor_17d1085a606d9278, []int{0}
-}
-
-func (m *Vec2) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Vec2.Unmarshal(m, b)
-}
-func (m *Vec2) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Vec2.Marshal(b, m, deterministic)
-}
-func (m *Vec2) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Vec2.Merge(m, src)
-}
-func (m *Vec2) XXX_Size() int {
-	return xxx_messageInfo_Vec2.Size(m)
-}
-func (m *Vec2) XXX_DiscardUnknown() {
-	xxx_messageInfo_Vec2.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_Vec2 proto.InternalMessageInfo
-
-func (m *Vec2) GetX() int32 {
-	if m != nil {
-		return m.X
-	}
-	return 0
-}
-
-func (m *Vec2) GetY() int32 {
-	if m != nil {
-		return m.Y
-	}
-	return 0
-}
-
 // Taks we have to do
 type Entity struct {
 	// Unique integer identifier of the agent
 	Id int64 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Entity stats
 	Class  string `protobuf:"bytes,2,opt,name=class,proto3" json:"class,omitempty"`
-	Pos    *Vec2  `protobuf:"bytes,3,opt,name=pos,proto3" json:"pos,omitempty"`
-	Energy int32  `protobuf:"varint,4,opt,name=energy,proto3" json:"energy,omitempty"`
-	Health int32  `protobuf:"varint,5,opt,name=health,proto3" json:"health,omitempty"`
+	X      int32  `protobuf:"varint,3,opt,name=x,proto3" json:"x,omitempty"`
+	Y      int32  `protobuf:"varint,4,opt,name=y,proto3" json:"y,omitempty"`
+	Energy int32  `protobuf:"varint,5,opt,name=energy,proto3" json:"energy,omitempty"`
+	Health int32  `protobuf:"varint,6,opt,name=health,proto3" json:"health,omitempty"`
 	// Owner details
-	OwnerUID             string   `protobuf:"bytes,6,opt,name=ownerUID,proto3" json:"ownerUID,omitempty"`
-	ModelName            string   `protobuf:"bytes,7,opt,name=modelName,proto3" json:"modelName,omitempty"`
+	OwnerUID             string   `protobuf:"bytes,7,opt,name=ownerUID,proto3" json:"ownerUID,omitempty"`
+	ModelName            string   `protobuf:"bytes,8,opt,name=modelName,proto3" json:"modelName,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -92,7 +46,7 @@ func (m *Entity) Reset()         { *m = Entity{} }
 func (m *Entity) String() string { return proto.CompactTextString(m) }
 func (*Entity) ProtoMessage()    {}
 func (*Entity) Descriptor() ([]byte, []int) {
-	return fileDescriptor_17d1085a606d9278, []int{1}
+	return fileDescriptor_17d1085a606d9278, []int{0}
 }
 
 func (m *Entity) XXX_Unmarshal(b []byte) error {
@@ -127,11 +81,18 @@ func (m *Entity) GetClass() string {
 	return ""
 }
 
-func (m *Entity) GetPos() *Vec2 {
+func (m *Entity) GetX() int32 {
 	if m != nil {
-		return m.Pos
+		return m.X
 	}
-	return nil
+	return 0
+}
+
+func (m *Entity) GetY() int32 {
+	if m != nil {
+		return m.Y
+	}
+	return 0
 }
 
 func (m *Entity) GetEnergy() int32 {
@@ -162,9 +123,6 @@ func (m *Entity) GetModelName() string {
 	return ""
 }
 
-// ----------------------
-// -- Agent
-// ----------------------
 // Request data to create new agent
 type CreateEntityRequest struct {
 	Api string `protobuf:"bytes,1,opt,name=api,proto3" json:"api,omitempty"`
@@ -179,7 +137,7 @@ func (m *CreateEntityRequest) Reset()         { *m = CreateEntityRequest{} }
 func (m *CreateEntityRequest) String() string { return proto.CompactTextString(m) }
 func (*CreateEntityRequest) ProtoMessage()    {}
 func (*CreateEntityRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_17d1085a606d9278, []int{2}
+	return fileDescriptor_17d1085a606d9278, []int{1}
 }
 
 func (m *CreateEntityRequest) XXX_Unmarshal(b []byte) error {
@@ -228,7 +186,7 @@ func (m *CreateEntityResponse) Reset()         { *m = CreateEntityResponse{} }
 func (m *CreateEntityResponse) String() string { return proto.CompactTextString(m) }
 func (*CreateEntityResponse) ProtoMessage()    {}
 func (*CreateEntityResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_17d1085a606d9278, []int{3}
+	return fileDescriptor_17d1085a606d9278, []int{2}
 }
 
 func (m *CreateEntityResponse) XXX_Unmarshal(b []byte) error {
@@ -263,6 +221,104 @@ func (m *CreateEntityResponse) GetId() int64 {
 	return 0
 }
 
+// Request data to read entity
+type GetEntityRequest struct {
+	Api string `protobuf:"bytes,1,opt,name=api,proto3" json:"api,omitempty"`
+	// Unique integer identifier of the agent
+	Id                   int64    `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *GetEntityRequest) Reset()         { *m = GetEntityRequest{} }
+func (m *GetEntityRequest) String() string { return proto.CompactTextString(m) }
+func (*GetEntityRequest) ProtoMessage()    {}
+func (*GetEntityRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_17d1085a606d9278, []int{3}
+}
+
+func (m *GetEntityRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetEntityRequest.Unmarshal(m, b)
+}
+func (m *GetEntityRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetEntityRequest.Marshal(b, m, deterministic)
+}
+func (m *GetEntityRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetEntityRequest.Merge(m, src)
+}
+func (m *GetEntityRequest) XXX_Size() int {
+	return xxx_messageInfo_GetEntityRequest.Size(m)
+}
+func (m *GetEntityRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetEntityRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetEntityRequest proto.InternalMessageInfo
+
+func (m *GetEntityRequest) GetApi() string {
+	if m != nil {
+		return m.Api
+	}
+	return ""
+}
+
+func (m *GetEntityRequest) GetId() int64 {
+	if m != nil {
+		return m.Id
+	}
+	return 0
+}
+
+// Contains entity data specified in by ID request
+type GetEntityResponse struct {
+	Api string `protobuf:"bytes,1,opt,name=api,proto3" json:"api,omitempty"`
+	// Task entity read by ID
+	Entity               *Entity  `protobuf:"bytes,2,opt,name=entity,proto3" json:"entity,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *GetEntityResponse) Reset()         { *m = GetEntityResponse{} }
+func (m *GetEntityResponse) String() string { return proto.CompactTextString(m) }
+func (*GetEntityResponse) ProtoMessage()    {}
+func (*GetEntityResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_17d1085a606d9278, []int{4}
+}
+
+func (m *GetEntityResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetEntityResponse.Unmarshal(m, b)
+}
+func (m *GetEntityResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetEntityResponse.Marshal(b, m, deterministic)
+}
+func (m *GetEntityResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetEntityResponse.Merge(m, src)
+}
+func (m *GetEntityResponse) XXX_Size() int {
+	return xxx_messageInfo_GetEntityResponse.Size(m)
+}
+func (m *GetEntityResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetEntityResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetEntityResponse proto.InternalMessageInfo
+
+func (m *GetEntityResponse) GetApi() string {
+	if m != nil {
+		return m.Api
+	}
+	return ""
+}
+
+func (m *GetEntityResponse) GetEntity() *Entity {
+	if m != nil {
+		return m.Entity
+	}
+	return nil
+}
+
 // Request data to delete agent
 type DeleteEntityRequest struct {
 	Api string `protobuf:"bytes,1,opt,name=api,proto3" json:"api,omitempty"`
@@ -277,7 +333,7 @@ func (m *DeleteEntityRequest) Reset()         { *m = DeleteEntityRequest{} }
 func (m *DeleteEntityRequest) String() string { return proto.CompactTextString(m) }
 func (*DeleteEntityRequest) ProtoMessage()    {}
 func (*DeleteEntityRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_17d1085a606d9278, []int{4}
+	return fileDescriptor_17d1085a606d9278, []int{5}
 }
 
 func (m *DeleteEntityRequest) XXX_Unmarshal(b []byte) error {
@@ -327,7 +383,7 @@ func (m *DeleteEntityResponse) Reset()         { *m = DeleteEntityResponse{} }
 func (m *DeleteEntityResponse) String() string { return proto.CompactTextString(m) }
 func (*DeleteEntityResponse) ProtoMessage()    {}
 func (*DeleteEntityResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_17d1085a606d9278, []int{5}
+	return fileDescriptor_17d1085a606d9278, []int{6}
 }
 
 func (m *DeleteEntityResponse) XXX_Unmarshal(b []byte) error {
@@ -362,7 +418,7 @@ func (m *DeleteEntityResponse) GetDeleted() int64 {
 	return 0
 }
 
-type ExecuteEntityActionRequest struct {
+type ExecuteAgentActionRequest struct {
 	Api string `protobuf:"bytes,1,opt,name=api,proto3" json:"api,omitempty"`
 	// Id for the agent that should perform the action
 	Id int64 `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
@@ -381,60 +437,60 @@ type ExecuteEntityActionRequest struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *ExecuteEntityActionRequest) Reset()         { *m = ExecuteEntityActionRequest{} }
-func (m *ExecuteEntityActionRequest) String() string { return proto.CompactTextString(m) }
-func (*ExecuteEntityActionRequest) ProtoMessage()    {}
-func (*ExecuteEntityActionRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_17d1085a606d9278, []int{6}
+func (m *ExecuteAgentActionRequest) Reset()         { *m = ExecuteAgentActionRequest{} }
+func (m *ExecuteAgentActionRequest) String() string { return proto.CompactTextString(m) }
+func (*ExecuteAgentActionRequest) ProtoMessage()    {}
+func (*ExecuteAgentActionRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_17d1085a606d9278, []int{7}
 }
 
-func (m *ExecuteEntityActionRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ExecuteEntityActionRequest.Unmarshal(m, b)
+func (m *ExecuteAgentActionRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ExecuteAgentActionRequest.Unmarshal(m, b)
 }
-func (m *ExecuteEntityActionRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ExecuteEntityActionRequest.Marshal(b, m, deterministic)
+func (m *ExecuteAgentActionRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ExecuteAgentActionRequest.Marshal(b, m, deterministic)
 }
-func (m *ExecuteEntityActionRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ExecuteEntityActionRequest.Merge(m, src)
+func (m *ExecuteAgentActionRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ExecuteAgentActionRequest.Merge(m, src)
 }
-func (m *ExecuteEntityActionRequest) XXX_Size() int {
-	return xxx_messageInfo_ExecuteEntityActionRequest.Size(m)
+func (m *ExecuteAgentActionRequest) XXX_Size() int {
+	return xxx_messageInfo_ExecuteAgentActionRequest.Size(m)
 }
-func (m *ExecuteEntityActionRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_ExecuteEntityActionRequest.DiscardUnknown(m)
+func (m *ExecuteAgentActionRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ExecuteAgentActionRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_ExecuteEntityActionRequest proto.InternalMessageInfo
+var xxx_messageInfo_ExecuteAgentActionRequest proto.InternalMessageInfo
 
-func (m *ExecuteEntityActionRequest) GetApi() string {
+func (m *ExecuteAgentActionRequest) GetApi() string {
 	if m != nil {
 		return m.Api
 	}
 	return ""
 }
 
-func (m *ExecuteEntityActionRequest) GetId() int64 {
+func (m *ExecuteAgentActionRequest) GetId() int64 {
 	if m != nil {
 		return m.Id
 	}
 	return 0
 }
 
-func (m *ExecuteEntityActionRequest) GetAction() uint32 {
+func (m *ExecuteAgentActionRequest) GetAction() uint32 {
 	if m != nil {
 		return m.Action
 	}
 	return 0
 }
 
-func (m *ExecuteEntityActionRequest) GetDirection() uint32 {
+func (m *ExecuteAgentActionRequest) GetDirection() uint32 {
 	if m != nil {
 		return m.Direction
 	}
 	return 0
 }
 
-type ExecuteEntityActionResponse struct {
+type ExecuteAgentActionResponse struct {
 	Api string `protobuf:"bytes,1,opt,name=api,proto3" json:"api,omitempty"`
 	// Was the agent able to perform the action
 	WasSuccessful        bool     `protobuf:"varint,3,opt,name=wasSuccessful,proto3" json:"wasSuccessful,omitempty"`
@@ -443,39 +499,39 @@ type ExecuteEntityActionResponse struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *ExecuteEntityActionResponse) Reset()         { *m = ExecuteEntityActionResponse{} }
-func (m *ExecuteEntityActionResponse) String() string { return proto.CompactTextString(m) }
-func (*ExecuteEntityActionResponse) ProtoMessage()    {}
-func (*ExecuteEntityActionResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_17d1085a606d9278, []int{7}
+func (m *ExecuteAgentActionResponse) Reset()         { *m = ExecuteAgentActionResponse{} }
+func (m *ExecuteAgentActionResponse) String() string { return proto.CompactTextString(m) }
+func (*ExecuteAgentActionResponse) ProtoMessage()    {}
+func (*ExecuteAgentActionResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_17d1085a606d9278, []int{8}
 }
 
-func (m *ExecuteEntityActionResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ExecuteEntityActionResponse.Unmarshal(m, b)
+func (m *ExecuteAgentActionResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ExecuteAgentActionResponse.Unmarshal(m, b)
 }
-func (m *ExecuteEntityActionResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ExecuteEntityActionResponse.Marshal(b, m, deterministic)
+func (m *ExecuteAgentActionResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ExecuteAgentActionResponse.Marshal(b, m, deterministic)
 }
-func (m *ExecuteEntityActionResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ExecuteEntityActionResponse.Merge(m, src)
+func (m *ExecuteAgentActionResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ExecuteAgentActionResponse.Merge(m, src)
 }
-func (m *ExecuteEntityActionResponse) XXX_Size() int {
-	return xxx_messageInfo_ExecuteEntityActionResponse.Size(m)
+func (m *ExecuteAgentActionResponse) XXX_Size() int {
+	return xxx_messageInfo_ExecuteAgentActionResponse.Size(m)
 }
-func (m *ExecuteEntityActionResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_ExecuteEntityActionResponse.DiscardUnknown(m)
+func (m *ExecuteAgentActionResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ExecuteAgentActionResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_ExecuteEntityActionResponse proto.InternalMessageInfo
+var xxx_messageInfo_ExecuteAgentActionResponse proto.InternalMessageInfo
 
-func (m *ExecuteEntityActionResponse) GetApi() string {
+func (m *ExecuteAgentActionResponse) GetApi() string {
 	if m != nil {
 		return m.Api
 	}
 	return ""
 }
 
-func (m *ExecuteEntityActionResponse) GetWasSuccessful() bool {
+func (m *ExecuteAgentActionResponse) GetWasSuccessful() bool {
 	if m != nil {
 		return m.WasSuccessful
 	}
@@ -493,7 +549,7 @@ func (m *ResetWorldRequest) Reset()         { *m = ResetWorldRequest{} }
 func (m *ResetWorldRequest) String() string { return proto.CompactTextString(m) }
 func (*ResetWorldRequest) ProtoMessage()    {}
 func (*ResetWorldRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_17d1085a606d9278, []int{8}
+	return fileDescriptor_17d1085a606d9278, []int{9}
 }
 
 func (m *ResetWorldRequest) XXX_Unmarshal(b []byte) error {
@@ -531,7 +587,7 @@ func (m *ResetWorldResponse) Reset()         { *m = ResetWorldResponse{} }
 func (m *ResetWorldResponse) String() string { return proto.CompactTextString(m) }
 func (*ResetWorldResponse) ProtoMessage()    {}
 func (*ResetWorldResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_17d1085a606d9278, []int{9}
+	return fileDescriptor_17d1085a606d9278, []int{10}
 }
 
 func (m *ResetWorldResponse) XXX_Unmarshal(b []byte) error {
@@ -552,174 +608,71 @@ func (m *ResetWorldResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ResetWorldResponse proto.InternalMessageInfo
 
-// ----------------------
-// -- Generic Entity
-// ----------------------
-// Request data to read entity
-type GetEntityRequest struct {
-	Api string `protobuf:"bytes,1,opt,name=api,proto3" json:"api,omitempty"`
-	// Unique integer identifier of the agent
-	Id                   int64    `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *GetEntityRequest) Reset()         { *m = GetEntityRequest{} }
-func (m *GetEntityRequest) String() string { return proto.CompactTextString(m) }
-func (*GetEntityRequest) ProtoMessage()    {}
-func (*GetEntityRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_17d1085a606d9278, []int{10}
-}
-
-func (m *GetEntityRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetEntityRequest.Unmarshal(m, b)
-}
-func (m *GetEntityRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetEntityRequest.Marshal(b, m, deterministic)
-}
-func (m *GetEntityRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetEntityRequest.Merge(m, src)
-}
-func (m *GetEntityRequest) XXX_Size() int {
-	return xxx_messageInfo_GetEntityRequest.Size(m)
-}
-func (m *GetEntityRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetEntityRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_GetEntityRequest proto.InternalMessageInfo
-
-func (m *GetEntityRequest) GetApi() string {
-	if m != nil {
-		return m.Api
-	}
-	return ""
-}
-
-func (m *GetEntityRequest) GetId() int64 {
-	if m != nil {
-		return m.Id
-	}
-	return 0
-}
-
-// Contains entity data specified in by ID request
-type GetEntityResponse struct {
-	Api string `protobuf:"bytes,1,opt,name=api,proto3" json:"api,omitempty"`
-	// Task entity read by ID
-	Entity               *Entity  `protobuf:"bytes,2,opt,name=entity,proto3" json:"entity,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *GetEntityResponse) Reset()         { *m = GetEntityResponse{} }
-func (m *GetEntityResponse) String() string { return proto.CompactTextString(m) }
-func (*GetEntityResponse) ProtoMessage()    {}
-func (*GetEntityResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_17d1085a606d9278, []int{11}
-}
-
-func (m *GetEntityResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetEntityResponse.Unmarshal(m, b)
-}
-func (m *GetEntityResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetEntityResponse.Marshal(b, m, deterministic)
-}
-func (m *GetEntityResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetEntityResponse.Merge(m, src)
-}
-func (m *GetEntityResponse) XXX_Size() int {
-	return xxx_messageInfo_GetEntityResponse.Size(m)
-}
-func (m *GetEntityResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetEntityResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_GetEntityResponse proto.InternalMessageInfo
-
-func (m *GetEntityResponse) GetApi() string {
-	if m != nil {
-		return m.Api
-	}
-	return ""
-}
-
-func (m *GetEntityResponse) GetEntity() *Entity {
-	if m != nil {
-		return m.Entity
-	}
-	return nil
-}
-
 func init() {
-	proto.RegisterType((*Vec2)(nil), "v1.Vec2")
 	proto.RegisterType((*Entity)(nil), "v1.Entity")
 	proto.RegisterType((*CreateEntityRequest)(nil), "v1.CreateEntityRequest")
 	proto.RegisterType((*CreateEntityResponse)(nil), "v1.CreateEntityResponse")
-	proto.RegisterType((*DeleteEntityRequest)(nil), "v1.DeleteEntityRequest")
-	proto.RegisterType((*DeleteEntityResponse)(nil), "v1.DeleteEntityResponse")
-	proto.RegisterType((*ExecuteEntityActionRequest)(nil), "v1.ExecuteEntityActionRequest")
-	proto.RegisterType((*ExecuteEntityActionResponse)(nil), "v1.ExecuteEntityActionResponse")
-	proto.RegisterType((*ResetWorldRequest)(nil), "v1.ResetWorldRequest")
-	proto.RegisterType((*ResetWorldResponse)(nil), "v1.ResetWorldResponse")
 	proto.RegisterType((*GetEntityRequest)(nil), "v1.GetEntityRequest")
 	proto.RegisterType((*GetEntityResponse)(nil), "v1.GetEntityResponse")
+	proto.RegisterType((*DeleteEntityRequest)(nil), "v1.DeleteEntityRequest")
+	proto.RegisterType((*DeleteEntityResponse)(nil), "v1.DeleteEntityResponse")
+	proto.RegisterType((*ExecuteAgentActionRequest)(nil), "v1.ExecuteAgentActionRequest")
+	proto.RegisterType((*ExecuteAgentActionResponse)(nil), "v1.ExecuteAgentActionResponse")
+	proto.RegisterType((*ResetWorldRequest)(nil), "v1.ResetWorldRequest")
+	proto.RegisterType((*ResetWorldResponse)(nil), "v1.ResetWorldResponse")
 }
 
 func init() { proto.RegisterFile("simulation-service.proto", fileDescriptor_17d1085a606d9278) }
 
 var fileDescriptor_17d1085a606d9278 = []byte{
-	// 763 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x55, 0xdd, 0x8e, 0xdb, 0x44,
-	0x14, 0x96, 0x93, 0xdd, 0xec, 0xe6, 0x74, 0xbb, 0x24, 0x93, 0xb0, 0x35, 0xa6, 0x02, 0xcb, 0x02,
-	0xa9, 0x44, 0x6c, 0xdc, 0x84, 0x48, 0xa0, 0x70, 0x43, 0x4b, 0x2b, 0xb4, 0x37, 0x48, 0xf5, 0xaa,
-	0x54, 0xbd, 0x9c, 0xda, 0x07, 0x7b, 0x2a, 0xc7, 0xe3, 0xce, 0x8c, 0xf3, 0x03, 0xe2, 0x86, 0x47,
-	0x80, 0x3b, 0x9e, 0x83, 0x37, 0xe1, 0x8e, 0x0b, 0xc4, 0x05, 0x0f, 0x82, 0x66, 0xec, 0xfc, 0x27,
-	0x82, 0x5e, 0x25, 0xe7, 0x9c, 0xef, 0xfb, 0xce, 0x9c, 0x39, 0x9f, 0x6d, 0xb0, 0x25, 0x9b, 0x14,
-	0x29, 0x55, 0x8c, 0x67, 0xd7, 0x12, 0xc5, 0x94, 0x85, 0xd8, 0xcf, 0x05, 0x57, 0x9c, 0xd4, 0xa6,
-	0x03, 0xe7, 0x7e, 0xcc, 0x79, 0x9c, 0xa2, 0x4f, 0x73, 0xe6, 0xd3, 0x2c, 0xe3, 0xca, 0x00, 0x65,
-	0x89, 0x70, 0x3e, 0x35, 0x3f, 0xe1, 0x75, 0x8c, 0xd9, 0xb5, 0x9c, 0xd1, 0x38, 0x46, 0xe1, 0xf3,
-	0xdc, 0x20, 0xf6, 0xd1, 0x9e, 0x07, 0x27, 0xdf, 0x61, 0x38, 0x24, 0x17, 0x60, 0xcd, 0x6d, 0xcb,
-	0xb5, 0x1e, 0x9c, 0x06, 0xd6, 0x5c, 0x47, 0x0b, 0xbb, 0x56, 0x46, 0x0b, 0xef, 0x77, 0x0b, 0x1a,
-	0x4f, 0x33, 0xc5, 0xd4, 0x82, 0x5c, 0x42, 0x8d, 0x45, 0x06, 0x57, 0x0f, 0x6a, 0x2c, 0x22, 0x5d,
-	0x38, 0x0d, 0x53, 0x2a, 0xa5, 0x01, 0x37, 0x83, 0x32, 0x20, 0x0e, 0xd4, 0x73, 0x2e, 0xed, 0xba,
-	0x6b, 0x3d, 0xb8, 0x33, 0x3c, 0xef, 0x4f, 0x07, 0x7d, 0xdd, 0x23, 0xd0, 0x49, 0x72, 0x05, 0x0d,
-	0xcc, 0x50, 0xc4, 0x0b, 0xfb, 0xc4, 0xe8, 0x57, 0x91, 0xce, 0x27, 0x48, 0x53, 0x95, 0xd8, 0xa7,
-	0x65, 0xbe, 0x8c, 0x88, 0x03, 0xe7, 0x7c, 0x96, 0xa1, 0x78, 0x7e, 0xf3, 0xc4, 0x6e, 0x98, 0x26,
-	0xab, 0x98, 0xdc, 0x87, 0xe6, 0x84, 0x47, 0x98, 0x7e, 0x4b, 0x27, 0x68, 0x9f, 0x99, 0xe2, 0x3a,
-	0xe1, 0xdd, 0x40, 0xe7, 0x6b, 0x81, 0x54, 0x61, 0x79, 0xf6, 0x00, 0xdf, 0x14, 0x28, 0x15, 0x69,
-	0x41, 0x9d, 0xe6, 0xcc, 0xcc, 0xd0, 0x0c, 0xf4, 0x5f, 0xe2, 0xc2, 0x29, 0x8d, 0x31, 0x53, 0x66,
-	0x88, 0x3b, 0x43, 0xd0, 0x07, 0xae, 0x38, 0x65, 0xc1, 0xfb, 0x02, 0xba, 0xdb, 0x52, 0x32, 0xe7,
-	0x99, 0xc4, 0x03, 0x5a, 0xe5, 0x05, 0xd5, 0x96, 0x17, 0xe4, 0x7d, 0x0e, 0x9d, 0x27, 0x98, 0xe2,
-	0x7f, 0x1f, 0x62, 0x97, 0xf8, 0x18, 0xba, 0xdb, 0xc4, 0xa3, 0x2d, 0x6d, 0x38, 0x8b, 0x0c, 0x72,
-	0x49, 0x5f, 0x86, 0x9e, 0x02, 0xe7, 0xe9, 0x1c, 0xc3, 0x62, 0x29, 0xf2, 0x28, 0xd4, 0xab, 0xff,
-	0xdf, 0x67, 0xd0, 0x3b, 0xa1, 0x86, 0x62, 0x56, 0x79, 0x37, 0xa8, 0x22, 0x7d, 0xef, 0x11, 0x13,
-	0x58, 0x96, 0x4e, 0x4c, 0x69, 0x9d, 0xf0, 0x9e, 0xc3, 0xfb, 0x07, 0xbb, 0x1e, 0x1d, 0xe0, 0x23,
-	0xb8, 0x3b, 0xa3, 0xf2, 0xb6, 0x08, 0x43, 0x94, 0xf2, 0xfb, 0x22, 0x35, 0xdd, 0xce, 0x83, 0xed,
-	0xa4, 0xf7, 0x31, 0xb4, 0x03, 0x94, 0xa8, 0x5e, 0x70, 0x91, 0x46, 0x47, 0x67, 0xf0, 0xba, 0x40,
-	0x36, 0x61, 0x65, 0x53, 0x6f, 0x04, 0xad, 0x6f, 0x50, 0xbd, 0xed, 0x0e, 0x6e, 0xa0, 0xbd, 0xc1,
-	0x3a, 0x7a, 0x7e, 0x4f, 0x5b, 0x5a, 0x63, 0x0e, 0x18, 0xa8, 0xaa, 0x0c, 0xff, 0xae, 0x43, 0xfb,
-	0x76, 0xf5, 0x50, 0xdf, 0x96, 0xcf, 0x34, 0x79, 0x01, 0x17, 0x9b, 0xbe, 0x22, 0xf7, 0x34, 0xf3,
-	0x80, 0x69, 0x1d, 0x7b, 0xbf, 0x50, 0x4d, 0xd6, 0xfd, 0xf9, 0x8f, 0x7f, 0x7e, 0xad, 0x5d, 0x7a,
-	0x4d, 0x7f, 0x3a, 0xf0, 0x8d, 0x5b, 0xc7, 0x56, 0x8f, 0xbc, 0x84, 0x8b, 0x4d, 0xf7, 0x94, 0xc2,
-	0x07, 0x8c, 0x58, 0x0a, 0x1f, 0x32, 0x9a, 0x77, 0x65, 0x84, 0x5b, 0xe4, 0x72, 0x25, 0xec, 0xff,
-	0xc8, 0xa2, 0x9f, 0xc8, 0x1b, 0xe8, 0x1c, 0x58, 0x2f, 0xf9, 0xc0, 0x0c, 0x7d, 0xd4, 0x6d, 0xce,
-	0x87, 0x47, 0xeb, 0x55, 0xbf, 0xf7, 0x4c, 0xbf, 0x8e, 0xb3, 0xd3, 0x4f, 0x4f, 0xf3, 0x0c, 0x9a,
-	0xab, 0x3d, 0x90, 0xae, 0x16, 0xda, 0x5d, 0xa6, 0xf3, 0xee, 0x4e, 0xb6, 0x12, 0xbd, 0x67, 0x44,
-	0xdb, 0xe4, 0x1d, 0x2d, 0x5a, 0xae, 0xa2, 0x9c, 0xe2, 0x19, 0xc0, 0xda, 0x26, 0xc4, 0xb0, 0xf7,
-	0xdc, 0xe5, 0x5c, 0xed, 0xa6, 0xb7, 0xef, 0xdc, 0x31, 0x77, 0x2e, 0x74, 0x7d, 0x6c, 0xf5, 0x1e,
-	0xff, 0x65, 0xfd, 0xf2, 0xe8, 0x4f, 0x8b, 0x28, 0x20, 0xeb, 0x45, 0xbb, 0xd5, 0xdb, 0xdb, 0x7b,
-	0x09, 0x64, 0xfd, 0x4e, 0x77, 0x73, 0xc1, 0x5f, 0x63, 0xa8, 0xc8, 0x27, 0x89, 0x52, 0xb9, 0x1c,
-	0xfb, 0x7e, 0xcc, 0x54, 0x52, 0xbc, 0xea, 0x87, 0x7c, 0xe2, 0x2b, 0x14, 0x82, 0x0a, 0x56, 0x4c,
-	0x28, 0xf3, 0xd7, 0x14, 0xc7, 0xfe, 0x81, 0x86, 0x09, 0x15, 0x8b, 0x84, 0xa7, 0x29, 0xcd, 0xa2,
-	0xaf, 0xe2, 0x09, 0x65, 0xa9, 0x26, 0x0c, 0xeb, 0x83, 0xfe, 0xc3, 0x9e, 0x65, 0x0d, 0x5b, 0x34,
-	0xcf, 0x53, 0x16, 0x1a, 0xb8, 0xff, 0x5a, 0xf2, 0x6c, 0xbc, 0x97, 0x09, 0xbe, 0x84, 0xfa, 0xe8,
-	0xe1, 0x88, 0x8c, 0xa0, 0x17, 0xa0, 0x2a, 0x44, 0x86, 0x91, 0x3b, 0x4b, 0x30, 0x73, 0x55, 0x82,
-	0xae, 0x40, 0xc9, 0x0b, 0x11, 0xa2, 0x1b, 0x71, 0x94, 0x6e, 0xc6, 0x95, 0x8b, 0x73, 0x26, 0x55,
-	0x9f, 0x34, 0xe0, 0xe4, 0xb7, 0x9a, 0x75, 0xf6, 0xaa, 0x61, 0x3e, 0x19, 0x9f, 0xfd, 0x1b, 0x00,
-	0x00, 0xff, 0xff, 0xba, 0xc3, 0x68, 0x4d, 0x9e, 0x06, 0x00, 0x00,
+	// 743 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x55, 0x4d, 0x6f, 0xe3, 0x44,
+	0x18, 0x96, 0x93, 0x26, 0x6d, 0x5e, 0xba, 0x25, 0x99, 0x86, 0xae, 0xd7, 0x5a, 0x90, 0x65, 0x81,
+	0x54, 0x22, 0x1a, 0x6f, 0x42, 0x24, 0x50, 0xb8, 0xd0, 0x65, 0x2b, 0xd4, 0x0b, 0x12, 0x2e, 0xa8,
+	0xea, 0x71, 0x6a, 0xbf, 0xd8, 0x53, 0x39, 0x1e, 0x33, 0x33, 0xce, 0x07, 0x88, 0x0b, 0x3f, 0x01,
+	0x6e, 0xfc, 0x0e, 0xfe, 0x09, 0x37, 0x24, 0x38, 0xf1, 0x43, 0x90, 0x67, 0xd2, 0x7c, 0x47, 0xdd,
+	0x53, 0xf2, 0x7e, 0x3f, 0xf3, 0xbc, 0xcf, 0x8c, 0xc1, 0x96, 0x6c, 0x54, 0xa4, 0x54, 0x31, 0x9e,
+	0x5d, 0x48, 0x14, 0x63, 0x16, 0x62, 0x37, 0x17, 0x5c, 0x71, 0x52, 0x19, 0xf7, 0x9c, 0x97, 0x31,
+	0xe7, 0x71, 0x8a, 0x3e, 0xcd, 0x99, 0x4f, 0xb3, 0x8c, 0x2b, 0x9d, 0x28, 0x4d, 0x86, 0xf3, 0x89,
+	0xfe, 0x09, 0x2f, 0x62, 0xcc, 0x2e, 0xe4, 0x84, 0xc6, 0x31, 0x0a, 0x9f, 0xe7, 0x3a, 0x63, 0x3b,
+	0xdb, 0xfb, 0xd3, 0x82, 0xfa, 0x55, 0xa6, 0x98, 0x9a, 0x91, 0x13, 0xa8, 0xb0, 0xc8, 0xb6, 0x5c,
+	0xeb, 0xbc, 0x1a, 0x54, 0x58, 0x44, 0xda, 0x50, 0x0b, 0x53, 0x2a, 0xa5, 0x5d, 0x71, 0xad, 0xf3,
+	0x46, 0x60, 0x0c, 0x72, 0x0c, 0xd6, 0xd4, 0xae, 0xba, 0xd6, 0x79, 0x2d, 0xb0, 0xa6, 0xa5, 0x35,
+	0xb3, 0x0f, 0x8c, 0x35, 0x23, 0x67, 0x50, 0xc7, 0x0c, 0x45, 0x3c, 0xb3, 0x6b, 0xda, 0x35, 0xb7,
+	0x4a, 0x7f, 0x82, 0x34, 0x55, 0x89, 0x5d, 0x37, 0x7e, 0x63, 0x11, 0x07, 0x8e, 0xf8, 0x24, 0x43,
+	0xf1, 0xfd, 0xf5, 0x1b, 0xfb, 0x50, 0x0f, 0x59, 0xd8, 0xe4, 0x25, 0x34, 0x46, 0x3c, 0xc2, 0xf4,
+	0x1b, 0x3a, 0x42, 0xfb, 0x48, 0x07, 0x97, 0x0e, 0xef, 0x1a, 0x4e, 0xbf, 0x12, 0x48, 0x15, 0x1a,
+	0xec, 0x01, 0xfe, 0x58, 0xa0, 0x54, 0xa4, 0x09, 0x55, 0x9a, 0x33, 0x7d, 0x86, 0x46, 0x50, 0xfe,
+	0x25, 0x2e, 0xd4, 0x68, 0x8c, 0x99, 0xd2, 0x87, 0x78, 0xa7, 0x0f, 0xdd, 0x71, 0xaf, 0x3b, 0xaf,
+	0x31, 0x01, 0xef, 0x73, 0x68, 0xaf, 0xb7, 0x92, 0x39, 0xcf, 0x24, 0xee, 0xe8, 0x65, 0x08, 0xaa,
+	0x3c, 0x12, 0xe4, 0x0d, 0xa0, 0xf9, 0x35, 0xaa, 0xa7, 0x10, 0x6c, 0x56, 0x5d, 0x43, 0x6b, 0xa5,
+	0x6a, 0xef, 0x30, 0xaf, 0xe4, 0xb2, 0xcc, 0xd9, 0x81, 0x7c, 0x1e, 0xf1, 0x3e, 0x83, 0xd3, 0x37,
+	0x98, 0xe2, 0xd3, 0x2c, 0x6c, 0x62, 0x78, 0x0d, 0xed, 0xf5, 0xc2, 0xbd, 0x30, 0x6c, 0x38, 0x8c,
+	0x74, 0xe6, 0x63, 0xf9, 0xa3, 0xe9, 0x49, 0x78, 0x71, 0x35, 0xc5, 0xb0, 0x50, 0x78, 0x59, 0xf2,
+	0x78, 0x19, 0x96, 0xb2, 0x7a, 0x6b, 0x08, 0xa5, 0x26, 0xa8, 0x2e, 0xd1, 0x62, 0x7a, 0x16, 0xcc,
+	0xad, 0x72, 0xef, 0x11, 0x13, 0x68, 0x42, 0x07, 0x3a, 0xb4, 0x74, 0x78, 0xdf, 0x81, 0xb3, 0x6b,
+	0xe8, 0x5e, 0xf8, 0x1f, 0xc2, 0xb3, 0x09, 0x95, 0x37, 0x45, 0x18, 0xa2, 0x94, 0x3f, 0x14, 0xa9,
+	0x1e, 0x76, 0x14, 0xac, 0x3b, 0xbd, 0x8f, 0xa0, 0x15, 0xa0, 0x44, 0x75, 0xcb, 0x45, 0x1a, 0xed,
+	0x3d, 0x82, 0xd7, 0x06, 0xb2, 0x9a, 0x66, 0x86, 0xf6, 0xff, 0xa9, 0x42, 0xeb, 0x66, 0x71, 0x5d,
+	0x6f, 0xcc, 0x6d, 0x25, 0xb7, 0x70, 0xbc, 0xaa, 0x2a, 0xf2, 0xbc, 0x5c, 0xdf, 0x0e, 0xc9, 0x3a,
+	0xf6, 0x76, 0xc0, 0x34, 0xf6, 0xda, 0xbf, 0xfe, 0xf5, 0xdf, 0xef, 0x95, 0x13, 0xaf, 0xe1, 0x8f,
+	0x7b, 0xbe, 0xd6, 0xea, 0xd0, 0xea, 0x90, 0x6f, 0xa1, 0xb1, 0x90, 0x0f, 0x69, 0x97, 0xc5, 0x9b,
+	0x1a, 0x74, 0xde, 0xdb, 0xf0, 0xce, 0xfb, 0x3d, 0xd7, 0xfd, 0x5a, 0xe4, 0xdd, 0xb2, 0x9f, 0x51,
+	0x90, 0xff, 0x33, 0x8b, 0x7e, 0x21, 0x77, 0x70, 0xbc, 0xaa, 0x06, 0x83, 0x75, 0x87, 0xb0, 0x0c,
+	0xd6, 0x5d, 0xc2, 0xf1, 0xce, 0x74, 0xef, 0x26, 0x39, 0x59, 0x60, 0x35, 0xad, 0x33, 0x20, 0xdb,
+	0xfb, 0x22, 0xef, 0x6b, 0x2d, 0xef, 0x13, 0x8f, 0xf3, 0xc1, 0xbe, 0xf0, 0x7c, 0xd8, 0x0b, 0x3d,
+	0xec, 0xd4, 0xd9, 0x18, 0x66, 0xd8, 0x81, 0xe5, 0x8a, 0x88, 0x26, 0x62, 0x6b, 0xb3, 0xce, 0xd9,
+	0xa6, 0x7b, 0x9d, 0x70, 0x47, 0x13, 0x2e, 0xca, 0xf8, 0xd0, 0xea, 0xbc, 0xfe, 0xd7, 0xfa, 0xed,
+	0xf2, 0x6f, 0x8b, 0x28, 0x20, 0xcb, 0x2d, 0xbb, 0xf3, 0x47, 0xd9, 0xbb, 0x03, 0xb2, 0x7c, 0xaa,
+	0xdd, 0x5c, 0xf0, 0x07, 0x0c, 0x15, 0xf9, 0x38, 0x51, 0x2a, 0x97, 0x43, 0xdf, 0x8f, 0x99, 0x4a,
+	0x8a, 0xfb, 0x6e, 0xc8, 0x47, 0xbe, 0x42, 0x21, 0xa8, 0x60, 0xc5, 0x88, 0x32, 0x7f, 0x59, 0xe2,
+	0xd8, 0x3f, 0xd1, 0x30, 0xa1, 0x62, 0x96, 0xf0, 0x34, 0xa5, 0x59, 0xf4, 0x65, 0x3c, 0xa2, 0x2c,
+	0x2d, 0x0b, 0xfa, 0xd5, 0x5e, 0xf7, 0x55, 0xc7, 0xb2, 0xfa, 0x4d, 0x9a, 0xe7, 0x29, 0x0b, 0x75,
+	0xba, 0xff, 0x20, 0x79, 0x36, 0xdc, 0xf2, 0x04, 0x5f, 0x40, 0x75, 0xf0, 0x6a, 0x40, 0x06, 0xd0,
+	0x09, 0x50, 0x15, 0x22, 0xc3, 0xc8, 0x9d, 0x24, 0x98, 0xb9, 0x2a, 0x41, 0x57, 0xa0, 0xe4, 0x85,
+	0x08, 0xd1, 0x8d, 0x38, 0x4a, 0x37, 0xe3, 0xca, 0xc5, 0x29, 0x93, 0xaa, 0x4b, 0xea, 0x70, 0xf0,
+	0x47, 0xc5, 0x3a, 0xbc, 0xaf, 0xeb, 0x2f, 0xc1, 0xa7, 0xff, 0x07, 0x00, 0x00, 0xff, 0xff, 0xae,
+	0x4f, 0xf2, 0x00, 0x75, 0x06, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -736,12 +689,12 @@ const _ = grpc.SupportPackageIsVersion4
 type SimulationServiceClient interface {
 	// Create new agent
 	CreateEntity(ctx context.Context, in *CreateEntityRequest, opts ...grpc.CallOption) (*CreateEntityResponse, error)
+	// Get data for an entity
+	GetEntity(ctx context.Context, in *GetEntityRequest, opts ...grpc.CallOption) (*GetEntityResponse, error)
 	// Delete an agent
 	DeleteEntity(ctx context.Context, in *DeleteEntityRequest, opts ...grpc.CallOption) (*DeleteEntityResponse, error)
 	// Perform an action for an agent
-	ExecuteEntityAction(ctx context.Context, in *ExecuteEntityActionRequest, opts ...grpc.CallOption) (*ExecuteEntityActionResponse, error)
-	// Get data for an entity
-	GetEntity(ctx context.Context, in *GetEntityRequest, opts ...grpc.CallOption) (*GetEntityResponse, error)
+	ExecuteAgentAction(ctx context.Context, in *ExecuteAgentActionRequest, opts ...grpc.CallOption) (*ExecuteAgentActionResponse, error)
 	// Reset the world
 	ResetWorld(ctx context.Context, in *ResetWorldRequest, opts ...grpc.CallOption) (*ResetWorldResponse, error)
 }
@@ -763,6 +716,15 @@ func (c *simulationServiceClient) CreateEntity(ctx context.Context, in *CreateEn
 	return out, nil
 }
 
+func (c *simulationServiceClient) GetEntity(ctx context.Context, in *GetEntityRequest, opts ...grpc.CallOption) (*GetEntityResponse, error) {
+	out := new(GetEntityResponse)
+	err := c.cc.Invoke(ctx, "/v1.SimulationService/GetEntity", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *simulationServiceClient) DeleteEntity(ctx context.Context, in *DeleteEntityRequest, opts ...grpc.CallOption) (*DeleteEntityResponse, error) {
 	out := new(DeleteEntityResponse)
 	err := c.cc.Invoke(ctx, "/v1.SimulationService/DeleteEntity", in, out, opts...)
@@ -772,18 +734,9 @@ func (c *simulationServiceClient) DeleteEntity(ctx context.Context, in *DeleteEn
 	return out, nil
 }
 
-func (c *simulationServiceClient) ExecuteEntityAction(ctx context.Context, in *ExecuteEntityActionRequest, opts ...grpc.CallOption) (*ExecuteEntityActionResponse, error) {
-	out := new(ExecuteEntityActionResponse)
-	err := c.cc.Invoke(ctx, "/v1.SimulationService/ExecuteEntityAction", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *simulationServiceClient) GetEntity(ctx context.Context, in *GetEntityRequest, opts ...grpc.CallOption) (*GetEntityResponse, error) {
-	out := new(GetEntityResponse)
-	err := c.cc.Invoke(ctx, "/v1.SimulationService/GetEntity", in, out, opts...)
+func (c *simulationServiceClient) ExecuteAgentAction(ctx context.Context, in *ExecuteAgentActionRequest, opts ...grpc.CallOption) (*ExecuteAgentActionResponse, error) {
+	out := new(ExecuteAgentActionResponse)
+	err := c.cc.Invoke(ctx, "/v1.SimulationService/ExecuteAgentAction", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -803,12 +756,12 @@ func (c *simulationServiceClient) ResetWorld(ctx context.Context, in *ResetWorld
 type SimulationServiceServer interface {
 	// Create new agent
 	CreateEntity(context.Context, *CreateEntityRequest) (*CreateEntityResponse, error)
+	// Get data for an entity
+	GetEntity(context.Context, *GetEntityRequest) (*GetEntityResponse, error)
 	// Delete an agent
 	DeleteEntity(context.Context, *DeleteEntityRequest) (*DeleteEntityResponse, error)
 	// Perform an action for an agent
-	ExecuteEntityAction(context.Context, *ExecuteEntityActionRequest) (*ExecuteEntityActionResponse, error)
-	// Get data for an entity
-	GetEntity(context.Context, *GetEntityRequest) (*GetEntityResponse, error)
+	ExecuteAgentAction(context.Context, *ExecuteAgentActionRequest) (*ExecuteAgentActionResponse, error)
 	// Reset the world
 	ResetWorld(context.Context, *ResetWorldRequest) (*ResetWorldResponse, error)
 }
@@ -835,6 +788,24 @@ func _SimulationService_CreateEntity_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SimulationService_GetEntity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetEntityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SimulationServiceServer).GetEntity(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/v1.SimulationService/GetEntity",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SimulationServiceServer).GetEntity(ctx, req.(*GetEntityRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SimulationService_DeleteEntity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DeleteEntityRequest)
 	if err := dec(in); err != nil {
@@ -853,38 +824,20 @@ func _SimulationService_DeleteEntity_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SimulationService_ExecuteEntityAction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ExecuteEntityActionRequest)
+func _SimulationService_ExecuteAgentAction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExecuteAgentActionRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SimulationServiceServer).ExecuteEntityAction(ctx, in)
+		return srv.(SimulationServiceServer).ExecuteAgentAction(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/v1.SimulationService/ExecuteEntityAction",
+		FullMethod: "/v1.SimulationService/ExecuteAgentAction",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SimulationServiceServer).ExecuteEntityAction(ctx, req.(*ExecuteEntityActionRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _SimulationService_GetEntity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetEntityRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(SimulationServiceServer).GetEntity(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/v1.SimulationService/GetEntity",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SimulationServiceServer).GetEntity(ctx, req.(*GetEntityRequest))
+		return srv.(SimulationServiceServer).ExecuteAgentAction(ctx, req.(*ExecuteAgentActionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -916,16 +869,16 @@ var _SimulationService_serviceDesc = grpc.ServiceDesc{
 			Handler:    _SimulationService_CreateEntity_Handler,
 		},
 		{
+			MethodName: "GetEntity",
+			Handler:    _SimulationService_GetEntity_Handler,
+		},
+		{
 			MethodName: "DeleteEntity",
 			Handler:    _SimulationService_DeleteEntity_Handler,
 		},
 		{
-			MethodName: "ExecuteEntityAction",
-			Handler:    _SimulationService_ExecuteEntityAction_Handler,
-		},
-		{
-			MethodName: "GetEntity",
-			Handler:    _SimulationService_GetEntity_Handler,
+			MethodName: "ExecuteAgentAction",
+			Handler:    _SimulationService_ExecuteAgentAction_Handler,
 		},
 		{
 			MethodName: "ResetWorld",
