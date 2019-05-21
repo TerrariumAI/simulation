@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	v1 "github.com/olamai/simulation/pkg/api/v1"
-	"github.com/olamai/simulation/pkg/vec2/v1"
+	v1 "github.com/terrariumai/simulation/pkg/api/v1"
+	"github.com/terrariumai/simulation/pkg/vec2/v1"
 )
 
 // Create new agent

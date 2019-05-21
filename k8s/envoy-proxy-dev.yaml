@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: envoy-proxy
-          image: olamai/envoy-proxy:0.0.1
+          image: terrariumai/envoy-proxy:0.0.1
           imagePullPolicy: Always
           ports:
             - containerPort: 9091

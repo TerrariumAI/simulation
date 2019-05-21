@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: simulation
-          image: olamai/simulation:0.0.1
+          image: terrariumai/simulation:0.0.1
           imagePullPolicy: Always
           ports:
             - containerPort: 9090

@@ -8,10 +8,10 @@ import (
 	// mysql driver
 	_ "github.com/go-sql-driver/mysql"
 
-	"github.com/olamai/simulation/pkg/logger"
-	"github.com/olamai/simulation/pkg/protocol/grpc"
-	"github.com/olamai/simulation/pkg/protocol/rest"
-	v1 "github.com/olamai/simulation/pkg/service/v1"
+	"github.com/terrariumai/simulation/pkg/logger"
+	"github.com/terrariumai/simulation/pkg/protocol/grpc"
+	"github.com/terrariumai/simulation/pkg/protocol/rest"
+	v1 "github.com/terrariumai/simulation/pkg/service/v1"
 )
 
 // Config is configuration for Server

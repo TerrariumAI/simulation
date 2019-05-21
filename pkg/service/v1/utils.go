@@ -10,9 +10,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	v1 "github.com/olamai/simulation/pkg/api/v1"
-	"github.com/olamai/simulation/pkg/vec2/v1"
-	"github.com/olamai/simulation/pkg/world/v1"
+	v1 "github.com/terrariumai/simulation/pkg/api/v1"
+	"github.com/terrariumai/simulation/pkg/vec2/v1"
+	"github.com/terrariumai/simulation/pkg/world/v1"
 )
 
 // newUUID generates a random UUID according to RFC 4122

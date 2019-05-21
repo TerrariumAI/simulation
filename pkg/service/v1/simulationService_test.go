@@ -7,7 +7,7 @@ import (
 
 	"google.golang.org/grpc/metadata"
 
-	v1 "github.com/olamai/simulation/pkg/api/v1"
+	v1 "github.com/terrariumai/simulation/pkg/api/v1"
 )
 
 func Test_simulationServiceServer_CreateAgent(t *testing.T) {

@@ -3,7 +3,7 @@ package v1
 import (
 	"errors"
 
-	v1 "github.com/olamai/simulation/pkg/api/v1"
+	v1 "github.com/terrariumai/simulation/pkg/api/v1"
 )
 
 const fps = 5

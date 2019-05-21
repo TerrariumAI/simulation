@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/olamai/simulation/pkg/logger"
+	"github.com/terrariumai/simulation/pkg/logger"
 
 	"go.uber.org/zap"
 

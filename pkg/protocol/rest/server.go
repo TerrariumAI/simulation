@@ -10,9 +10,9 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	v1 "github.com/olamai/simulation/pkg/api/v1"
-	"github.com/olamai/simulation/pkg/logger"
-	"github.com/olamai/simulation/pkg/protocol/rest/middleware"
+	v1 "github.com/terrariumai/simulation/pkg/api/v1"
+	"github.com/terrariumai/simulation/pkg/logger"
+	"github.com/terrariumai/simulation/pkg/protocol/rest/middleware"
 	"google.golang.org/grpc"
 )
 

@@ -53,6 +53,11 @@ compile-proto-js:
 ## ------ DOCKER 
 ## ----------------------
 
+check-version-env-var:
+ifndef VERSION
+	$(error VERSION is undefined)
+endif
+
 dockerize: check-version-env-var build docker-build docker-push ## build and push dev proxy
 
 # Building the docker builds
@@ -61,9 +66,5 @@ docker-build: check-version-env-var go-build ## build the docker image, must hav
 	
 # Pushing the docker builds
 docker-push: check-version-env-var ## push the docker image
+	docker login \
 	docker push terrariumai/simulation:$(VERSION)
-
-check-version-env-var:
-ifndef VERSION
-	$(error VERSION is undefined)
-endif

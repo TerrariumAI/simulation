@@ -6,9 +6,9 @@ import (
 	"os"
 	"os/signal"
 
-	v1 "github.com/olamai/simulation/pkg/api/v1"
-	"github.com/olamai/simulation/pkg/logger"
-	"github.com/olamai/simulation/pkg/protocol/grpc/middleware"
+	v1 "github.com/terrariumai/simulation/pkg/api/v1"
+	"github.com/terrariumai/simulation/pkg/logger"
+	"github.com/terrariumai/simulation/pkg/protocol/grpc/middleware"
 	"google.golang.org/grpc"
 )
 

@@ -3,7 +3,7 @@ package world
 import (
 	"testing"
 
-	"github.com/olamai/simulation/pkg/vec2/v1"
+	"github.com/terrariumai/simulation/pkg/vec2/v1"
 )
 
 func TestNewFoodEntity(t *testing.T) {

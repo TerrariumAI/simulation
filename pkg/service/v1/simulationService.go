@@ -11,11 +11,11 @@ import (
 
 	firebase "firebase.google.com/go"
 
-	"github.com/olamai/simulation/pkg/stadium/v1"
-	"github.com/olamai/simulation/pkg/world/v1"
+	"github.com/terrariumai/simulation/pkg/stadium/v1"
+	"github.com/terrariumai/simulation/pkg/world/v1"
 
-	v1 "github.com/olamai/simulation/pkg/api/v1"
-	"github.com/olamai/simulation/pkg/logger"
+	v1 "github.com/terrariumai/simulation/pkg/api/v1"
+	"github.com/terrariumai/simulation/pkg/logger"
 )
 
 const (
