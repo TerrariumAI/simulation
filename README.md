@@ -8,8 +8,8 @@ NOTE: If you are trying to run the Web-Client and connect to this, you will firs
 
 **-grpc-port=<PORT_NUMBER>** The port the gRPC server will run on  
 **-http-port=<PORT_NUMBER>** The port the REST server will run on  
-**-env=<ENVIRONMENT>** The env can either be "prod", "training", or "testing".
 **-log-level=<LEVEL>** The amount of logging you want
+**-env=<ENVIRONMENT>** The env can either be "prod", "training", or "testing".
 
 ## Firebase Credentials
 
@@ -33,3 +33,13 @@ Looks for a file called `serviceAccountKey.json` in the root directory to use th
 ### Getting Firebase Creds
 
 If you are trying to run this service locally, you can go [here](https://firebase.google.com/docs/admin/setup) to get a tutorial on generating these keys under the "Add Firebase to your app" section.
+
+### Proposed method of storing in Redis
+
+Create an entity at x=079, y=209 with an id=0
+`ZADD entities 0 027099:0`
+
+Add data to the entity
+`HSET entities.content:0 class agent`
+
+Query for the entity by position
