@@ -6,6 +6,7 @@ import (
 
 	firebase "firebase.google.com/go"
 
+	"github.com/golang/protobuf/ptypes/empty"
 	v1 "github.com/terrariumai/simulation/pkg/api/v1"
 	"github.com/terrariumai/simulation/pkg/logger"
 )
@@ -19,7 +20,7 @@ const (
 )
 
 // toDoServiceServer is implementation of v1.ToDoServiceServer proto interface
-type simulationServiceServer struct {
+type simulationServer struct {
 	// Environment the server is running in
 	env string
 	// --- Firebase ---
@@ -30,8 +31,8 @@ type simulationServiceServer struct {
 }
 
 // NewSimulationServiceServer creates simulation service
-func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
-	s := &simulationServiceServer{
+func NewSimulationServiceServer(env string) v1.SimulationServer {
+	s := &simulationServer{
 		env:         env,
 		firebaseApp: initializeFirebaseApp(env),
 	}
@@ -47,35 +48,25 @@ func NewSimulationServiceServer(env string) v1.SimulationServiceServer {
 }
 
 // Get data for an entity
-func (s *simulationServiceServer) CreateEntity(ctx context.Context, req *v1.CreateEntityRequest) (*v1.CreateEntityResponse, error) {
+func (s *simulationServer) CreateEntity(ctx context.Context, req *v1.CreateEntityRequest) (*v1.CreateEntityResponse, error) {
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
-	// check if the API version requested by client is supported by server
-	if err := s.checkAPI(req.Api); err != nil {
-		return nil, err
-	}
 
 	// Return the data for the agent
 	return &v1.CreateEntityResponse{
-		Api: apiVersion,
-		Id:  0,
+		Id: 0,
 	}, nil
 }
 
 // Get data for an entity
-func (s *simulationServiceServer) GetEntity(ctx context.Context, req *v1.GetEntityRequest) (*v1.GetEntityResponse, error) {
+func (s *simulationServer) GetEntity(ctx context.Context, req *v1.GetEntityRequest) (*v1.GetEntityResponse, error) {
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
-	// check if the API version requested by client is supported by server
-	if err := s.checkAPI(req.Api); err != nil {
-		return nil, err
-	}
 
 	// Return the data for the agent
 	return &v1.GetEntityResponse{
-		Api: apiVersion,
 		Entity: &v1.Entity{
 			Id:    0,
 			Class: "AGENT",
@@ -84,48 +75,34 @@ func (s *simulationServiceServer) GetEntity(ctx context.Context, req *v1.GetEnti
 }
 
 // Get data for an entity
-func (s *simulationServiceServer) DeleteEntity(ctx context.Context, req *v1.DeleteEntityRequest) (*v1.DeleteEntityResponse, error) {
+func (s *simulationServer) DeleteEntity(ctx context.Context, req *v1.DeleteEntityRequest) (*v1.DeleteEntityResponse, error) {
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
-	// check if the API version requested by client is supported by server
-	if err := s.checkAPI(req.Api); err != nil {
-		return nil, err
-	}
 
 	// Return the data for the agent
 	return &v1.DeleteEntityResponse{
-		Api:     apiVersion,
 		Deleted: 1,
 	}, nil
 }
 
 // Get data for an entity
-func (s *simulationServiceServer) ExecuteAgentAction(ctx context.Context, req *v1.ExecuteAgentActionRequest) (*v1.ExecuteAgentActionResponse, error) {
+func (s *simulationServer) ExecuteAgentAction(ctx context.Context, req *v1.ExecuteAgentActionRequest) (*v1.ExecuteAgentActionResponse, error) {
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
-	// check if the API version requested by client is supported by server
-	if err := s.checkAPI(req.Api); err != nil {
-		return nil, err
-	}
 
 	// Return the data for the agent
 	return &v1.ExecuteAgentActionResponse{
-		Api:           apiVersion,
 		WasSuccessful: true,
 	}, nil
 }
 
-func (s *simulationServiceServer) ResetWorld(ctx context.Context, req *v1.ResetWorldRequest) (*v1.ResetWorldResponse, error) {
+func (s *simulationServer) ResetWorld(ctx context.Context, req *empty.Empty) (*empty.Empty, error) {
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
-	// check if the API version requested by client is supported by server
-	if err := s.checkAPI(req.Api); err != nil {
-		return nil, err
-	}
 
 	// Return
-	return &v1.ResetWorldResponse{}, nil
+	return &empty.Empty{}, nil
 }

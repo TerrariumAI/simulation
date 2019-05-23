@@ -19,11 +19,11 @@ build-linux: ## Build distribution binary for linux
 ## ----------------------
 
 run-testing: ## run the server locally with env set to testing
-	go run -race ./cmd/server/main.go -grpc-port=9090 -http-port=8080 -log-level=-1 -env=testing
+	go run -race ./cmd/server/main.go -grpc-port=8000 -log-level=-1 -env=testing
 run-training: ## run the server locally with env set to training
-	go run -race ./cmd/server/main.go -grpc-port=9090 -http-port=8080 -log-level=-1 -env=training
+	go run -race ./cmd/server/main.go -grpc-port=8000 -log-level=-1 -env=training
 run-prod: ## run the server locally with env set to prod
-	go run -race ./cmd/server/main.go -grpc-port=9090 -http-port=8080 -log-level=-1 -env=prod
+	go run -race ./cmd/server/main.go -grpc-port=8000 -log-level=-1 -env=prod
 
 ## ----------------------
 ## ------ Testing
@@ -59,10 +59,9 @@ endif
 dockerize: check-version-env-var build docker-build docker-push ## build and push dev proxy
 
 # Building the docker builds
-docker-build: check-version-env-var go-build ## build the docker image, must have variable VERSION
+docker-build: check-version-env-var build ## build the docker image, must have variable VERSION
 	docker build -t terrariumai/simulation:$(VERSION) -f ./Dockerfile .
 	
 # Pushing the docker builds
 docker-push: check-version-env-var ## push the docker image
-	docker login \
 	docker push terrariumai/simulation:$(VERSION)

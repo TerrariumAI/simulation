@@ -10,7 +10,6 @@ import (
 
 	"github.com/terrariumai/simulation/pkg/logger"
 	"github.com/terrariumai/simulation/pkg/protocol/grpc"
-	"github.com/terrariumai/simulation/pkg/protocol/rest"
 	v1 "github.com/terrariumai/simulation/pkg/service/v1"
 )
 
@@ -19,9 +18,6 @@ type Config struct {
 	// gRPC server start parameters section
 	// gRPC is TCP port to listen by gRPC server
 	GRPCPort string
-	// HTTP/REST gateway start parameters section
-	// HTTPPort is TCP port to listen by HTTP/REST gateway
-	HTTPPort string
 	// Environment that the server is running in (dev or prod)
 	Environment string
 	// Log parameters section
@@ -38,7 +34,6 @@ func RunServer() error {
 	// get configuration
 	var cfg Config
 	flag.StringVar(&cfg.GRPCPort, "grpc-port", "", "gRPC port to bind")
-	flag.StringVar(&cfg.HTTPPort, "http-port", "", "HTTP port to bind")
 	flag.StringVar(&cfg.Environment, "env", "", "Environment the server is running in")
 	flag.IntVar(&cfg.LogLevel, "log-level", 0, "Global log level")
 	flag.StringVar(&cfg.LogTimeFormat, "log-time-format", "",
@@ -48,9 +43,6 @@ func RunServer() error {
 	if len(cfg.GRPCPort) == 0 {
 		return fmt.Errorf("invalid TCP port for gRPC server: '%s'", cfg.GRPCPort)
 	}
-	if len(cfg.HTTPPort) == 0 {
-		return fmt.Errorf("invalid TCP port for HTTP gateway: '%s'", cfg.HTTPPort)
-	}
 
 	// initialize logger
 	if err := logger.Init(cfg.LogLevel, cfg.LogTimeFormat); err != nil {
@@ -58,11 +50,6 @@ func RunServer() error {
 	}
 
 	v1API := v1.NewSimulationServiceServer(cfg.Environment)
-
-	// run HTTP gateway
-	go func() {
-		_ = rest.RunServer(ctx, cfg.GRPCPort, cfg.HTTPPort)
-	}()
 
 	return grpc.RunServer(ctx, v1API, cfg.GRPCPort)
 }
