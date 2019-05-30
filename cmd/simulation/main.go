@@ -1,16 +1,14 @@
-package cmd
+package main
 
 import (
-	"context"
 	"flag"
-	"fmt"
+	"log"
+	"net"
+	"os"
 
-	// mysql driver
-	_ "github.com/go-sql-driver/mysql"
-
-	"github.com/terrariumai/simulation/pkg/logger"
-	"github.com/terrariumai/simulation/pkg/protocol/grpc"
-	v1 "github.com/terrariumai/simulation/pkg/service/v1"
+	api "github.com/terrariumai/simulation/pkg/api"
+	simulation "github.com/terrariumai/simulation/pkg/simulation"
+	"google.golang.org/grpc"
 )
 
 // Config is configuration for Server
@@ -27,10 +25,7 @@ type Config struct {
 	LogTimeFormat string
 }
 
-// RunServer runs gRPC server and HTTP gateway
-func RunServer() error {
-	ctx := context.Background()
-
+func main() {
 	// get configuration
 	var cfg Config
 	flag.StringVar(&cfg.GRPCPort, "grpc-port", "", "gRPC port to bind")
@@ -41,15 +36,23 @@ func RunServer() error {
 	flag.Parse()
 
 	if len(cfg.GRPCPort) == 0 {
-		return fmt.Errorf("invalid TCP port for gRPC server: '%s'", cfg.GRPCPort)
+		log.Fatalf("invalid TCP port for gRPC server: '%s'", cfg.GRPCPort)
+		os.Exit(1)
+		return
 	}
 
-	// initialize logger
-	if err := logger.Init(cfg.LogLevel, cfg.LogTimeFormat); err != nil {
-		return fmt.Errorf("failed to initialize logger: %v", err)
+	listen, err := net.Listen("tcp", ":"+cfg.GRPCPort)
+	if err != nil {
+		log.Fatalf("os.Stderr, '%v\n'", err)
+		os.Exit(1)
 	}
 
-	v1API := v1.NewSimulationServiceServer(cfg.Environment)
+	serverAPI := simulation.NewSimulationServer(cfg.Environment)
 
-	return grpc.RunServer(ctx, v1API, cfg.GRPCPort)
+	opts := []grpc.ServerOption{}
+	server := grpc.NewServer(opts...)
+	api.RegisterSimulationServer(server, serverAPI)
+
+	log.Println("init started")
+	server.Serve(listen)
 }

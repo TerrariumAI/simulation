@@ -1,15 +1,12 @@
-package v1
+package simulation
 
 import (
 	"context"
 	"errors"
-	"fmt"
-
-	"github.com/terrariumai/simulation/pkg/logger"
-
-	"go.uber.org/zap"
+	"log"
 
 	firebase "firebase.google.com/go"
+	"go.uber.org/zap"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc/metadata"
@@ -35,7 +32,7 @@ func initializeFirebaseApp(env string) *firebase.App {
 	opt := option.WithCredentialsFile(serviceAccountFileLocation)
 	app, err := firebase.NewApp(context.Background(), nil, opt)
 	if err != nil {
-		logger.Log.Fatal("error initializing firebase app: %v\n", zap.String("reason", err.Error()))
+		log.Fatalf("error initializing firebase app: %v\n", zap.String("reason", err.Error()))
 		return nil
 	}
 	return app
@@ -49,7 +46,7 @@ func authenticateFirebaseAccountWithSecret(ctx context.Context, app *firebase.Ap
 	}
 	secretHeader, ok := md["auth-secret"]
 	if !ok {
-		logger.Log.Warn("Authentication(): No secret token header in context")
+		log.Println("Authentication(): No secret token header in context")
 		return nil, errors.New("Authentication(): Missing Secret Key In Metadata")
 	}
 	secret := secretHeader[0]
@@ -146,16 +143,16 @@ func removeAllRemoteModelsFromFirebase(app *firebase.App, env string) error {
 	client, err := app.Firestore(context.Background())
 	defer client.Close()
 	if err != nil {
-		logger.Log.Warn("removeAllRemoteModelsFromFirebase(): Error creating Firestore client")
-		fmt.Println(err)
+		log.Println("removeAllRemoteModelsFromFirebase(): Error creating Firestore client")
+		log.Println(err)
 		return err
 	}
 	// Make sure we can add the new RM
 	iter := client.Collection("remoteModels").Documents(context.Background())
 	snaps, err := iter.GetAll()
 	if err != nil {
-		logger.Log.Warn("removeAllRemoteModelsFromFirebase(): Error getting all remoteModels")
-		fmt.Println(err)
+		log.Println("removeAllRemoteModelsFromFirebase(): Error getting all remoteModels")
+		log.Println(err)
 		return err
 	}
 	for _, snap := range snaps {

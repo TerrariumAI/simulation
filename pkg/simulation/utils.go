@@ -1,4 +1,4 @@
-package v1
+package simulation
 
 import (
 	// cryptoRand "crypto/rand"

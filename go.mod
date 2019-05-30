@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	firebase.google.com/go v3.7.0+incompatible
+	github.com/go-redis/redis v6.15.2+incompatible // indirect
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/golang/protobuf v1.3.1
 	github.com/googleapis/gax-go v2.0.2+incompatible // indirect
