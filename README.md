@@ -8,8 +8,8 @@ NOTE: If you are trying to run the Web-Client and connect to this, you will firs
 
 **-grpc-port=<PORT_NUMBER>** The port the gRPC server will run on  
 **-http-port=<PORT_NUMBER>** The port the REST server will run on  
-**-env=<ENVIRONMENT>** The env can either be "prod", "training", or "testing".
 **-log-level=<LEVEL>** The amount of logging you want
+**-env=<ENVIRONMENT>** The env can either be "prod", "training", or "testing".
 
 ## Firebase Credentials
 
@@ -18,17 +18,17 @@ When running the Simulation service, you need Firebase credentials in order to c
 ### Testing
 
 `-env=testing`  
-Looks for a file called `serviceAccountKey_testing.json` in the root directory in order to use the testing environment.
+The testing environment runs completely offline. This is used for unit testing.
+
+### Staging
+
+`-env=staging`  
+The staging environment runs using our staging Firebase servers and a local Redis server.
 
 ### Prod
 
 `-env=prod`  
 Looks for a file called `serviceAccountKey.json` in the root directory to use the prod environment.
-
-### Training
-
-`-env=training`  
-No Firebase credentials are necessary for training.
 
 ### Getting Firebase Creds
 

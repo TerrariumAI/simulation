@@ -3,29 +3,42 @@
 help: ## Display this help screen
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-go-build: ## build the server executable (for linux/docker use only)
-	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/server
-go-build-mac: ## Build distribution binary for mac
-	go build -o ./bin/simulation-osx ./cmd/server
-go-build-linux: ## Build distribution binary for linux
-	GOOS=linux go build -a -installsuffix cgo -o ./bin/simulation-linux ./cmd/server
-	
-run-testing: ## run the server locally with env set to testing
-	go run -race ./cmd/server/main.go -grpc-port=9090 -http-port=8080 -log-level=-1 -env=testing
-run-training: ## run the server locally with env set to training
-	go run -race ./cmd/server/main.go -grpc-port=9090 -http-port=8080 -log-level=-1 -env=training
-run-prod: ## run the server locally with env set to prod
-	go run -race ./cmd/server/main.go -grpc-port=9090 -http-port=8080 -log-level=-1 -env=prod
+## ----------------------
+## ------ Build
+## ----------------------
 
-test: test-vec2 test-world test-stadium ## test all internal packages
+build: ## build the server executable (for linux/docker use only)
+	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/server
+build-mac: ## Build distribution binary for mac
+	go build -o ./bin/simulation-osx ./cmd/server
+build-linux: ## Build distribution binary for linux
+	GOOS=linux go build -a -installsuffix cgo -o ./bin/simulation-linux ./cmd/server
+
+## ----------------------
+## ------ Run
+## ----------------------
+
+run-testing: ## run the server locally with env set to testing
+	go run -race ./cmd/server/main.go -grpc-port=8000 -log-level=-1 -env=testing
+run-training: ## run the server locally with env set to training
+	go run -race ./cmd/server/main.go -grpc-port=8000 -log-level=-1 -env=training
+run-prod: ## run the server locally with env set to prod
+	go run -race ./cmd/server/main.go -grpc-port=8000 -log-level=-1 -env=prod
+
+## ----------------------
+## ------ Testing
+## ----------------------
+
+test: test-vec2 test-simulation ## test all internal packages
 test-vec2: ## run tests for Vec2
 	go test ./pkg/vec2/v1
-test-world: ## run tests for World
-	go test ./pkg/world/v1
-test-stadium: ## run tests for Stadium
-	go test ./pkg/stadium/v1
+test-simulation: ## run tests for the simulation service
+	go test ./pkg/service/v1
 
-# Proto compilation
+## ----------------------
+## ------ Protobuf
+## ----------------------
+
 compile-proto: compile-proto-go compile-proto-py compile-proto-js # compile proto in all languages
 compile-proto-go:
 	./third_party/protoc-gen-go.sh
@@ -34,20 +47,21 @@ compile-proto-py:
 compile-proto-js:
 	./third_party/protoc-gen-js.sh
 
+## ----------------------
+## ------ DOCKER 
+## ----------------------
+
 check-version-env-var:
 ifndef VERSION
 	$(error VERSION is undefined)
 endif
 
-## ----------------------
-## ------ DOCKER --------
-## ----------------------
-dockerize: check-version-env-var docker-build docker-push ## build and push dev proxy
+dockerize: check-version-env-var build docker-build docker-push ## build and push dev proxy
 
 # Building the docker builds
-docker-build: check-version-env-var go-build ## build the docker image, must have variable VERSION
-	docker build -t olamai/simulation:$(VERSION) -f ./Dockerfile .
+docker-build: check-version-env-var build ## build the docker image, must have variable VERSION
+	docker build -t terrariumai/simulation:$(VERSION) -f ./Dockerfile .
 	
 # Pushing the docker builds
 docker-push: check-version-env-var ## push the docker image
-	docker push olamai/simulation:$(VERSION)
+	docker push terrariumai/simulation:$(VERSION)
