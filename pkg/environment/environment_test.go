@@ -1,4 +1,4 @@
-package simulation
+package environment
 
 // func Test_simulationServiceServer_CreateEntity(t *testing.T) {
 // 	// ctxWithoutValidToken := context.Background()

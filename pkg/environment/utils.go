@@ -1,4 +1,4 @@
-package simulation
+package environment
 
 import (
 	// cryptoRand "crypto/rand"
@@ -45,7 +45,7 @@ import (
 // }
 
 // checkAPI checks if the API version requested by client is supported by server
-func (s *simulationServer) checkAPI(api string) error {
+func (s *environmentServer) checkAPI(api string) error {
 	// API version is "" means use current version of the service
 	if len(api) > 0 {
 		if apiVersion != api {

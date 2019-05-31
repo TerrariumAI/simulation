@@ -1,4 +1,4 @@
-package simulation
+package environment
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	firebase "firebase.google.com/go"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	api "github.com/terrariumai/simulation/pkg/api"
+	api "github.com/terrariumai/simulation/pkg/api/environment"
 )
 
 const (
@@ -19,7 +19,7 @@ const (
 )
 
 // toDoServiceServer is implementation of api.ToDoServiceServer proto interface
-type simulationServer struct {
+type environmentServer struct {
 	// Environment the server is running in
 	env string
 	// --- Firebase ---
@@ -29,9 +29,9 @@ type simulationServer struct {
 	m sync.Mutex
 }
 
-// NewSimulationServer creates simulation service
-func NewSimulationServer(env string) api.SimulationServer {
-	s := &simulationServer{
+// NewEnvironmentServer creates simulation service
+func NewEnvironmentServer(env string) api.EnvironmentServer {
+	s := &environmentServer{
 		env:         env,
 		firebaseApp: initializeFirebaseApp(env),
 	}
@@ -43,7 +43,7 @@ func NewSimulationServer(env string) api.SimulationServer {
 }
 
 // Get data for an entity
-func (s *simulationServer) CreateEntity(ctx context.Context, req *api.CreateEntityRequest) (*api.CreateEntityResponse, error) {
+func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEntityRequest) (*api.CreateEntityResponse, error) {
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
@@ -55,7 +55,7 @@ func (s *simulationServer) CreateEntity(ctx context.Context, req *api.CreateEnti
 }
 
 // Get data for an entity
-func (s *simulationServer) GetEntity(ctx context.Context, req *api.GetEntityRequest) (*api.GetEntityResponse, error) {
+func (s *environmentServer) GetEntity(ctx context.Context, req *api.GetEntityRequest) (*api.GetEntityResponse, error) {
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
@@ -70,7 +70,7 @@ func (s *simulationServer) GetEntity(ctx context.Context, req *api.GetEntityRequ
 }
 
 // Get data for an entity
-func (s *simulationServer) DeleteEntity(ctx context.Context, req *api.DeleteEntityRequest) (*api.DeleteEntityResponse, error) {
+func (s *environmentServer) DeleteEntity(ctx context.Context, req *api.DeleteEntityRequest) (*api.DeleteEntityResponse, error) {
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
@@ -82,7 +82,7 @@ func (s *simulationServer) DeleteEntity(ctx context.Context, req *api.DeleteEnti
 }
 
 // Get data for an entity
-func (s *simulationServer) ExecuteAgentAction(ctx context.Context, req *api.ExecuteAgentActionRequest) (*api.ExecuteAgentActionResponse, error) {
+func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *api.ExecuteAgentActionRequest) (*api.ExecuteAgentActionResponse, error) {
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
@@ -93,7 +93,7 @@ func (s *simulationServer) ExecuteAgentAction(ctx context.Context, req *api.Exec
 	}, nil
 }
 
-func (s *simulationServer) ResetWorld(ctx context.Context, req *empty.Empty) (*empty.Empty, error) {
+func (s *environmentServer) ResetWorld(ctx context.Context, req *empty.Empty) (*empty.Empty, error) {
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()

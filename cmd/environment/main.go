@@ -6,8 +6,8 @@ import (
 	"net"
 	"os"
 
-	api "github.com/terrariumai/simulation/pkg/api"
-	simulation "github.com/terrariumai/simulation/pkg/simulation"
+	api "github.com/terrariumai/simulation/pkg/api/environment"
+	"github.com/terrariumai/simulation/pkg/environment"
 	"google.golang.org/grpc"
 )
 
@@ -17,7 +17,7 @@ type Config struct {
 	// gRPC is TCP port to listen by gRPC server
 	GRPCPort string
 	// Environment that the server is running in (dev or prod)
-	Environment string
+	Env string
 	// Log parameters section
 	// LogLevel is global log level: Debug(-1), Info(0), Warn(1), Error(2), DPanic(3), Panic(4), Fatal(5)
 	LogLevel int
@@ -29,7 +29,7 @@ func main() {
 	// get configuration
 	var cfg Config
 	flag.StringVar(&cfg.GRPCPort, "grpc-port", "", "gRPC port to bind")
-	flag.StringVar(&cfg.Environment, "env", "", "Environment the server is running in")
+	flag.StringVar(&cfg.Env, "env", "", "Environment the server is running in")
 	flag.IntVar(&cfg.LogLevel, "log-level", 0, "Global log level")
 	flag.StringVar(&cfg.LogTimeFormat, "log-time-format", "",
 		"Print time format for logger e.g. 2006-01-02T15:04:05Z07:00")
@@ -47,12 +47,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	serverAPI := simulation.NewSimulationServer(cfg.Environment)
+	serverAPI := environment.NewEnvironmentServer(cfg.Env)
 
 	opts := []grpc.ServerOption{}
 	server := grpc.NewServer(opts...)
-	api.RegisterSimulationServer(server, serverAPI)
+	api.RegisterEnvironmentServer(server, serverAPI)
 
-	log.Println("init started")
+	log.Println("Starting Environment Server...")
 	server.Serve(listen)
 }
