@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 
 	uuid "github.com/satori/go.uuid"
@@ -68,8 +69,21 @@ func posToRedisIndex(x int32, y int32) (string, error) {
 	return interlocked, nil
 }
 
-func serializeEntity(index string, x int32, y int32, ownerID string, id string) string {
-	return fmt.Sprintf("%s:%v:%v:%s:%s", index, x, y, ownerID, id)
+func serializeEntity(index string, x int32, y int32, ownerUID string, id string) string {
+	return fmt.Sprintf("%s:%v:%v:%s:%s", index, x, y, ownerUID, id)
+}
+
+func parseEntityContent(content string) api.Entity {
+	values := strings.Split(content, ":")
+	println(values)
+	x, _ := strconv.Atoi(values[1])
+	y, _ := strconv.Atoi(values[2])
+	return api.Entity{
+		X:        int32(x),
+		Y:        int32(y),
+		OwnerUID: values[3],
+		Id:       values[4],
+	}
 }
 
 // NewEnvironmentServer creates simulation service
@@ -110,11 +124,11 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 		return nil, err
 	}
 	// Make sure the user has supplied data
-	if req.Agent == nil {
+	if req.Entity == nil {
 		return nil, errors.New("Agent not in request")
 	}
 	// Get an index from the position
-	index, err := posToRedisIndex(req.Agent.X, req.Agent.Y)
+	index, err := posToRedisIndex(req.Entity.X, req.Entity.Y)
 	if err != nil {
 		return nil, err
 	}
@@ -127,8 +141,12 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 
 	// Create an id for the entity
 	entityID := uuid.NewV4().String()
+	// Use given ID for testing
+	if s.env == "testing" {
+		entityID = req.Entity.Id
+	}
 	// Serialized entity content
-	content := serializeEntity(index, req.Agent.X, req.Agent.Y, user["id"].(string), entityID)
+	content := serializeEntity(index, req.Entity.X, req.Entity.Y, user["id"].(string), entityID)
 
 	// Add the entity
 	err = s.redisClient.ZAdd("entities", redis.Z{
@@ -146,7 +164,7 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 
 	// Return the data for the agent
 	return &api.CreateEntityResponse{
-		Id: 0,
+		Id: entityID,
 	}, nil
 }
 
@@ -155,13 +173,17 @@ func (s *environmentServer) GetEntity(ctx context.Context, req *api.GetEntityReq
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
+	// Get the content
+	hGetEntityContent := s.redisClient.HGet("entities.content", req.Id)
+	if hGetEntityContent.Err() != nil {
+		return nil, errors.New("Couldn't find an entity by that id")
+	}
+	content := hGetEntityContent.Val()
+	entity := parseEntityContent(content)
 
 	// Return the data for the agent
 	return &api.GetEntityResponse{
-		Entity: &api.Entity{
-			Id:    0,
-			Class: "AGENT",
-		},
+		Entity: &entity,
 	}, nil
 }
 
@@ -170,6 +192,17 @@ func (s *environmentServer) DeleteEntity(ctx context.Context, req *api.DeleteEnt
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
+
+	// Get the content
+	hGetEntityContent := s.redisClient.HGet("entities.content", req.Id)
+	if hGetEntityContent.Err() != nil {
+		return nil, errors.New("Couldn't find an entity by that id")
+	}
+	content := hGetEntityContent.Val()
+	// Remove from hash
+	s.redisClient.HDel("entities.content", content)
+	// Remove from SS
+	s.redisClient.ZRem("entities", content)
 
 	// Return the data for the agent
 	return &api.DeleteEntityResponse{
