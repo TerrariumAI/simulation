@@ -19,11 +19,11 @@ build-environment: ## build the server executable (for linux/docker use only)
 ## ----------------------
 
 run-testing: ## run the server locally with env set to testing
-	go run -race ./cmd/server/main.go -grpc-port=8000 -log-level=-1 -env=testing
+	go run -race ./cmd/environment/main.go -grpc-port=9090 -log-level=-1 -env=testing
 run-training: ## run the server locally with env set to training
-	go run -race ./cmd/server/main.go -grpc-port=8000 -log-level=-1 -env=training
+	go run -race ./cmd/environment/main.go -grpc-port=9090 -log-level=-1 -env=training
 run-prod: ## run the server locally with env set to prod
-	go run -race ./cmd/server/main.go -grpc-port=8000 -log-level=-1 -env=prod
+	go run -race ./cmd/environment/main.go -grpc-port=9090 -log-level=-1 -env=prod
 
 ## ----------------------
 ## ------ Testing

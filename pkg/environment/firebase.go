@@ -54,8 +54,8 @@ func authenticateFirebaseAccountWithSecret(ctx context.Context, app *firebase.Ap
 	// -----------------------------------
 	// ENVIRONMENT CHECK
 	// -----------------------------------
-	// Training,  doesn't implement authentication
-	if env == "training" {
+	// Testing doesn't implement authentication
+	if env == "testing" {
 		if secret == mockSecret {
 			fakeUser := make(map[string]interface{})
 			fakeUser["id"] = "MOCK_USER_ID"
