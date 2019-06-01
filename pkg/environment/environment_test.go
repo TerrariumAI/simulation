@@ -1,305 +1,271 @@
 package environment
 
-// func Test_simulationServiceServer_CreateEntity(t *testing.T) {
-// 	// ctxWithoutValidToken := context.Background()
-// 	md := metadata.Pairs("auth-secret", "MOCK-SECRET")
-// 	ctxWithValidSecret := metadata.NewIncomingContext(context.Background(), md)
+import (
+	"context"
+	"reflect"
+	"testing"
 
-// 	s := NewSimulationServiceServer("testing")
+	api "github.com/terrariumai/simulation/pkg/api/environment"
+	"google.golang.org/grpc/metadata"
+)
 
-// 	type args struct {
-// 		ctx context.Context
-// 		req *api.CreateEntityRequest
-// 	}
-// 	tests := []struct {
-// 		name    string
-// 		s       api.SimulationServiceServer
-// 		args    args
-// 		want    *api.CreateEntityResponse
-// 		wantErr bool
-// 	}{
-// 		{
-// 			name: "Succesful Agent Creation",
-// 			s:    s,
-// 			args: args{
-// 				ctx: ctxWithValidSecret,
-// 				req: &api.CreateEntityRequest{
-// 					Api: "v1",
-// 					Agent: &v1.Entity{
-// 						X:         0,
-// 						Y:         0,
-// 						ModelName: "",
-// 					},
-// 				},
-// 			},
-// 			want: &v1.CreateEntityResponse{
-// 				Api: "v1",
-// 				Id:  0,
-// 			},
-// 		},
-// 		// {
-// 		// 	name: "Unsupported API",
-// 		// 	s:    s,
-// 		// 	args: args{
-// 		// 		ctx: ctxWithValidSecret,
-// 		// 		req: &v1.CreateEntityRequest{
-// 		// 			Api:       "v1000",
-// 		// 			Agent: &v1.Entity {
-// 		// 				X:         0,
-// 		// 				Y:         0,
-// 		// 				ModelName: "",
-// 		// 			},
-// 		// 		},
-// 		// 	},
-// 		// 	wantErr: true,
-// 		// },
-// 		// {
-// 		// 	name: "Agent already exists in that position error",
-// 		// 	s:    s,
-// 		// 	args: args{
-// 		// 		ctx: ctxWithValidSecret,
-// 		// 		req: &v1.CreateEntityRequest{
-// 		// 			Api:       "v1",
-// 		// 			Agent: &v1.Entity {
-// 		// 				X:         0,
-// 		// 				Y:         0,
-// 		// 				ModelName: "",
-// 		// 			},
-// 		// 		},
-// 		// 	},
-// 		// 	wantErr: true,
-// 		// },
-// 		// {
-// 		// 	name: "Invalid secret token",
-// 		// 	s:    s,
-// 		// 	args: args{
-// 		// 		ctx: ctxWithoutValidToken,
-// 		// 		req: &v1.CreateEntityRequest{
-// 		// 			Api:       "v1",
-// 		// 			Agent: &v1.Entity {
-// 		// 				X:         0,
-// 		// 				Y:         0,
-// 		// 				ModelName: "",
-// 		// 			},
-// 		// 		},
-// 		// 	},
-// 		// 	wantErr: true,
-// 		// },
-// 	}
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			got, err := tt.s.CreateEntity(tt.args.ctx, tt.args.req)
-// 			if (err != nil) != tt.wantErr {
-// 				t.Errorf("simulationService.CreateEntity() error = %v, wantErr %v", err, tt.wantErr)
-// 				return
-// 			}
-// 			if err == nil && !reflect.DeepEqual(got, tt.want) {
-// 				t.Errorf("toDoServiceServer.CreateEntity() = %v, want %v", got, tt.want)
-// 			}
-// 		})
-// 	}
-// }
+func TestCreateEntity(t *testing.T) {
+	// ctxWithoutValidToken := context.Background()
+	md := metadata.Pairs("auth-secret", "MOCK-SECRET")
+	ctxWithValidSecret := metadata.NewIncomingContext(context.Background(), md)
 
-// func Test_simulationServiceServer_GetEntity(t *testing.T) {
-// 	ctxWithoutValidSecret := context.Background()
-// 	md := metadata.Pairs("auth-secret", "MOCK-SECRET")
-// 	ctxWithValidSecret := metadata.NewIncomingContext(context.Background(), md)
+	s := NewEnvironmentServer("testing")
+	type args struct {
+		ctx context.Context
+		req *api.CreateEntityRequest
+	}
+	tests := []struct {
+		name    string
+		s       api.EnvironmentServer
+		args    args
+		want    *api.CreateEntityResponse
+		wantErr bool
+	}{
+		{
+			name: "Succesful Entity Creation",
+			s:    s,
+			args: args{
+				ctx: ctxWithValidSecret,
+				req: &api.CreateEntityRequest{
+					Entity: &api.Entity{
+						Id:        "0",
+						X:         1,
+						Y:         1,
+						OwnerUID:  "MOCK-ID",
+						ModelName: "",
+					},
+				},
+			},
+			want: &api.CreateEntityResponse{
+				Id: "0",
+			},
+		},
+		{
+			name: "Entity already in position",
+			s:    s,
+			args: args{
+				ctx: ctxWithValidSecret,
+				req: &api.CreateEntityRequest{
+					Entity: &api.Entity{
+						Id:        "0",
+						X:         1,
+						Y:         1,
+						OwnerUID:  "MOCK-ID",
+						ModelName: "",
+					},
+				},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.s.CreateEntity(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("simulationService.CreateEntity() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err == nil && !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("environment.CreateEntity() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 
-// 	s := NewSimulationServiceServer("testing")
+func TestGetEntity(t *testing.T) {
+	// ctxWithoutValidToken := context.Background()
+	md := metadata.Pairs("auth-secret", "MOCK-SECRET")
+	ctxWithValidSecret := metadata.NewIncomingContext(context.Background(), md)
 
-// 	// Create an agent to test on
-// 	resp, err := s.CreateAgent(ctxWithValidSecret, &v1.CreateAgentRequest{
-// 		Api: "v1",
-// 		X:   0,
-// 		Y:   0,
-// 	})
-// 	if err != nil {
-// 		t.Errorf("toDoServiceServer.Create() error creating test agent. Make sure CreateAgent functionality is working.")
-// 		return
-// 	}
-// 	entityID := resp.Id
-// 	// Entity we want to see in the response
-// 	wantEntity := &v1.Entity{
-// 		Id:    0,
-// 		Class: "AGENT",
-// 	}
+	s := NewEnvironmentServer("testing")
 
-// 	type args struct {
-// 		ctx context.Context
-// 		req *v1.GetEntityRequest
-// 	}
-// 	tests := []struct {
-// 		name    string
-// 		s       v1.SimulationServiceServer
-// 		args    args
-// 		want    *v1.GetEntityResponse
-// 		wantErr bool
-// 	}{
-// 		{
-// 			name: "Succesful Agent Retreival",
-// 			s:    s,
-// 			args: args{
-// 				ctx: ctxWithValidSecret,
-// 				req: &v1.GetEntityRequest{
-// 					Api: "v1",
-// 					Id:  entityID,
-// 				},
-// 			},
-// 			want: &v1.GetEntityResponse{
-// 				Api:    "v1",
-// 				Entity: wantEntity,
-// 			},
-// 		},
-// 		{
-// 			name: "Unsupported API",
-// 			s:    s,
-// 			args: args{
-// 				ctx: ctxWithValidSecret,
-// 				req: &v1.GetEntityRequest{
-// 					Api: "v1000",
-// 					Id:  entityID,
-// 				},
-// 			},
-// 			wantErr: true,
-// 		},
-// 		{
-// 			name: "Agent not found by that ID",
-// 			s:    s,
-// 			args: args{
-// 				ctx: ctxWithValidSecret,
-// 				req: &v1.GetEntityRequest{
-// 					Api: "v1",
-// 					Id:  999,
-// 				},
-// 			},
-// 			wantErr: true,
-// 		},
-// 		{
-// 			name: "Invalid secret token",
-// 			s:    s,
-// 			args: args{
-// 				ctx: ctxWithoutValidSecret,
-// 				req: &v1.GetEntityRequest{
-// 					Api: "v1",
-// 					Id:  0,
-// 				},
-// 			},
-// 			want: &v1.GetEntityResponse{
-// 				Api:    "v1",
-// 				Entity: wantEntity,
-// 			},
-// 		},
-// 	}
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			got, err := tt.s.GetEntity(tt.args.ctx, tt.args.req)
-// 			if (err != nil) != tt.wantErr {
-// 				t.Errorf("simulationService.Create() error = %v, wantErr %v", err, tt.wantErr)
-// 				return
-// 			}
-// 			if err == nil && !reflect.DeepEqual(got, tt.want) {
-// 				t.Errorf("simulationService.Create() = %v, want %v", got, tt.want)
-// 			}
-// 		})
-// 	}
-// }
+	type args struct {
+		ctx context.Context
+		req *api.GetEntityRequest
+	}
+	tests := []struct {
+		name    string
+		s       api.EnvironmentServer
+		args    args
+		want    *api.GetEntityResponse
+		wantErr bool
+	}{
+		{
+			name: "Succesful Get Entity",
+			s:    s,
+			args: args{
+				ctx: ctxWithValidSecret,
+				req: &api.GetEntityRequest{
+					Id: "0",
+				},
+			},
+			want: &api.GetEntityResponse{
+				Entity: &api.Entity{
+					Id:       "0",
+					OwnerUID: "MOCK_USER_ID",
+					X:        1,
+					Y:        1,
+				},
+			},
+		},
+		{
+			name: "Entity doesn't exist",
+			s:    s,
+			args: args{
+				ctx: ctxWithValidSecret,
+				req: &api.GetEntityRequest{
+					Id: "1",
+				},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.s.GetEntity(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("simulationService.CreateEntity() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err == nil && !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("environment.CreateEntity() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 
-// func Test_simulationServiceServer_DeleteAgent(t *testing.T) {
-// 	ctxWithoutValidToken := context.Background()
-// 	md := metadata.Pairs("auth-token", "TEST-ID-TOKEN")
-// 	ctxWithValidToken := metadata.NewIncomingContext(context.Background(), md)
+func TestExecuteAgentAction(t *testing.T) {
+	// ctxWithoutValidToken := context.Background()
+	md := metadata.Pairs("auth-secret", "MOCK-SECRET")
+	ctxWithValidSecret := metadata.NewIncomingContext(context.Background(), md)
 
-// 	s := NewSimulationServiceServer("testing")
+	s := NewEnvironmentServer("testing")
 
-// 	// Create an agent to test on
-// 	agent := &v1.Entity{
-// 		X: 2,
-// 		Y: -4,
-// 	}
-// 	resp, err := s.CreateAgent(ctxWithValidToken, &v1.CreateAgentRequest{
-// 		Api:   "v1",
-// 		Agent: agent,
-// 	})
-// 	if err != nil {
-// 		t.Errorf("toDoServiceServer.Create() error creating test agent. Make sure CreateAgent functionality is working.")
-// 		return
-// 	}
-// 	agentID := resp.Id
+	type args struct {
+		ctx context.Context
+		req *api.ExecuteAgentActionRequest
+	}
+	tests := []struct {
+		name    string
+		s       api.EnvironmentServer
+		args    args
+		want    *api.ExecuteAgentActionResponse
+		wantErr bool
+	}{
+		{
+			name: "Succesful action execution",
+			s:    s,
+			args: args{
+				ctx: ctxWithValidSecret,
+				req: &api.ExecuteAgentActionRequest{
+					Id:        "0",
+					Action:    0,
+					Direction: 3,
+				},
+			},
+			want: &api.ExecuteAgentActionResponse{
+				WasSuccessful: true,
+			},
+		},
+		{
+			name: "Invalid action",
+			s:    s,
+			args: args{
+				ctx: ctxWithValidSecret,
+				req: &api.ExecuteAgentActionRequest{
+					Id:        "0",
+					Action:    2,
+					Direction: 0,
+				},
+			},
+			want: &api.ExecuteAgentActionResponse{
+				WasSuccessful: false,
+			},
+		},
+		{
+			name: "Entity doesn't exist",
+			s:    s,
+			args: args{
+				ctx: ctxWithValidSecret,
+				req: &api.ExecuteAgentActionRequest{
+					Id: "1",
+				},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.s.ExecuteAgentAction(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("environment.ExecuteAgentAction() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err == nil && !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("environment.ExecuteAgentAction() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 
-// 	// Run tests
-// 	type args struct {
-// 		ctx context.Context
-// 		req *v1.DeleteAgentRequest
-// 	}
-// 	tests := []struct {
-// 		name    string
-// 		s       v1.SimulationServiceServer
-// 		args    args
-// 		want    *v1.DeleteAgentResponse
-// 		wantErr bool
-// 	}{
-// 		{
-// 			name: "Unsupported API",
-// 			s:    s,
-// 			args: args{
-// 				ctx: ctxWithValidToken,
-// 				req: &v1.DeleteAgentRequest{
-// 					Api: "v1000",
-// 					Id:  agentID,
-// 				},
-// 			},
-// 			wantErr: true,
-// 		},
-// 		{
-// 			name: "Agent not found by that ID",
-// 			s:    s,
-// 			args: args{
-// 				ctx: ctxWithValidToken,
-// 				req: &v1.DeleteAgentRequest{
-// 					Api: "v1",
-// 					Id:  999,
-// 				},
-// 			},
-// 			wantErr: true,
-// 		},
-// 		{
-// 			name: "Invalid auth token",
-// 			s:    s,
-// 			args: args{
-// 				ctx: ctxWithoutValidToken,
-// 				req: &v1.DeleteAgentRequest{
-// 					Api: "v1",
-// 					Id:  0,
-// 				},
-// 			},
-// 			wantErr: true,
-// 		},
-// 		{
-// 			name: "Successful Agent Delete",
-// 			s:    s,
-// 			args: args{
-// 				ctx: ctxWithValidToken,
-// 				req: &v1.DeleteAgentRequest{
-// 					Api: "v1",
-// 					Id:  agentID,
-// 				},
-// 			},
-// 			want: &v1.DeleteAgentResponse{
-// 				Api:     "v1",
-// 				Deleted: 1,
-// 			},
-// 		},
-// 	}
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			got, err := tt.s.DeleteAgent(tt.args.ctx, tt.args.req)
-// 			if (err != nil) != tt.wantErr {
-// 				t.Errorf("simulationService.Create() error = %v, wantErr %v", err, tt.wantErr)
-// 				return
-// 			}
-// 			if err == nil && !reflect.DeepEqual(got, tt.want) {
-// 				t.Errorf("simulationService.Create() = %v, want %v", got, tt.want)
-// 			}
-// 		})
-// 	}
-// }
+func TestDeleteEntity(t *testing.T) {
+	// ctxWithoutValidToken := context.Background()
+	md := metadata.Pairs("auth-secret", "MOCK-SECRET")
+	ctxWithValidSecret := metadata.NewIncomingContext(context.Background(), md)
+
+	s := NewEnvironmentServer("testing")
+
+	type args struct {
+		ctx context.Context
+		req *api.DeleteEntityRequest
+	}
+	tests := []struct {
+		name    string
+		s       api.EnvironmentServer
+		args    args
+		want    *api.DeleteEntityResponse
+		wantErr bool
+	}{
+		{
+			name: "Succesful Get Entity",
+			s:    s,
+			args: args{
+				ctx: ctxWithValidSecret,
+				req: &api.DeleteEntityRequest{
+					Id: "0",
+				},
+			},
+			want: &api.DeleteEntityResponse{
+				Deleted: 1,
+			},
+		},
+		{
+			name: "Entity doesn't exist",
+			s:    s,
+			args: args{
+				ctx: ctxWithValidSecret,
+				req: &api.DeleteEntityRequest{
+					Id: "1",
+				},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.s.DeleteEntity(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("simulationService.CreateEntity() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err == nil && !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("environment.CreateEntity() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

@@ -1,4 +1,4 @@
-package environment
+package fb
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 const mockSecret = "MOCK-SECRET"
 
 // Initialize a new firebase app instance
-func initializeFirebaseApp(env string) *firebase.App {
+func InitializeFirebaseApp(env string) *firebase.App {
 	serviceAccountFileLocation := "./serviceAccountKey.json"
 	// -----------------------------------
 	// ENV CHECK
@@ -38,7 +38,7 @@ func initializeFirebaseApp(env string) *firebase.App {
 	return app
 }
 
-func authenticateFirebaseAccountWithSecret(ctx context.Context, app *firebase.App, env string) (map[string]interface{}, error) {
+func AuthenticateFirebaseAccountWithSecret(ctx context.Context, app *firebase.App, env string) (map[string]interface{}, error) {
 	// get the auth token from the context
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
@@ -54,8 +54,8 @@ func authenticateFirebaseAccountWithSecret(ctx context.Context, app *firebase.Ap
 	// -----------------------------------
 	// ENVIRONMENT CHECK
 	// -----------------------------------
-	// Training,  doesn't implement authentication
-	if env == "training" {
+	// Testing doesn't implement authentication
+	if env == "testing" {
 		if secret == mockSecret {
 			fakeUser := make(map[string]interface{})
 			fakeUser["id"] = "MOCK_USER_ID"
@@ -86,7 +86,7 @@ func authenticateFirebaseAccountWithSecret(ctx context.Context, app *firebase.Ap
 	return m, nil
 }
 
-func addRemoteModelToFirebase(app *firebase.App, uid string, name string, env string) error {
+func AddRemoteModelToFirebase(app *firebase.App, uid string, name string, env string) error {
 	if env == "training" {
 		return nil
 	}
@@ -116,7 +116,7 @@ func addRemoteModelToFirebase(app *firebase.App, uid string, name string, env st
 	return nil
 }
 
-func removeRemoteModelFromFirebase(app *firebase.App, uid string, name string, env string) error {
+func RemoveRemoteModelFromFirebase(app *firebase.App, uid string, name string, env string) error {
 	if env == "training" {
 		return nil
 	}
@@ -135,7 +135,7 @@ func removeRemoteModelFromFirebase(app *firebase.App, uid string, name string, e
 	return nil
 }
 
-func removeAllRemoteModelsFromFirebase(app *firebase.App, env string) error {
+func RemoveAllRemoteModelsFromFirebase(app *firebase.App, env string) error {
 	if env == "training" {
 		return nil
 	}

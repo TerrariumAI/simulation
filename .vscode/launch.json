@@ -9,15 +9,10 @@
       "type": "go",
       "request": "launch",
       "mode": "auto",
-      "program": "${workspaceRoot}/cmd/server/main.go",
+      "program": "${workspaceRoot}/cmd/environment/main.go",
       "cwd": "${workspaceRoot}",
       "env": {},
-      "args": [
-        "-grpc-port=9090",
-        "-http-port=8080",
-        "-log-level=-1",
-        "-env=testing"
-      ]
+      "args": ["-grpc-port=9090", "-log-level=-1", "-env=testing"]
     },
     {
       "name": "Test",
