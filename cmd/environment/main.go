@@ -53,6 +53,6 @@ func main() {
 	server := grpc.NewServer(opts...)
 	api.RegisterEnvironmentServer(server, serverAPI)
 
-	log.Println("Starting Environment Server...")
+	log.Printf("Starting Environment Server on port %v", cfg.GRPCPort)
 	server.Serve(listen)
 }

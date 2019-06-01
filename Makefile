@@ -7,12 +7,12 @@ help: ## Display this help screen
 ## ------ Build
 ## ----------------------
 
-build: ## build the server executable (for linux/docker use only)
-	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/server
-build-mac: ## Build distribution binary for mac
-	go build -o ./bin/simulation-osx ./cmd/server
-build-linux: ## Build distribution binary for linux
-	GOOS=linux go build -a -installsuffix cgo -o ./bin/simulation-linux ./cmd/server
+build-environment: ## build the server executable (for linux/docker use only)
+	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o ./bin/environment ./cmd/environment
+# build-mac: ## Build distribution binary for mac
+# 	go build -o ./bin/simulation-osx ./cmd/server
+# build-linux: ## Build distribution binary for linux
+# 	GOOS=linux go build -a -installsuffix cgo -o ./bin/simulation-linux ./cmd/server
 
 ## ----------------------
 ## ------ Run
@@ -56,12 +56,13 @@ ifndef VERSION
 	$(error VERSION is undefined)
 endif
 
-dockerize: check-version-env-var build docker-build docker-push ## build and push dev proxy
+docker-build-environment: check-version-env-var ## build the docker image, must have variable VERSION
+	docker build -t terrariumai/environment:$(VERSION) -f ./docker/environment/Dockerfile .
 
-# Building the docker builds
-docker-build: check-version-env-var build ## build the docker image, must have variable VERSION
-	docker build -t terrariumai/simulation:$(VERSION) -f ./Dockerfile .
-	
 # Pushing the docker builds
-docker-push: check-version-env-var ## push the docker image
-	docker push terrariumai/simulation:$(VERSION)
+docker-push-environment: check-version-env-var ## push the docker image
+	docker push terrariumai/environment:$(VERSION)
+
+dockerize-environment: build-environment docker-build-environment docker-push-environment ## build and push dev proxy
+
+	
