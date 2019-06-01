@@ -2,9 +2,13 @@ package environment
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"sync"
+
+	uuid "github.com/satori/go.uuid"
 
 	firebase "firebase.google.com/go"
 
@@ -19,6 +23,7 @@ const (
 	agentLivingEnergyCost = 2
 	minFoodBeforeRespawn  = 200
 	regionSize            = 16
+	maxPositionPadding    = 3
 )
 
 // toDoServiceServer is implementation of api.ToDoServiceServer proto interface
@@ -32,6 +37,39 @@ type environmentServer struct {
 	m sync.Mutex
 	// Redis client
 	redisClient *redis.Client
+}
+
+// interlockPosition interlocks an x and y value to use as an
+// index in redis
+func posToRedisIndex(x int32, y int32) (string, error) {
+	// negatives are not allowed
+	if x < 0 || y < 0 {
+		return "", errors.New("Position cannot be negative")
+	}
+	xString := strconv.Itoa(int(x))
+	yString := strconv.Itoa(int(y))
+	interlocked := ""
+	// make sure x and y are the correct length when converted to str
+	if len(xString) > maxPositionPadding || len(yString) > maxPositionPadding {
+		return "", errors.New("X or Y position are too large")
+	}
+	// add padding
+	for len(xString) < maxPositionPadding {
+		xString = "0" + xString
+	}
+	for len(yString) < maxPositionPadding {
+		yString = "0" + yString
+	}
+	// interlock
+	for i := 0; i < maxPositionPadding; i++ {
+		interlocked = interlocked + xString[i:i+1] + yString[i:i+1]
+	}
+
+	return interlocked, nil
+}
+
+func serializeEntity(index string, x int32, y int32, ownerID string, id string) string {
+	return fmt.Sprintf("%s:%v:%v:%s:%s", index, x, y, ownerID, id)
 }
 
 // NewEnvironmentServer creates simulation service
@@ -65,15 +103,45 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
+
 	// Authenticate the user
 	user, err := authenticateFirebaseAccountWithSecret(ctx, s.firebaseApp, s.env)
 	if err != nil {
 		return nil, err
 	}
-
-	err = s.redisClient.Set("key", user["id"].(string), 0).Err()
+	// Make sure the user has supplied data
+	if req.Agent == nil {
+		return nil, errors.New("Agent not in request")
+	}
+	// Get an index from the position
+	index, err := posToRedisIndex(req.Agent.X, req.Agent.Y)
 	if err != nil {
-		panic(err)
+		return nil, err
+	}
+	// Now we can assume positions are correct sizes
+	// (would have thrown an error above if not)
+	keys, _, err := s.redisClient.ZScan("entities", 0, index+":*", 0).Result()
+	if len(keys) > 0 {
+		return nil, errors.New("An entity is already in that position")
+	}
+
+	// Create an id for the entity
+	entityID := uuid.NewV4().String()
+	// Serialized entity content
+	content := serializeEntity(index, req.Agent.X, req.Agent.Y, user["id"].(string), entityID)
+
+	// Add the entity
+	err = s.redisClient.ZAdd("entities", redis.Z{
+		Score:  float64(0),
+		Member: content,
+	}).Err()
+	if err != nil {
+		return nil, err
+	}
+	// Add the content for later easy indexing
+	err = s.redisClient.HSet("entities.content", entityID, content).Err()
+	if err != nil {
+		return nil, err
 	}
 
 	// Return the data for the agent
