@@ -12,6 +12,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 
 	firebase "firebase.google.com/go"
+	fb "github.com/terrariumai/simulation/pkg/fb"
 
 	"github.com/go-redis/redis"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -25,6 +26,7 @@ const (
 	minFoodBeforeRespawn  = 200
 	regionSize            = 16
 	maxPositionPadding    = 3
+	maxPosition           = 999
 )
 
 // toDoServiceServer is implementation of api.ToDoServiceServer proto interface
@@ -44,8 +46,8 @@ type environmentServer struct {
 // index in redis
 func posToRedisIndex(x int32, y int32) (string, error) {
 	// negatives are not allowed
-	if x < 0 || y < 0 {
-		return "", errors.New("Position cannot be negative")
+	if x < 0 || y < 0 || x > maxPosition || y > maxPosition {
+		return "", errors.New("Invalid position")
 	}
 	xString := strconv.Itoa(int(x))
 	yString := strconv.Itoa(int(y))
@@ -102,7 +104,7 @@ func NewEnvironmentServer(env string) api.EnvironmentServer {
 	// initialize server
 	s := &environmentServer{
 		env:         env,
-		firebaseApp: initializeFirebaseApp(env),
+		firebaseApp: fb.InitializeFirebaseApp(env),
 		redisClient: redisClient,
 	}
 
@@ -119,7 +121,7 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 	defer s.m.Unlock()
 
 	// Authenticate the user
-	user, err := authenticateFirebaseAccountWithSecret(ctx, s.firebaseApp, s.env)
+	user, err := fb.AuthenticateFirebaseAccountWithSecret(ctx, s.firebaseApp, s.env)
 	if err != nil {
 		return nil, err
 	}
@@ -199,14 +201,21 @@ func (s *environmentServer) DeleteEntity(ctx context.Context, req *api.DeleteEnt
 		return nil, errors.New("Couldn't find an entity by that id")
 	}
 	content := hGetEntityContent.Val()
+	// Parse the content
+	entity := parseEntityContent(content)
 	// Remove from hash
-	s.redisClient.HDel("entities.content", content)
+	delete := s.redisClient.HDel("entities.content", entity.Id)
+	if err := delete.Err(); err != nil {
+		return nil, fmt.Errorf("Error removing entity: %s", err)
+	}
 	// Remove from SS
-	s.redisClient.ZRem("entities", content)
-
+	remove := s.redisClient.ZRem("entities", content)
+	if err := remove.Err(); err != nil {
+		return nil, fmt.Errorf("Error removing entity: %s", err)
+	}
 	// Return the data for the agent
 	return &api.DeleteEntityResponse{
-		Deleted: 1,
+		Deleted: delete.Val(),
 	}, nil
 }
 
@@ -215,6 +224,63 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *api.Exe
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
+	// Get the content
+	hGetEntityContent := s.redisClient.HGet("entities.content", req.Id)
+	if hGetEntityContent.Err() != nil {
+		return nil, errors.New("Couldn't find an entity by that id")
+	}
+	origionalContent := hGetEntityContent.Val()
+	// Parse
+	entity := parseEntityContent(origionalContent)
+
+	var targetX, targetY = entity.X, entity.Y
+	switch req.Direction {
+	case 0: // UP
+		targetY++
+	case 1: // DOWN
+		targetY--
+	case 2: // LEFT
+		targetX--
+	case 3: // RIGHT
+		targetX++
+	}
+	// Convert position to index
+	index, err := posToRedisIndex(targetX, targetY)
+	if err != nil {
+		// Return unsuccessful
+		return &api.ExecuteAgentActionResponse{
+			WasSuccessful: false,
+		}, nil
+	}
+	switch req.Action {
+	case 0: // MOVE
+		// Check if cell is occupied
+		keys, _, _ := s.redisClient.ZScan("entities", 0, index+":*", 0).Result()
+		if len(keys) > 0 {
+			return nil, errors.New("An entity is already in that position")
+		}
+		// Cell is clear, move the entity
+		content := serializeEntity(index, targetX, targetY, entity.OwnerUID, entity.Id)
+		err = s.redisClient.HSet("entities.content", entity.Id, content).Err()
+		if err != nil {
+			return nil, err
+		}
+		err = s.redisClient.ZRem("entities", origionalContent).Err()
+		if err != nil {
+			return nil, err
+		}
+		err = s.redisClient.ZAdd("entities", redis.Z{
+			Score:  float64(0),
+			Member: content,
+		}).Err()
+		if err != nil {
+			return nil, err
+		}
+	default: // INVALID
+		return &api.ExecuteAgentActionResponse{
+			WasSuccessful: false,
+		}, nil
+	}
 
 	// Return the data for the agent
 	return &api.ExecuteAgentActionResponse{
