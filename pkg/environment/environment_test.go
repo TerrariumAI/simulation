@@ -33,11 +33,11 @@ func TestCreateEntity(t *testing.T) {
 				ctx: ctxWithValidSecret,
 				req: &api.CreateEntityRequest{
 					Entity: &api.Entity{
-						Id:        "0",
-						X:         1,
-						Y:         1,
-						OwnerUID:  "MOCK-ID",
-						ModelName: "",
+						Id:       "0",
+						X:        1,
+						Y:        1,
+						OwnerUID: "MOCK-UID",
+						ModelID:  "MOCK-MODEL-ID",
 					},
 				},
 			},
@@ -52,11 +52,11 @@ func TestCreateEntity(t *testing.T) {
 				ctx: ctxWithValidSecret,
 				req: &api.CreateEntityRequest{
 					Entity: &api.Entity{
-						Id:        "0",
-						X:         1,
-						Y:         1,
-						OwnerUID:  "MOCK-ID",
-						ModelName: "",
+						Id:       "0",
+						X:        1,
+						Y:        1,
+						OwnerUID: "MOCK-UID",
+						ModelID:  "MOCK-MODEL-ID",
 					},
 				},
 			},
@@ -108,6 +108,7 @@ func TestGetEntity(t *testing.T) {
 				Entity: &api.Entity{
 					Id:       "0",
 					OwnerUID: "MOCK_USER_ID",
+					ModelID:  "MOCK-MODEL-ID",
 					X:        1,
 					Y:        1,
 				},

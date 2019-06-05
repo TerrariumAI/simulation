@@ -71,8 +71,8 @@ func posToRedisIndex(x int32, y int32) (string, error) {
 	return interlocked, nil
 }
 
-func serializeEntity(index string, x int32, y int32, ownerUID string, id string) string {
-	return fmt.Sprintf("%s:%v:%v:%s:%s", index, x, y, ownerUID, id)
+func serializeEntity(index string, x int32, y int32, ownerUID string, modelID string, id string) string {
+	return fmt.Sprintf("%s:%v:%v:%s:%s:%s", index, x, y, ownerUID, modelID, id)
 }
 
 func parseEntityContent(content string) api.Entity {
@@ -84,7 +84,8 @@ func parseEntityContent(content string) api.Entity {
 		X:        int32(x),
 		Y:        int32(y),
 		OwnerUID: values[3],
-		Id:       values[4],
+		ModelID:  values[4],
+		Id:       values[5],
 	}
 }
 
@@ -148,9 +149,9 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 		entityID = req.Entity.Id
 	}
 	// Serialized entity content
-	content := serializeEntity(index, req.Entity.X, req.Entity.Y, user["id"].(string), entityID)
+	content := serializeEntity(index, req.Entity.X, req.Entity.Y, user["id"].(string), req.Entity.ModelID, entityID)
 
-	// Add the entity
+	// Add the entity to entities sorted set
 	err = s.redisClient.ZAdd("entities", redis.Z{
 		Score:  float64(0),
 		Member: content,
@@ -160,6 +161,11 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 	}
 	// Add the content for later easy indexing
 	err = s.redisClient.HSet("entities.content", entityID, content).Err()
+	if err != nil {
+		return nil, err
+	}
+	// Add the entitiy to the model's data
+	err = s.redisClient.SAdd("model:"+req.Entity.ModelID+":entities", entityID).Err()
 	if err != nil {
 		return nil, err
 	}
@@ -213,6 +219,12 @@ func (s *environmentServer) DeleteEntity(ctx context.Context, req *api.DeleteEnt
 	if err := remove.Err(); err != nil {
 		return nil, fmt.Errorf("Error removing entity: %s", err)
 	}
+	// Remove from model
+	err := s.redisClient.SRem("model:"+entity.ModelID+":entities", entity.Id).Err()
+	if err != nil {
+		return nil, err
+	}
+
 	// Return the data for the agent
 	return &api.DeleteEntityResponse{
 		Deleted: delete.Val(),
@@ -260,7 +272,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *api.Exe
 			return nil, errors.New("An entity is already in that position")
 		}
 		// Cell is clear, move the entity
-		content := serializeEntity(index, targetX, targetY, entity.OwnerUID, entity.Id)
+		content := serializeEntity(index, targetX, targetY, entity.OwnerUID, entity.ModelID, entity.Id)
 		err = s.redisClient.HSet("entities.content", entity.Id, content).Err()
 		if err != nil {
 			return nil, err
