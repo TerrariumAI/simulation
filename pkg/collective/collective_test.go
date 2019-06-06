@@ -21,15 +21,14 @@ func TestConnectRemoteModel(t *testing.T) {
 	// ctxWithoutValidToken := context.Background()
 	md := metadata.Pairs("auth-secret", "MOCK-SECRET", "model-name", "My Model")
 	ctx := metadata.NewOutgoingContext(context.Background(), md)
-
 	c := api.NewCollectiveClient(conn)
 
 	t.Run("Test connect RM", func(t *testing.T) {
 		_, err := c.ConnectRemoteModel(ctx)
 		if err != nil {
-			t.Error(err)
+			t.Errorf("There was an error connecting: %v", err)
+			return
 		}
 		println(err)
-
 	})
 }

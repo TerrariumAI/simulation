@@ -3,15 +3,22 @@ package collective
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
+	"strings"
 	"sync"
 
 	firebase "firebase.google.com/go"
 	"github.com/go-redis/redis"
 	uuid "github.com/satori/go.uuid"
 	api "github.com/terrariumai/simulation/pkg/api/collective"
+	environment "github.com/terrariumai/simulation/pkg/environment"
 	fb "github.com/terrariumai/simulation/pkg/fb"
 	"google.golang.org/grpc/metadata"
+)
+
+const (
+	mockModelID = "MOCK-MODEL-ID"
 )
 
 // toDoServiceServer is implementation of api.ToDoServiceServer proto interface
@@ -25,6 +32,14 @@ type collectiveServer struct {
 	m sync.Mutex
 	// Redis client
 	redisClient *redis.Client
+}
+
+func parseEntityContent(content string) api.Entity {
+	values := strings.Split(content, ":")
+	return api.Entity{
+		Class: values[3],
+		Id:    values[6],
+	}
 }
 
 // NewCollectiveServer creates a new collective server
@@ -51,9 +66,7 @@ func NewCollectiveServer(env string) api.CollectiveServer {
 }
 
 func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemoteModelServer) error {
-	println("Started")
 	md, ok := metadata.FromIncomingContext(stream.Context())
-	println("Got context")
 
 	// Make sure name is in metadata
 	if !ok {
@@ -64,22 +77,60 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 		return errors.New("ConnectRemoteModel(): No name in context")
 	}
 	name := nameHeader[0]
+
 	// Add the RM to the database
 	modelID := uuid.NewV4().String()
-	err := s.redisClient.HSet("model:"+modelID, "name", name).Err()
-
+	if s.env == "testing" {
+		modelID = mockModelID
+	}
+	err := s.redisClient.HSet("model:"+modelID+":metadata", "name", name).Err()
 	if err != nil {
 		return err
 	}
-	// TODO
+
+	// Start the loop
 	for {
-		// Get the entities for this model
-		entityIdsRequest := s.redisClient.SMembers("model:" + modelID)
-		if err := entityIdsRequest; err != nil {
+		// Get the entitiy IDs for this model
+		entityIdsRequest := s.redisClient.SMembers("model:" + modelID + ":entities")
+		if err := entityIdsRequest.Err(); err != nil {
+			log.Fatalf("ConnectRemoteModel(): %v", err)
 			return errors.New("ConnectRemoteModel(): Couldn't access the database")
 		}
 		entityIds := entityIdsRequest.Val()
-		print(entityIds)
+		// Get the entities for this model
+		entitiesContentRequest := s.redisClient.HMGet("entities.content", entityIds...)
+		if entitiesContentRequest.Err() != nil {
+			return errors.New("ConnectRemoteModel(): Couldn't access the database")
+		}
+		entitiesContent := entitiesContentRequest.Val()
+		for _, content := range entitiesContent {
+			// entity := parseEntityContent(content.(string))
+			entity := environment.ParseEntityContent(content.(string))
+			xMin := entity.X - 1
+			xMax := entity.X + 1
+			yMin := entity.Y - 1
+			yMax := entity.Y + 1
+			indexMin, err := environment.PosToRedisIndex(xMin, yMin)
+			if err != nil {
+				return fmt.Errorf("Error converting min/max positions to index: %v", err)
+			}
+			indexMax, err := environment.PosToRedisIndex(xMax, yMax)
+			if err != nil {
+				return fmt.Errorf("Error converting min/max positions to index: %v", err)
+			}
+			println("Performing range query from: ", indexMin, " to ", indexMax)
+			// Perform the query
+			rangeQuery := s.redisClient.ZRangeByLex("entities", redis.ZRangeBy{
+				Min: "(" + indexMin,
+				Max: "(" + indexMax,
+			})
+			if err := rangeQuery.Err(); err != nil {
+				return fmt.Errorf("Error in range query: %v", err)
+			}
+			closeEntities := rangeQuery.Val()
+			fmt.Println(closeEntities)
+		}
+		println(entitiesContent)
 		return nil
 		// in, err := stream.Recv()
 		// if err == io.EOF {

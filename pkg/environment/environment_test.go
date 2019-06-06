@@ -109,6 +109,7 @@ func TestGetEntity(t *testing.T) {
 					Id:       "0",
 					OwnerUID: "MOCK_USER_ID",
 					ModelID:  "MOCK-MODEL-ID",
+					Class:    "AGENT",
 					X:        1,
 					Y:        1,
 				},

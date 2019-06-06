@@ -5,11 +5,21 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Launch",
+      "name": "Launch Environment Testing",
       "type": "go",
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceRoot}/cmd/environment/main.go",
+      "cwd": "${workspaceRoot}",
+      "env": {},
+      "args": ["-grpc-port=9090", "-log-level=-1", "-env=testing"]
+    },
+    {
+      "name": "Launch Collective Testing",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceRoot}/cmd/collective/main.go",
       "cwd": "${workspaceRoot}",
       "env": {},
       "args": ["-grpc-port=9090", "-log-level=-1", "-env=testing"]
