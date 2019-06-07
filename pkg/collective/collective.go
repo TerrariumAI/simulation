@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"sync"
+	"time"
 
 	firebase "firebase.google.com/go"
 	"github.com/go-redis/redis"
@@ -21,7 +22,8 @@ import (
 )
 
 const (
-	mockModelID = "MOCK-MODEL-ID"
+	mockModelID              = "MOCK-MODEL-ID"
+	minFrameTimeMilliseconds = 50
 )
 
 // toDoServiceServer is implementation of api.ToDoServiceServer proto interface
@@ -175,6 +177,11 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 			obsvPacket.Observations = append(obsvPacket.Observations, &obsv)
 		}
 
+		// We want to get the current time when we send the observation so
+		//  we can check the difference when we get a response. If the resp
+		//  comes sooner than the minimum frame time, we will wait
+		t1 := time.Now().UnixNano() / 1000000
+
 		// Send the observation packet
 		if err := stream.Send(&obsvPacket); err != nil {
 			// TODO - Clean disconnect, remove data from database
@@ -206,6 +213,12 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 				return err
 			}
 		}
+
+		// Wait if we got a response too quickly
+		t2 := time.Now().UnixNano() / 1000000
+		delta := t2 - t1
+		if delta < minFrameTimeMilliseconds {
+			time.Sleep(time.Duration((minFrameTimeMilliseconds - delta)) * time.Millisecond)
+		}
 	}
-	// return nil
 }

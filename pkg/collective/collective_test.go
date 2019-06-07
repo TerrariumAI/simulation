@@ -2,7 +2,6 @@ package collective
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"testing"
 
@@ -30,19 +29,21 @@ func TestConnectRemoteModel(t *testing.T) {
 			t.Errorf("There was an error connecting: %v", err)
 			return
 		}
+		for {
+			_, err := stream.Recv()
+			if err != nil {
+				t.Errorf("There was an error receiving data: %v", err)
+				return
+			}
 
-		in, err := stream.Recv()
-		fmt.Printf("Received data: %v", in)
-
-		action := api.Action{
-			Id:        "0",
-			Action:    0,
-			Direction: 0,
+			action := api.Action{
+				Id:        "0",
+				Action:    0,
+				Direction: 0,
+			}
+			actionPacket := api.ActionPacket{}
+			actionPacket.Actions = append(actionPacket.Actions, &action)
+			stream.Send(&actionPacket)
 		}
-		actionPacket := api.ActionPacket{}
-		actionPacket.Actions = append(actionPacket.Actions, &action)
-		stream.Send(&actionPacket)
-
-		println(err)
 	})
 }
