@@ -12,7 +12,6 @@ import (
 )
 
 func TestConnectRemoteModel(t *testing.T) {
-	//
 	conn, err := grpc.Dial("localhost:9090", grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("failed to connect: %s", err)
@@ -29,21 +28,23 @@ func TestConnectRemoteModel(t *testing.T) {
 			t.Errorf("There was an error connecting: %v", err)
 			return
 		}
-		for {
-			_, err := stream.Recv()
-			if err != nil {
-				t.Errorf("There was an error receiving data: %v", err)
-				return
-			}
-
-			action := api.Action{
-				Id:        "0",
-				Action:    0,
-				Direction: 0,
-			}
-			actionPacket := api.ActionPacket{}
-			actionPacket.Actions = append(actionPacket.Actions, &action)
-			stream.Send(&actionPacket)
+		// for {
+		_, err = stream.Recv()
+		if err != nil {
+			t.Errorf("There was an error receiving data: %v", err)
+			return
 		}
+
+		action := api.Action{
+			Id:        "0",
+			Action:    0,
+			Direction: 0,
+		}
+		actionPacket := api.ActionPacket{}
+		actionPacket.Actions = append(actionPacket.Actions, &action)
+		stream.Send(&actionPacket)
+
+		stream.CloseSend()
+		// }
 	})
 }

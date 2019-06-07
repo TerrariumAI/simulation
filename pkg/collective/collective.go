@@ -104,6 +104,9 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 		return err
 	}
 
+	// Once the model is disconnected, remove it's data from the server
+	defer s.cleanupModel(modelID)
+
 	// Start the loop
 	for {
 		// Get the entitiy IDs for this model
@@ -220,5 +223,17 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 		if delta < minFrameTimeMilliseconds {
 			time.Sleep(time.Duration((minFrameTimeMilliseconds - delta)) * time.Millisecond)
 		}
+	}
+}
+
+func (s *collectiveServer) cleanupModel(modelID string) {
+	println("Cleaning up model... model:", modelID)
+	err := s.redisClient.Del("model:" + modelID + ":entities").Err()
+	if err != nil {
+		fmt.Printf("Error cleaning up model entities: %v \n", err)
+	}
+	err = s.redisClient.Del("model:" + modelID + ":metadata").Err()
+	if err != nil {
+		fmt.Printf("Error cleaning up model metadata: %v \n", err)
 	}
 }
