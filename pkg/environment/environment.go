@@ -73,23 +73,24 @@ func PosToRedisIndex(x int32, y int32) (string, error) {
 
 // SerializeEntity takes in all the values for an entity and serializes them
 //  to an entity content
-func SerializeEntity(index string, x int32, y int32, class string, ownerUID string, modelID string, id string) string {
-	return fmt.Sprintf("%s:%v:%v:%s:%s:%s:%s", index, x, y, class, ownerUID, modelID, id)
+func SerializeEntity(index string, x int32, y int32, class int32, ownerUID string, modelID string, id string) string {
+	return fmt.Sprintf("%s:%v:%v:%v:%s:%s:%s", index, x, y, class, ownerUID, modelID, id)
 }
 
 // ParseEntityContent takes entity content and parses it out to an entity
-func ParseEntityContent(content string) api.Entity {
+func ParseEntityContent(content string) (api.Entity, string) {
 	values := strings.Split(content, ":")
 	x, _ := strconv.Atoi(values[1])
 	y, _ := strconv.Atoi(values[2])
+	class, _ := strconv.Atoi(values[3])
 	return api.Entity{
 		X:        int32(x),
 		Y:        int32(y),
-		Class:    values[3],
+		Class:    int32(class),
 		OwnerUID: values[4],
 		ModelID:  values[5],
 		Id:       values[6],
-	}
+	}, values[0]
 }
 
 // NewEnvironmentServer creates simulation service
@@ -152,7 +153,7 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 		entityID = req.Entity.Id
 	}
 	// Serialized entity content
-	content := SerializeEntity(index, req.Entity.X, req.Entity.Y, "AGENT", user["id"].(string), req.Entity.ModelID, entityID)
+	content := SerializeEntity(index, req.Entity.X, req.Entity.Y, req.Entity.Class, user["id"].(string), req.Entity.ModelID, entityID)
 
 	// Add the entity to entities sorted set
 	err = s.redisClient.ZAdd("entities", redis.Z{
@@ -190,7 +191,7 @@ func (s *environmentServer) GetEntity(ctx context.Context, req *api.GetEntityReq
 		return nil, errors.New("Couldn't find an entity by that id")
 	}
 	content := hGetEntityContent.Val()
-	entity := ParseEntityContent(content)
+	entity, _ := ParseEntityContent(content)
 
 	// Return the data for the agent
 	return &api.GetEntityResponse{
@@ -211,7 +212,7 @@ func (s *environmentServer) DeleteEntity(ctx context.Context, req *api.DeleteEnt
 	}
 	content := hGetEntityContent.Val()
 	// Parse the content
-	entity := ParseEntityContent(content)
+	entity, _ := ParseEntityContent(content)
 	// Remove from hash
 	delete := s.redisClient.HDel("entities.content", entity.Id)
 	if err := delete.Err(); err != nil {
@@ -239,6 +240,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *api.Exe
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
+	fmt.Printf("Execute agent action: %v \n", req)
 	// Get the content
 	hGetEntityContent := s.redisClient.HGet("entities.content", req.Id)
 	if hGetEntityContent.Err() != nil {
@@ -246,7 +248,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *api.Exe
 	}
 	origionalContent := hGetEntityContent.Val()
 	// Parse
-	entity := ParseEntityContent(origionalContent)
+	entity, _ := ParseEntityContent(origionalContent)
 
 	var targetX, targetY = entity.X, entity.Y
 	switch req.Direction {

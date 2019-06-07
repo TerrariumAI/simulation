@@ -1,19 +1,22 @@
 package collective
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
-	"strings"
 	"sync"
 
 	firebase "firebase.google.com/go"
 	"github.com/go-redis/redis"
 	uuid "github.com/satori/go.uuid"
 	api "github.com/terrariumai/simulation/pkg/api/collective"
+	envApi "github.com/terrariumai/simulation/pkg/api/environment"
 	environment "github.com/terrariumai/simulation/pkg/environment"
 	fb "github.com/terrariumai/simulation/pkg/fb"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -32,21 +35,23 @@ type collectiveServer struct {
 	m sync.Mutex
 	// Redis client
 	redisClient *redis.Client
+	// Environment client
+	envClient envApi.EnvironmentClient
 }
 
-func parseEntityContent(content string) api.Entity {
-	values := strings.Split(content, ":")
-	return api.Entity{
-		Class: values[3],
-		Id:    values[6],
-	}
-}
+// func parseEntityContent(content string) api.Entity {
+// 	values := strings.Split(content, ":")
+// 	return api.Entity{
+// 		Class: values[3],
+// 		Id:    values[6],
+// 	}
+// }
 
 // NewCollectiveServer creates a new collective server
-func NewCollectiveServer(env string) api.CollectiveServer {
+func NewCollectiveServer(env string, redisAddr string, envAddress string) api.CollectiveServer {
 	// initialize redis client
 	redisClient := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
+		Addr:     redisAddr,
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	})
@@ -61,12 +66,21 @@ func NewCollectiveServer(env string) api.CollectiveServer {
 		firebaseApp: fb.InitializeFirebaseApp(env),
 		redisClient: redisClient,
 	}
+	// initialize env client
+	conn, err := grpc.Dial(envAddress, grpc.WithInsecure())
+	if err != nil {
+		fmt.Println("Couldn't connect to environment service: "+pong, err)
+		os.Exit(1)
+	}
+	envClient := envApi.NewEnvironmentClient(conn)
+	s.envClient = envClient
 
 	return s
 }
 
 func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemoteModelServer) error {
-	md, ok := metadata.FromIncomingContext(stream.Context())
+	ctx := stream.Context()
+	md, ok := metadata.FromIncomingContext(ctx)
 
 	// Make sure name is in metadata
 	if !ok {
@@ -103,9 +117,14 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 			return errors.New("ConnectRemoteModel(): Couldn't access the database")
 		}
 		entitiesContent := entitiesContentRequest.Val()
+		// Create a new observation packet to send
+		var obsvPacket api.ObservationPacket
+		// Generate an observation for each entity
 		for _, content := range entitiesContent {
-			// entity := parseEntityContent(content.(string))
-			entity := environment.ParseEntityContent(content.(string))
+			entity, _ := environment.ParseEntityContent(content.(string))
+			obsv := api.Observation{
+				Id: entity.Id,
+			}
 			xMin := entity.X - 1
 			xMax := entity.X + 1
 			yMin := entity.Y - 1
@@ -127,25 +146,66 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 			if err := rangeQuery.Err(); err != nil {
 				return fmt.Errorf("Error in range query: %v", err)
 			}
-			closeEntities := rangeQuery.Val()
-			fmt.Println(closeEntities)
+			closeEntitiesContent := rangeQuery.Val()
+			// Add all the other entities to the indexEntityMap
+			// Match them up with the correct positions
+			indexEntityMap := make(map[string]envApi.Entity)
+			for _, otherContent := range closeEntitiesContent {
+				// Don't count the same entity
+				if content.(string) == otherContent {
+					continue
+				}
+				otherEntity, index := environment.ParseEntityContent(content.(string))
+				indexEntityMap[index] = otherEntity
+			}
+			for y := entity.Y - 1; y < entity.Y+1; y++ {
+				for x := entity.X - 1; x < entity.X+1; x++ {
+					index, err := environment.PosToRedisIndex(x, y)
+					if err != nil {
+						obsv.Cells = append(obsv.Cells, &api.Entity{Id: "", Class: 0})
+						continue
+					}
+					if otherEntity, ok := indexEntityMap[index]; ok {
+						obsv.Cells = append(obsv.Cells, &api.Entity{Id: otherEntity.Id, Class: otherEntity.Class})
+					} else {
+						obsv.Cells = append(obsv.Cells, &api.Entity{Id: "", Class: 0})
+					}
+				}
+			}
+			obsvPacket.Observations = append(obsvPacket.Observations, &obsv)
 		}
-		println(entitiesContent)
-		return nil
-		// in, err := stream.Recv()
-		// if err == io.EOF {
-		// 	return nil
-		// }
-		// if err != nil {
-		// 	return err
-		// }
-		// key := serialize(in.Location)
-		//             ... // look for notes to be sent to client
-		// for _, note := range s.routeNotes[key] {
-		// 	if err := stream.Send(note); err != nil {
-		// 		return err
-		// 	}
-		// }
+
+		// Send the observation packet
+		if err := stream.Send(&obsvPacket); err != nil {
+			// TODO - Clean disconnect, remove data from database
+			return err
+		}
+
+		// Wait for a response
+		actionPacket, err := stream.Recv()
+		if err == io.EOF {
+			return err
+		}
+
+		println("Received Something from the client!")
+
+		// Perform actions
+		actions := actionPacket.GetActions()
+		md := metadata.Pairs("auth-secret", "MOCK-SECRET")
+		ctx := metadata.NewOutgoingContext(context.Background(), md)
+		for _, action := range actions {
+			req := envApi.ExecuteAgentActionRequest{
+				Id:        action.Id,
+				Action:    action.Action,
+				Direction: action.Direction,
+			}
+			fmt.Printf("Sending action request: %v \n", req)
+			_, err := s.envClient.ExecuteAgentAction(ctx, &req)
+			if err != nil {
+				fmt.Printf("Error sending action: %v \n: ", err)
+				return err
+			}
+		}
 	}
-	return nil
+	// return nil
 }
