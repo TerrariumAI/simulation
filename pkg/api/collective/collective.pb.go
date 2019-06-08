@@ -27,9 +27,10 @@ type Entity struct {
 	// Unique integer identifier of the agent
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Entity stats
-	// 0 food
+	// 0 nothing
 	// 1 agent
-	// 2 wall
+	// 2 food
+	// 3 wall
 	Class                int32    `protobuf:"varint,2,opt,name=class,proto3" json:"class,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`

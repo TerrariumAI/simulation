@@ -81,6 +81,7 @@ func NewCollectiveServer(env string, redisAddr string, envAddress string) api.Co
 }
 
 func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemoteModelServer) error {
+	println("Remote model has connected!")
 	ctx := stream.Context()
 	md, ok := metadata.FromIncomingContext(ctx)
 
@@ -88,6 +89,7 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 	if !ok {
 		return errors.New("ConnectRemoteModel(): Error parsing metadata")
 	}
+
 	nameHeader, ok := md["model-name"]
 	if !ok {
 		return errors.New("ConnectRemoteModel(): No name in context")
@@ -113,15 +115,19 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 		entityIdsRequest := s.redisClient.SMembers("model:" + modelID + ":entities")
 		if err := entityIdsRequest.Err(); err != nil {
 			log.Fatalf("ConnectRemoteModel(): %v", err)
-			return errors.New("ConnectRemoteModel(): Couldn't access the database")
+			return errors.New("ConnectRemoteModel(): Couldn't access the database to get the entity ids for this model")
 		}
 		entityIds := entityIdsRequest.Val()
 		// Get the entities for this model
 		entitiesContentRequest := s.redisClient.HMGet("entities.content", entityIds...)
-		if entitiesContentRequest.Err() != nil {
-			return errors.New("ConnectRemoteModel(): Couldn't access the database")
+		// Get the content for each entity
+		entitiesContent := make([]interface{}, 0)
+		if len(entityIds) > 0 {
+			if err := entitiesContentRequest.Err(); err != nil {
+				return fmt.Errorf("ConnectRemoteModel(): Couldn't access the database to get the entities: %v", err)
+			}
+			entitiesContent = entitiesContentRequest.Val()
 		}
-		entitiesContent := entitiesContentRequest.Val()
 		// Create a new observation packet to send
 		var obsvPacket api.ObservationPacket
 		// Generate an observation for each entity
@@ -185,35 +191,35 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 		//  comes sooner than the minimum frame time, we will wait
 		t1 := time.Now().UnixNano() / 1000000
 
-		// Send the observation packet
-		if err := stream.Send(&obsvPacket); err != nil {
-			// TODO - Clean disconnect, remove data from database
-			return err
-		}
-
-		// Wait for a response
-		actionPacket, err := stream.Recv()
-		if err == io.EOF {
-			return err
-		}
-
-		println("Received Something from the client!")
-
-		// Perform actions
-		actions := actionPacket.GetActions()
-		md := metadata.Pairs("auth-secret", "MOCK-SECRET")
-		ctx := metadata.NewOutgoingContext(context.Background(), md)
-		for _, action := range actions {
-			req := envApi.ExecuteAgentActionRequest{
-				Id:        action.Id,
-				Action:    action.Action,
-				Direction: action.Direction,
-			}
-			fmt.Printf("Sending action request: %v \n", req)
-			_, err := s.envClient.ExecuteAgentAction(ctx, &req)
-			if err != nil {
-				fmt.Printf("Error sending action: %v \n: ", err)
+		// Only attempt any logic if there are observations to send
+		if len(obsvPacket.Observations) > 0 {
+			// Send the observation packet
+			if err := stream.Send(&obsvPacket); err != nil {
+				// TODO - Clean disconnect, remove data from database
 				return err
+			}
+
+			// Wait for a response
+			actionPacket, err := stream.Recv()
+			if err == io.EOF {
+				return err
+			}
+
+			// Perform actions
+			actions := actionPacket.GetActions()
+			md := metadata.Pairs("auth-secret", "MOCK-SECRET")
+			ctx := metadata.NewOutgoingContext(context.Background(), md)
+			for _, action := range actions {
+				req := envApi.ExecuteAgentActionRequest{
+					Id:        action.Id,
+					Action:    action.Action,
+					Direction: action.Direction,
+				}
+				_, err := s.envClient.ExecuteAgentAction(ctx, &req)
+				if err != nil {
+					fmt.Printf("Error sending action: %v \n: ", err)
+					return err
+				}
 			}
 		}
 
