@@ -19,6 +19,7 @@ func TestCreateEntity(t *testing.T) {
 		ctx context.Context
 		req *api.CreateEntityRequest
 	}
+
 	tests := []struct {
 		name    string
 		s       api.EnvironmentServer

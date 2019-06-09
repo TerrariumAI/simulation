@@ -111,6 +111,12 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 
 	// Start the loop
 	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+		}
+
 		// Get the entitiy IDs for this model
 		entityIdsRequest := s.redisClient.SMembers("model:" + modelID + ":entities")
 		if err := entityIdsRequest.Err(); err != nil {
