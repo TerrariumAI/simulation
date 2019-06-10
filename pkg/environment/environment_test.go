@@ -13,13 +13,11 @@ func TestCreateEntity(t *testing.T) {
 	// ctxWithoutValidToken := context.Background()
 	md := metadata.Pairs("auth-secret", "MOCK-SECRET")
 	ctxWithValidSecret := metadata.NewIncomingContext(context.Background(), md)
-
 	s := NewEnvironmentServer("testing")
 	type args struct {
 		ctx context.Context
 		req *api.CreateEntityRequest
 	}
-
 	tests := []struct {
 		name    string
 		s       api.EnvironmentServer
@@ -66,6 +64,7 @@ func TestCreateEntity(t *testing.T) {
 			wantErr: true,
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := tt.s.CreateEntity(tt.args.ctx, tt.args.req)
@@ -78,6 +77,7 @@ func TestCreateEntity(t *testing.T) {
 			}
 		})
 	}
+
 }
 
 func TestGetEntity(t *testing.T) {

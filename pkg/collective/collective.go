@@ -109,6 +109,7 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 	// Once the model is disconnected, remove it's data from the server
 	defer s.cleanupModel(modelID)
 
+	sendt1 := time.Now().UnixNano() / 1000000
 	// Start the loop
 	for {
 		select {
@@ -199,17 +200,30 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 
 		// Only attempt any logic if there are observations to send
 		if len(obsvPacket.Observations) > 0 {
+			sendt2 := time.Now().UnixNano() / 1000000
 			// Send the observation packet
+			sendtDur1 := time.Now().UnixNano() / 1000000
 			if err := stream.Send(&obsvPacket); err != nil {
 				// TODO - Clean disconnect, remove data from database
 				return err
 			}
+			sendtDur2 := time.Now().UnixNano() / 1000000
+			sendDurDiff := sendtDur2 - sendtDur1
+			println("SendDurDiff: ", sendDurDiff)
+
+			diff := sendt2 - sendt1
+			println("SendDiff: ", diff)
+			sendt1 = sendt2
 
 			// Wait for a response
+			respDur1 := time.Now().UnixNano() / 1000000
 			actionPacket, err := stream.Recv()
 			if err == io.EOF {
 				return err
 			}
+			respDur2 := time.Now().UnixNano() / 1000000
+			respDurDiff := respDur2 - respDur1
+			println("RespDurDiff: ", respDurDiff)
 
 			// Perform actions
 			actions := actionPacket.GetActions()
@@ -233,6 +247,7 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 		t2 := time.Now().UnixNano() / 1000000
 		delta := t2 - t1
 		if delta < minFrameTimeMilliseconds {
+			// println("waiting for ", minFrameTimeMilliseconds-delta)
 			time.Sleep(time.Duration((minFrameTimeMilliseconds - delta)) * time.Millisecond)
 		}
 	}
