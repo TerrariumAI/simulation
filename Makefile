@@ -19,7 +19,7 @@ build-environment: ## build the server executable (for linux/docker use only)
 ## ----------------------
 
 run-e-testing: ## run the server locally with env set to testing
-	go run -race ./cmd/environment/main.go -grpc-port=9091 -log-level=-1 -env=testing
+	go run -race ./cmd/environment/main.go -grpc-port=9091 -redis-addr=localhost:6379 -log-level=-1 -env=testing
 run-e-training: ## run the server locally with env set to training
 	go run -race ./cmd/environment/main.go -grpc-port=9091 -log-level=-1 -env=training
 run-e-prod: ## run the server locally with env set to prod

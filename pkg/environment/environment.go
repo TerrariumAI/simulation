@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -11,10 +12,8 @@ import (
 
 	uuid "github.com/satori/go.uuid"
 
-	firebase "firebase.google.com/go"
-	fb "github.com/terrariumai/simulation/pkg/fb"
+	datacom "github.com/terrariumai/simulation/pkg/datacom"
 
-	"github.com/go-redis/redis"
 	"github.com/golang/protobuf/ptypes/empty"
 	api "github.com/terrariumai/simulation/pkg/api/environment"
 )
@@ -33,13 +32,12 @@ const (
 type environmentServer struct {
 	// Environment the server is running in
 	env string
-	// --- Firebase ---
-	// Firebase app
-	firebaseApp *firebase.App
+	// Redis Address
+	redisAddr string
+	// Datacom
+	datacom *datacom.Datacom
 	// Mutex to ensure data safety
 	m sync.Mutex
-	// Redis client
-	redisClient *redis.Client
 }
 
 // PosToRedisIndex interlocks an x and y value to use as an
@@ -94,25 +92,19 @@ func ParseEntityContent(content string) (api.Entity, string) {
 }
 
 // NewEnvironmentServer creates simulation service
-func NewEnvironmentServer(env string) api.EnvironmentServer {
-	// initialize redis client
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
-	pong, err := redisClient.Ping().Result()
-	if env != "prod" && err != nil {
-		fmt.Println("Couldn't connect to redis: "+pong, err)
-		os.Exit(1)
-	}
+func NewEnvironmentServer(env string, redisAddr string) api.EnvironmentServer {
 	// initialize server
 	s := &environmentServer{
-		env:         env,
-		firebaseApp: fb.InitializeFirebaseApp(env),
-		redisClient: redisClient,
+		env: env,
 	}
 
+	datacom, err := datacom.NewDatacom(env, redisAddr)
+	if err != nil {
+		log.Fatalf("Error initializing Datacom: %v", err)
+		os.Exit(1)
+	}
+
+	s.datacom = datacom
 	// // Remove all remote models that were registered for this server before starting
 	// removeAllRemoteModelsFromFirebase(s.firebaseApp, s.env)
 
@@ -126,7 +118,7 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 	defer s.m.Unlock()
 
 	// Authenticate the user
-	user, err := fb.AuthenticateFirebaseAccountWithSecret(ctx, s.firebaseApp, s.env)
+	user, err := s.datacom.AuthenticateAccountWithSecret(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -134,45 +126,24 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 	if req.Entity == nil {
 		return nil, errors.New("Agent not in request")
 	}
-	// Get an index from the position
-	index, err := PosToRedisIndex(req.Entity.X, req.Entity.Y)
+	// Make sure the cell is not occupied
+	isCellOccupied, err := s.datacom.IsCellOccupied(req.Entity.X, req.Entity.Y)
 	if err != nil {
 		return nil, err
 	}
-	// Now we can assume positions are correct sizes
-	// (would have thrown an error above if not)
-	keys, _, err := s.redisClient.ZScan("entities", 0, index+":*", 0).Result()
-	if len(keys) > 0 {
-		return nil, errors.New("An entity is already in that position")
+	if isCellOccupied {
+		return nil, errors.New("That cell is already occupied by an entity")
 	}
 
 	// Create an id for the entity
 	entityID := uuid.NewV4().String()
-	// Use given ID for testing
+	// Or... use given ID for testing
 	if s.env == "testing" {
 		entityID = req.Entity.Id
 	}
-	// Serialized entity content
-	content := SerializeEntity(index, req.Entity.X, req.Entity.Y, req.Entity.Class, user["id"].(string), req.Entity.ModelID, entityID)
 
-	// Add the entity to entities sorted set
-	err = s.redisClient.ZAdd("entities", redis.Z{
-		Score:  float64(0),
-		Member: content,
-	}).Err()
-	if err != nil {
-		return nil, err
-	}
-	// Add the content for later easy indexing
-	err = s.redisClient.HSet("entities.content", entityID, content).Err()
-	if err != nil {
-		return nil, err
-	}
-	// Add the entitiy to the model's data
-	err = s.redisClient.SAdd("model:"+req.Entity.ModelID+":entities", entityID).Err()
-	if err != nil {
-		return nil, err
-	}
+	// Add the entity to the environment
+	err = s.datacom.CreateEntity(req.Entity.X, req.Entity.Y, req.Entity.Class, user["id"].(string), req.Entity.ModelID, entityID)
 
 	// Return the data for the agent
 	return &api.CreateEntityResponse{
@@ -185,17 +156,16 @@ func (s *environmentServer) GetEntity(ctx context.Context, req *api.GetEntityReq
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
-	// Get the content
-	hGetEntityContent := s.redisClient.HGet("entities.content", req.Id)
-	if hGetEntityContent.Err() != nil {
+
+	// Get the entity
+	entity, _, err := s.datacom.GetEntity(req.Id)
+	if err != nil {
 		return nil, errors.New("Couldn't find an entity by that id")
 	}
-	content := hGetEntityContent.Val()
-	entity, _ := ParseEntityContent(content)
 
 	// Return the data for the agent
 	return &api.GetEntityResponse{
-		Entity: &entity,
+		Entity: entity,
 	}, nil
 }
 
@@ -205,33 +175,15 @@ func (s *environmentServer) DeleteEntity(ctx context.Context, req *api.DeleteEnt
 	s.m.Lock()
 	defer s.m.Unlock()
 
-	// Get the content
-	hGetEntityContent := s.redisClient.HGet("entities.content", req.Id)
-	if hGetEntityContent.Err() != nil {
-		return nil, errors.New("Couldn't find an entity by that id")
-	}
-	content := hGetEntityContent.Val()
-	// Parse the content
-	entity, _ := ParseEntityContent(content)
-	// Remove from hash
-	delete := s.redisClient.HDel("entities.content", entity.Id)
-	if err := delete.Err(); err != nil {
-		return nil, fmt.Errorf("Error removing entity: %s", err)
-	}
-	// Remove from SS
-	remove := s.redisClient.ZRem("entities", content)
-	if err := remove.Err(); err != nil {
-		return nil, fmt.Errorf("Error removing entity: %s", err)
-	}
-	// Remove from model
-	err := s.redisClient.SRem("model:"+entity.ModelID+":entities", entity.Id).Err()
+	// Remove the entity from the env
+	deleted, err := s.datacom.DeleteEntity(req.Id)
 	if err != nil {
 		return nil, err
 	}
 
 	// Return the data for the agent
 	return &api.DeleteEntityResponse{
-		Deleted: delete.Val(),
+		Deleted: deleted,
 	}, nil
 }
 
@@ -240,15 +192,13 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *api.Exe
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
+
 	fmt.Printf("Execute agent action: %v \n", req)
-	// Get the content
-	hGetEntityContent := s.redisClient.HGet("entities.content", req.Id)
-	if hGetEntityContent.Err() != nil {
-		return nil, errors.New("Couldn't find an entity by that id")
+	// Get the entity
+	entity, origionalContent, err := s.datacom.GetEntity(req.Id)
+	if err != nil {
+		return nil, err
 	}
-	origionalContent := hGetEntityContent.Val()
-	// Parse
-	entity, _ := ParseEntityContent(origionalContent)
 
 	var targetX, targetY = entity.X, entity.Y
 	switch req.Direction {
@@ -261,35 +211,19 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *api.Exe
 	case 3: // RIGHT
 		targetX++
 	}
-	// Convert position to index
-	index, err := PosToRedisIndex(targetX, targetY)
-	if err != nil {
-		// Return unsuccessful
-		return &api.ExecuteAgentActionResponse{
-			WasSuccessful: false,
-		}, nil
-	}
+
 	switch req.Action {
 	case 0: // MOVE
 		// Check if cell is occupied
-		keys, _, _ := s.redisClient.ZScan("entities", 0, index+":*", 0).Result()
-		if len(keys) > 0 {
-			return nil, errors.New("An entity is already in that position")
+		isCellOccupied, err := s.datacom.IsCellOccupied(targetX, targetY)
+		if isCellOccupied || err != nil {
+			// Return unsuccessful
+			return &api.ExecuteAgentActionResponse{
+				WasSuccessful: false,
+			}, nil
 		}
-		// Cell is clear, move the entity
-		content := SerializeEntity(index, targetX, targetY, entity.Class, entity.OwnerUID, entity.ModelID, entity.Id)
-		err = s.redisClient.HSet("entities.content", entity.Id, content).Err()
-		if err != nil {
-			return nil, err
-		}
-		err = s.redisClient.ZRem("entities", origionalContent).Err()
-		if err != nil {
-			return nil, err
-		}
-		err = s.redisClient.ZAdd("entities", redis.Z{
-			Score:  float64(0),
-			Member: content,
-		}).Err()
+		// Update the entity
+		err = s.datacom.UpdateEntity(*origionalContent, targetX, targetY, entity.Class, entity.OwnerUID, entity.ModelID, entity.Id)
 		if err != nil {
 			return nil, err
 		}

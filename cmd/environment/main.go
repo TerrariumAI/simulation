@@ -16,6 +16,8 @@ type Config struct {
 	// gRPC server start parameters section
 	// gRPC is TCP port to listen by gRPC server
 	GRPCPort string
+	// Redis address
+	RedisAddr string
 	// Environment that the server is running in (dev or prod)
 	Env string
 	// Log parameters section
@@ -29,6 +31,7 @@ func main() {
 	// get configuration
 	var cfg Config
 	flag.StringVar(&cfg.GRPCPort, "grpc-port", "", "gRPC port to bind")
+	flag.StringVar(&cfg.RedisAddr, "redis-addr", "", "gRPC port to bind")
 	flag.StringVar(&cfg.Env, "env", "", "Environment the server is running in")
 	flag.IntVar(&cfg.LogLevel, "log-level", 0, "Global log level")
 	flag.StringVar(&cfg.LogTimeFormat, "log-time-format", "",
@@ -47,7 +50,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	serverAPI := environment.NewEnvironmentServer(cfg.Env)
+	serverAPI := environment.NewEnvironmentServer(cfg.Env, cfg.RedisAddr)
 
 	opts := []grpc.ServerOption{}
 	server := grpc.NewServer(opts...)

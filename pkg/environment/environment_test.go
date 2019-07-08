@@ -9,11 +9,15 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+const (
+	redisAddr = "localhost:6379"
+)
+
 func TestCreateEntity(t *testing.T) {
 	// ctxWithoutValidToken := context.Background()
 	md := metadata.Pairs("auth-secret", "MOCK-SECRET")
 	ctxWithValidSecret := metadata.NewIncomingContext(context.Background(), md)
-	s := NewEnvironmentServer("testing")
+	s := NewEnvironmentServer("testing", redisAddr)
 	type args struct {
 		ctx context.Context
 		req *api.CreateEntityRequest
@@ -85,7 +89,7 @@ func TestGetEntity(t *testing.T) {
 	md := metadata.Pairs("auth-secret", "MOCK-SECRET")
 	ctxWithValidSecret := metadata.NewIncomingContext(context.Background(), md)
 
-	s := NewEnvironmentServer("testing")
+	s := NewEnvironmentServer("testing", redisAddr)
 
 	type args struct {
 		ctx context.Context
@@ -149,7 +153,7 @@ func TestExecuteAgentAction(t *testing.T) {
 	md := metadata.Pairs("auth-secret", "MOCK-SECRET")
 	ctxWithValidSecret := metadata.NewIncomingContext(context.Background(), md)
 
-	s := NewEnvironmentServer("testing")
+	s := NewEnvironmentServer("testing", redisAddr)
 
 	type args struct {
 		ctx context.Context
@@ -223,7 +227,7 @@ func TestDeleteEntity(t *testing.T) {
 	md := metadata.Pairs("auth-secret", "MOCK-SECRET")
 	ctxWithValidSecret := metadata.NewIncomingContext(context.Background(), md)
 
-	s := NewEnvironmentServer("testing")
+	s := NewEnvironmentServer("testing", redisAddr)
 
 	type args struct {
 		ctx context.Context
