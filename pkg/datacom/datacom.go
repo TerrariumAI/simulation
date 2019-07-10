@@ -101,17 +101,17 @@ func NewDatacom(env string, redisAddr string) (*Datacom, error) {
 		return dc, nil
 	}
 
-	// Setup Redis
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
-	_, err := redisClient.Ping().Result()
-	if err != nil {
-		return nil, err
-	}
-	dc.redisClient = redisClient
+	// // Setup Redis
+	// redisClient := redis.NewClient(&redis.Options{
+	// 	Addr:     redisAddr,
+	// 	Password: "", // no password set
+	// 	DB:       0,  // use default DB
+	// })
+	// _, err := redisClient.Ping().Result()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// dc.redisClient = redisClient
 
 	// Setup Firebase
 	switch env {
@@ -188,6 +188,11 @@ func (dc *Datacom) AuthenticateAccountWithSecret(ctx context.Context) (map[strin
 // IsCellOccupied checks the env to see if a cell has an entity by converting
 // the cell position to an index then querying redis
 func (dc *Datacom) IsCellOccupied(x int32, y int32) (bool, error) {
+	// testing
+	if dc.redisClient == nil {
+		return true, nil
+	}
+
 	index, err := PosToRedisIndex(x, y)
 	if err != nil {
 		return true, err
@@ -206,6 +211,11 @@ func (dc *Datacom) IsCellOccupied(x int32, y int32) (bool, error) {
 // CreateEntity sets entity data in the environment. It assumes that
 // the location is open and that the owner and model have already been checked.
 func (dc *Datacom) CreateEntity(x int32, y int32, class int32, ownerUID string, modelID string, entityID string) error {
+	// testing
+	if dc.redisClient == nil {
+		return nil
+	}
+
 	index, err := PosToRedisIndex(x, y)
 	if err != nil {
 		return err
@@ -240,6 +250,11 @@ func (dc *Datacom) CreateEntity(x int32, y int32, class int32, ownerUID string, 
 // data then creates new entity data and index from the given params and
 // writes those.
 func (dc *Datacom) UpdateEntity(origionalContent string, x int32, y int32, class int32, ownerUID string, modelID string, entityID string) error {
+	// testing
+	if dc.redisClient == nil {
+		return nil
+	}
+
 	index, err := PosToRedisIndex(x, y)
 	if err != nil {
 		return err
@@ -263,6 +278,14 @@ func (dc *Datacom) UpdateEntity(origionalContent string, x int32, y int32, class
 
 // GetEntity gets an entity from the environment by id
 func (dc *Datacom) GetEntity(id string) (*envApi.Entity, *string, error) {
+	// testing
+	if dc.redisClient == nil {
+		content := "asdf"
+		return &envApi.Entity{
+			Id: "asdf",
+		}, &content, nil
+	}
+
 	// Get the content
 	hGetEntityContent := dc.redisClient.HGet("entities.content", id)
 	if hGetEntityContent.Err() != nil {
@@ -276,6 +299,11 @@ func (dc *Datacom) GetEntity(id string) (*envApi.Entity, *string, error) {
 
 // DeleteEntity completely removes an entity from existence from the environment
 func (dc *Datacom) DeleteEntity(id string) (int64, error) {
+	// testing
+	if dc.redisClient == nil {
+		return 1, nil
+	}
+
 	// Get the content
 	hGetEntityContent := dc.redisClient.HGet("entities.content", id)
 	if hGetEntityContent.Err() != nil {
