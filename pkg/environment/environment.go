@@ -10,8 +10,6 @@ import (
 	"strings"
 	"sync"
 
-	uuid "github.com/satori/go.uuid"
-
 	datacom "github.com/terrariumai/simulation/pkg/datacom"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -117,37 +115,39 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 	s.m.Lock()
 	defer s.m.Unlock()
 
-	// Authenticate the user
-	user, err := s.datacom.AuthenticateAccountWithSecret(ctx)
-	if err != nil {
-		return nil, err
-	}
-	// Make sure the user has supplied data
-	if req.Entity == nil {
-		return nil, errors.New("Agent not in request")
-	}
-	// Make sure the cell is not occupied
-	isCellOccupied, err := s.datacom.IsCellOccupied(req.Entity.X, req.Entity.Y)
-	if err != nil {
-		return nil, err
-	}
-	if isCellOccupied {
-		return nil, errors.New("That cell is already occupied by an entity")
-	}
+	log.Print("CreateEntity()")
 
-	// Create an id for the entity
-	entityID := uuid.NewV4().String()
-	// Or... use given ID for testing
-	if s.env == "testing" {
-		entityID = req.Entity.Id
-	}
+	// // Authenticate the user
+	// user, err := s.datacom.AuthenticateAccountWithSecret(ctx)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// // Make sure the user has supplied data
+	// if req.Entity == nil {
+	// 	return nil, errors.New("Agent not in request")
+	// }
+	// // Make sure the cell is not occupied
+	// isCellOccupied, err := s.datacom.IsCellOccupied(req.Entity.X, req.Entity.Y)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// if isCellOccupied {
+	// 	return nil, errors.New("That cell is already occupied by an entity")
+	// }
 
-	// Add the entity to the environment
-	err = s.datacom.CreateEntity(req.Entity.X, req.Entity.Y, req.Entity.Class, user["id"].(string), req.Entity.ModelID, entityID)
+	// // Create an id for the entity
+	// entityID := uuid.NewV4().String()
+	// // Or... use given ID for testing
+	// if s.env == "testing" {
+	// 	entityID = req.Entity.Id
+	// }
+
+	// // Add the entity to the environment
+	// err = s.datacom.CreateEntity(req.Entity.X, req.Entity.Y, req.Entity.Class, user["id"].(string), req.Entity.ModelID, entityID)
 
 	// Return the data for the agent
 	return &api.CreateEntityResponse{
-		Id: entityID,
+		Id: "entityID",
 	}, nil
 }
 
