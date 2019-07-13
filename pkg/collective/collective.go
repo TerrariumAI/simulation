@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"sync"
 	"time"
 
-	"github.com/go-redis/redis"
-	uuid "github.com/satori/go.uuid"
+	b64 "encoding/base64"
+	"encoding/json"
+
+	datacom "github.com/terrariumai/simulation/pkg/datacom"
+
 	api "github.com/terrariumai/simulation/pkg/api/collective"
 	envApi "github.com/terrariumai/simulation/pkg/api/environment"
 	environment "github.com/terrariumai/simulation/pkg/environment"
@@ -30,46 +32,40 @@ type collectiveServer struct {
 	env string
 	// Mutex to ensure data safety
 	m sync.Mutex
-	// Redis client
-	redisClient *redis.Client
+	// Datacom
+	datacom *datacom.Datacom
 	// Environment client
 	envClient envApi.EnvironmentClient
 }
 
-// func parseEntityContent(content string) api.Entity {
-// 	values := strings.Split(content, ":")
-// 	return api.Entity{
-// 		Class: values[3],
-// 		Id:    values[6],
-// 	}
-// }
+// UserInfo is the struct that will parse the auth response
+type UserInfo struct {
+	Issuer string `json:"issuer"`
+	ID     string `json:"id"`
+	Email  string `json:"email"`
+}
 
 // NewCollectiveServer creates a new collective server
-func NewCollectiveServer(env string, redisAddr string, envAddress string) api.CollectiveServer {
-	// initialize redis client
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
-	pong, err := redisClient.Ping().Result()
-	if env != "prod" && err != nil {
-		fmt.Println("Couldn't connect to redis: "+pong, err)
-		os.Exit(1)
+func NewCollectiveServer(env string, envAddress string) api.CollectiveServer {
+	// Init datacom
+	datacom, err := datacom.NewDatacom(env)
+	if err != nil {
+		log.Fatalf("Error initializing Datacom: %v", err)
 	}
-	// initialize server
-	s := &collectiveServer{
-		env:         env,
-		redisClient: redisClient,
-	}
-	// initialize env client
+
+	// Init environment client
 	conn, err := grpc.Dial(envAddress, grpc.WithInsecure())
 	if err != nil {
-		fmt.Println("Couldn't connect to environment service: "+pong, err)
-		os.Exit(1)
+		log.Fatalf("Couldn't connect to environment service: %v", err)
 	}
 	envClient := envApi.NewEnvironmentClient(conn)
-	s.envClient = envClient
+
+	// Init server
+	s := &collectiveServer{
+		env:       env,
+		datacom:   datacom,
+		envClient: envClient,
+	}
 
 	return s
 }
@@ -77,31 +73,27 @@ func NewCollectiveServer(env string, redisAddr string, envAddress string) api.Co
 func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemoteModelServer) error {
 	println("Remote model has connected!")
 	ctx := stream.Context()
+	// Get metadata and parse userinfo
 	md, ok := metadata.FromIncomingContext(ctx)
-
-	// Make sure name is in metadata
 	if !ok {
-		return errors.New("ConnectRemoteModel(): Error parsing metadata")
+		return errors.New("ConnectRemoteModel(): Error getting metadata")
 	}
+	userInfoHeader := md["x-endpoint-api-userinfo"]
+	modelIDHeader := md["model-id"]
+	if len(userInfoHeader) == 0 || len(modelIDHeader) == 0 {
+		return errors.New("ConnectRemoteModel(): authentication or model-id header are missing")
+	}
+	modelID := modelIDHeader[0]
+	// Parse userinfo
+	sDec, _ := b64.StdEncoding.DecodeString(userInfoHeader[0])
+	userInfo := UserInfo{}
+	json.Unmarshal(sDec, &userInfo)
 
-	nameHeader, ok := md["model-name"]
-	if !ok {
-		return errors.New("ConnectRemoteModel(): No name in context")
-	}
-	name := nameHeader[0]
-
-	// Add the RM to the database
-	modelID := uuid.NewV4().String()
-	if s.env == "testing" {
-		modelID = mockModelID
-	}
-	err := s.redisClient.HSet("model:"+modelID+":metadata", "name", name).Err()
+	// Get RM metadata to make sure it exists
+	err, _ := s.datacom.GetRemoteModelMetadataForUser(modelID, userInfo.ID)
 	if err != nil {
-		return err
+		log.Fatalf("ConnectRemoteModel(): That model does not exist")
 	}
-
-	// Once the model is disconnected, remove it's data from the server
-	defer s.cleanupModel(modelID)
 
 	sendt1 := time.Now().UnixNano() / 1000000
 	// Start the loop
@@ -112,25 +104,14 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 		default:
 		}
 
-		// Get the entitiy IDs for this model
-		entityIdsRequest := s.redisClient.SMembers("model:" + modelID + ":entities")
-		if err := entityIdsRequest.Err(); err != nil {
-			log.Fatalf("ConnectRemoteModel(): %v", err)
-			return errors.New("ConnectRemoteModel(): Couldn't access the database to get the entity ids for this model")
-		}
-		entityIds := entityIdsRequest.Val()
-		// Get the entities for this model
-		entitiesContentRequest := s.redisClient.HMGet("entities.content", entityIds...)
-		// Get the content for each entity
-		entitiesContent := make([]interface{}, 0)
-		if len(entityIds) > 0 {
-			if err := entitiesContentRequest.Err(); err != nil {
-				return fmt.Errorf("ConnectRemoteModel(): Couldn't access the database to get the entities: %v", err)
-			}
-			entitiesContent = entitiesContentRequest.Val()
+		// Query db for entities
+		entitiesContent, err := s.datacom.GetEntitiesForModel(modelID)
+		if err != nil {
+			return err
 		}
 		// Create a new observation packet to send
 		var obsvPacket api.ObservationPacket
+
 		// Generate an observation for each entity
 		for _, content := range entitiesContent {
 			entity, _ := environment.ParseEntityContent(content.(string))
@@ -141,24 +122,11 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 			xMax := entity.X + 1
 			yMin := entity.Y - 1
 			yMax := entity.Y + 1
-			indexMin, err := environment.PosToRedisIndex(xMin, yMin)
+			// Query for entities near this position
+			closeEntitiesContent, err := s.datacom.GetEntitiesAroundPosition(xMin, yMin, xMax, yMax)
 			if err != nil {
-				return fmt.Errorf("Error converting min/max positions to index: %v", err)
+				return err
 			}
-			indexMax, err := environment.PosToRedisIndex(xMax, yMax)
-			if err != nil {
-				return fmt.Errorf("Error converting min/max positions to index: %v", err)
-			}
-			println("Performing range query from: ", indexMin, " to ", indexMax)
-			// Perform the query
-			rangeQuery := s.redisClient.ZRangeByLex("entities", redis.ZRangeBy{
-				Min: "(" + indexMin,
-				Max: "(" + indexMax,
-			})
-			if err := rangeQuery.Err(); err != nil {
-				return fmt.Errorf("Error in range query: %v", err)
-			}
-			closeEntitiesContent := rangeQuery.Val()
 			// Add all the other entities to the indexEntityMap
 			// Match them up with the correct positions
 			indexEntityMap := make(map[string]envApi.Entity)
@@ -248,13 +216,9 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 }
 
 func (s *collectiveServer) cleanupModel(modelID string) {
-	println("Cleaning up model... model:", modelID)
-	err := s.redisClient.Del("model:" + modelID + ":entities").Err()
-	if err != nil {
-		fmt.Printf("Error cleaning up model entities: %v \n", err)
-	}
-	err = s.redisClient.Del("model:" + modelID + ":metadata").Err()
-	if err != nil {
-		fmt.Printf("Error cleaning up model metadata: %v \n", err)
-	}
+	// println("Cleaning up model... model:", modelID)
+	// err := s.redisClient.Del("model:" + modelID + ":entities").Err()
+	// if err != nil {
+	// 	fmt.Printf("Error cleaning up model entities: %v \n", err)
+	// }
 }

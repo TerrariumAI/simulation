@@ -39,6 +39,13 @@ type Datacom struct {
 	redisClient *redis.Client
 }
 
+// RemoteModel struct for parsing and storing RM data from databases
+type RemoteModel struct {
+	id      string
+	ownerID string
+	name    string
+}
+
 // PosToRedisIndex interlocks an x and y value to use as an
 // index in redis
 func PosToRedisIndex(x int32, y int32) (string, error) {
@@ -263,4 +270,78 @@ func (dc *Datacom) DeleteEntity(id string) (int64, error) {
 	}
 
 	return delete.Val(), nil
+}
+
+// GetEntitiesForModel gets a list of entities for a specific model
+func (dc *Datacom) GetEntitiesForModel(modelID string) ([]interface{}, error) {
+	// Get the entitiy IDs for this model
+	entityIdsRequest := dc.redisClient.SMembers("model:" + modelID + ":entities")
+	if err := entityIdsRequest.Err(); err != nil {
+		log.Fatalf("ConnectRemoteModel(): %v", err)
+		return nil, errors.New("ConnectRemoteModel(): Couldn't access the database to get the entity ids for this model")
+	}
+	entityIds := entityIdsRequest.Val()
+	// Get the entities for this model
+	entitiesContentRequest := dc.redisClient.HMGet("entities.content", entityIds...)
+	// Get the content for each entity
+	entitiesContent := make([]interface{}, 0)
+	if len(entityIds) > 0 {
+		if err := entitiesContentRequest.Err(); err != nil {
+			return nil, fmt.Errorf("ConnectRemoteModel(): Couldn't access the database to get the entities: %v", err)
+		}
+		entitiesContent = entitiesContentRequest.Val()
+	}
+	return entitiesContent, nil
+}
+
+func (dc *Datacom) GetEntitiesAroundPosition(xMin int32, yMin int32, xMax int32, yMax int32) ([]string, error) {
+	indexMin, err := PosToRedisIndex(xMin, yMin)
+	if err != nil {
+		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
+	}
+	indexMax, err := PosToRedisIndex(xMax, yMax)
+	if err != nil {
+		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
+	}
+	// Perform the query
+	rangeQuery := dc.redisClient.ZRangeByLex("entities", redis.ZRangeBy{
+		Min: "(" + indexMin,
+		Max: "(" + indexMax,
+	})
+	if err := rangeQuery.Err(); err != nil {
+		return nil, fmt.Errorf("Error in range query: %v", err)
+	}
+	closeEntitiesContent := rangeQuery.Val()
+	return closeEntitiesContent, nil
+}
+
+// --------------
+// FIREBASE
+// --------------
+
+// GetRemoteModelMetadataForUser checks the database to see if a remote model exists,
+// if so returns metadata
+func (dc *Datacom) GetRemoteModelMetadataForUser(modelID string, userID string) (*RemoteModel, error) {
+	// Init client
+	ctx := context.Background()
+	client, err := dc.firebaseApp.Firestore(ctx)
+	defer client.Close()
+	if err != nil {
+		return nil, err
+	}
+	// Try to get the RM
+	dsnap, err := client.Collection("remoteModels").Doc(modelID).Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var remoteModel RemoteModel
+	dsnap.DataTo(&remoteModel)
+	remoteModel.id = modelID
+
+	// Check if this is the correct owner
+	if remoteModel.ownerID != userID {
+		return nil, errors.New("That RM does not belong to you")
+	}
+
+	return &remoteModel, nil
 }
