@@ -322,21 +322,31 @@ func (dc *Datacom) GetRemoteModelMetadataForUser(modelSecret string, userID stri
 
 	// Init client
 	ctx := context.Background()
+	log.Println("Creating client")
 	client, err := dc.firebaseApp.Firestore(ctx)
 	defer client.Close()
 	if err != nil {
 		return nil, err
 	}
+	log.Println("Getting RM data")
 	// Try to get the RM
-	iter := client.Collection("remoteModels").Where("secretKey", "==", modelSecret).Limit(1).Documents(ctx)
-	doc, err := iter.Next()
+	q := client.Collection("remoteModels").Where("secretKey", "==", modelSecret).Limit(1)
+	log.Println("Query get all")
+	docs, err := q.Documents(ctx).GetAll()
 	if err != nil {
-		return nil, errors.New("Invalid secret key")
+		log.Println("error iter")
+		return nil, fmt.Errorf("invalid secret key: %v", err)
 	}
+	if len(docs) == 0 {
+		log.Println("zero results")
+		return nil, fmt.Errorf("invalid secret key: %v", err)
+	}
+	log.Println("Data to")
 	var remoteModel RemoteModel
-	doc.DataTo(&remoteModel)
+	docs[0].DataTo(&remoteModel)
 	remoteModel.ID = modelSecret
 
+	log.Println("Check")
 	// Check if this is the correct owner
 	if remoteModel.OwnerID != userID {
 		return nil, errors.New("That RM does not belong to you")

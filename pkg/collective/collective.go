@@ -22,7 +22,6 @@ import (
 )
 
 const (
-	mockModelID              = "MOCK-MODEL-ID"
 	minFrameTimeMilliseconds = 50
 )
 
@@ -46,9 +45,9 @@ type UserInfo struct {
 }
 
 // NewCollectiveServer creates a new collective server
-func NewCollectiveServer(env string, envAddress string) api.CollectiveServer {
+func NewCollectiveServer(env string, redisAddr string, envAddress string) api.CollectiveServer {
 	// Init datacom
-	datacom, err := datacom.NewDatacom(env)
+	datacom, err := datacom.NewDatacom(env, redisAddr)
 	if err != nil {
 		log.Fatalf("Error initializing Datacom: %v", err)
 	}
@@ -71,30 +70,43 @@ func NewCollectiveServer(env string, envAddress string) api.CollectiveServer {
 }
 
 func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemoteModelServer) error {
-	println("Remote model has connected!")
+	log.Println("Remote model has connected! Authorizing...")
 	ctx := stream.Context()
 	// Get metadata and parse userinfo
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return errors.New("ConnectRemoteModel(): Error getting metadata")
+		err := errors.New("ConnectRemoteModel(): Error getting metadata")
+		log.Printf("Error: %v\n", err)
+		return err
 	}
+	log.Println("Got metadata")
 	userInfoHeader := md["x-endpoint-api-userinfo"]
 	modelSecretHeader := md["model-secret"]
+	log.Println("Parsed headers")
 	if len(userInfoHeader) == 0 || len(modelSecretHeader) == 0 {
-		return errors.New("ConnectRemoteModel(): authentication or model-secret header are missing")
+		err := errors.New("ConnectRemoteModel(): authentication or model-secret header are missing")
+		log.Printf("Error: %v\n", err)
+		return err
 	}
 	modelSecret := modelSecretHeader[0]
+	log.Println("Got secret")
 	// Parse userinfo
 	sDec, _ := b64.StdEncoding.DecodeString(userInfoHeader[0])
 	userInfo := UserInfo{}
 	json.Unmarshal(sDec, &userInfo)
+	log.Println("Got user info")
 
 	// Get RM metadata to make sure it exists
 	remoteModelMD, err := s.datacom.GetRemoteModelMetadataForUser(modelSecret, userInfo.ID)
 	if err != nil {
+		log.Printf("Error: %v\n", err)
 		return fmt.Errorf("ConnectRemoteModel(): That model does not exist or invalid secret key: %v", err)
 	}
+	log.Println("Got RM metadata")
 
+	defer s.cleanupModel(remoteModelMD.ID)
+
+	log.Println("Starting loop")
 	sendt1 := time.Now().UnixNano() / 1000000
 	// Start the loop
 	for {
@@ -216,7 +228,7 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 }
 
 func (s *collectiveServer) cleanupModel(modelID string) {
-	// println("Cleaning up model... model:", modelID)
+	println("Cleaning up model... model:", modelID)
 	// err := s.redisClient.Del("model:" + modelID + ":entities").Err()
 	// if err != nil {
 	// 	fmt.Printf("Error cleaning up model entities: %v \n", err)
