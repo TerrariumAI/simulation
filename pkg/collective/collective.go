@@ -9,9 +9,6 @@ import (
 	"sync"
 	"time"
 
-	b64 "encoding/base64"
-	"encoding/json"
-
 	datacom "github.com/terrariumai/simulation/pkg/datacom"
 
 	api "github.com/terrariumai/simulation/pkg/api/collective"
@@ -79,30 +76,22 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 		log.Printf("Error: %v\n", err)
 		return err
 	}
-	log.Println("Got metadata")
-	userInfoHeader := md["x-endpoint-api-userinfo"]
+
+	// Get secret header
 	modelSecretHeader := md["model-secret"]
-	log.Println("Parsed headers")
-	if len(userInfoHeader) == 0 || len(modelSecretHeader) == 0 {
+	if len(modelSecretHeader) == 0 {
 		err := errors.New("ConnectRemoteModel(): authentication or model-secret header are missing")
 		log.Printf("Error: %v\n", err)
 		return err
 	}
 	modelSecret := modelSecretHeader[0]
-	log.Println("Got secret")
-	// Parse userinfo
-	sDec, _ := b64.StdEncoding.DecodeString(userInfoHeader[0])
-	userInfo := UserInfo{}
-	json.Unmarshal(sDec, &userInfo)
-	log.Println("Got user info")
 
 	// Get RM metadata to make sure it exists
-	remoteModelMD, err := s.datacom.GetRemoteModelMetadataForUser(modelSecret, userInfo.ID)
+	remoteModelMD, err := s.datacom.GetRemoteModelMetadataForUser(modelSecret)
 	if err != nil {
 		log.Printf("Error: %v\n", err)
 		return fmt.Errorf("ConnectRemoteModel(): That model does not exist or invalid secret key: %v", err)
 	}
-	log.Println("Got RM metadata")
 
 	defer s.cleanupModel(remoteModelMD.ID)
 

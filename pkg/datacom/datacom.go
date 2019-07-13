@@ -309,10 +309,10 @@ func (dc *Datacom) GetEntitiesAroundPosition(xMin int32, yMin int32, xMax int32,
 
 // GetRemoteModelMetadataForUser checks the database to see if a remote model exists,
 // if so returns metadata
-func (dc *Datacom) GetRemoteModelMetadataForUser(modelSecret string, userID string) (*RemoteModel, error) {
+func (dc *Datacom) GetRemoteModelMetadataForUser(modelSecret string) (*RemoteModel, error) {
 	// Test case
 	if dc.env == "testing" {
-		if modelSecret == "MOCK-SECRET" && userID == "MOCK-USER-ID" {
+		if modelSecret == "MOCK-SECRET" {
 			return &RemoteModel{
 				ID: "MOCK-MODEL-ID",
 			}, nil
@@ -322,16 +322,15 @@ func (dc *Datacom) GetRemoteModelMetadataForUser(modelSecret string, userID stri
 
 	// Init client
 	ctx := context.Background()
-	log.Println("Creating client")
 	client, err := dc.firebaseApp.Firestore(ctx)
 	defer client.Close()
 	if err != nil {
 		return nil, err
 	}
-	log.Println("Getting RM data")
+
 	// Try to get the RM
 	q := client.Collection("remoteModels").Where("secretKey", "==", modelSecret).Limit(1)
-	log.Println("Query get all")
+
 	docs, err := q.Documents(ctx).GetAll()
 	if err != nil {
 		log.Println("error iter")
@@ -341,16 +340,10 @@ func (dc *Datacom) GetRemoteModelMetadataForUser(modelSecret string, userID stri
 		log.Println("zero results")
 		return nil, fmt.Errorf("invalid secret key: %v", err)
 	}
-	log.Println("Data to")
+
 	var remoteModel RemoteModel
 	docs[0].DataTo(&remoteModel)
 	remoteModel.ID = modelSecret
-
-	log.Println("Check")
-	// Check if this is the correct owner
-	if remoteModel.OwnerID != userID {
-		return nil, errors.New("That RM does not belong to you")
-	}
 
 	return &remoteModel, nil
 }
