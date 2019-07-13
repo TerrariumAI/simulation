@@ -5,15 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
+
+	"github.com/joho/godotenv"
 
 	firebase "firebase.google.com/go"
 	"github.com/go-redis/redis"
 	envApi "github.com/terrariumai/simulation/pkg/api/environment"
-	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
-	"google.golang.org/grpc/metadata"
 )
 
 const (
@@ -91,9 +92,19 @@ func ParseEntityContent(content string) (envApi.Entity, string) {
 
 // NewDatacom instantiates a new datacom object with proper clients
 // according to the environment
-func NewDatacom(env string, redisAddr string) (*Datacom, error) {
+func NewDatacom(env string) (*Datacom, error) {
 	dc := &Datacom{
 		env: env,
+	}
+
+	redisAddr := "localhost:6379"
+	if env == "prod" {
+		// Load env vars
+		err := godotenv.Load()
+		if err != nil {
+			log.Fatal("Error loading .env file")
+		}
+		redisAddr = os.Getenv("REDIS_ADDR")
 	}
 
 	// If we are training, we don't ever connect to any servers
@@ -134,55 +145,6 @@ func NewDatacom(env string, redisAddr string) (*Datacom, error) {
 	}
 
 	return dc, nil
-}
-
-// AuthenticateAccountWithSecret hits Firebase to authenticate the user using a secret key
-func (dc *Datacom) AuthenticateAccountWithSecret(ctx context.Context) (map[string]interface{}, error) {
-	// get the auth token from the context
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return nil, nil
-	}
-	secretHeader, ok := md["auth-secret"]
-	if !ok {
-		log.Println("Authentication(): No secret token header in context")
-		return nil, errors.New("Authentication(): Missing Secret Key In Metadata")
-	}
-	secret := secretHeader[0]
-
-	// -----------------------------------
-	// ENVIRONMENT CHECK
-	// -----------------------------------
-	// Testing doesn't implement authentication
-	if dc.env == "testing" {
-		if secret == mockSecret {
-			fakeUser := make(map[string]interface{})
-			fakeUser["id"] = "MOCK_USER_ID"
-			return fakeUser, nil
-		}
-		return nil, errors.New("Authentication(): Invalid Secret Key")
-	}
-	// -----------------------------------
-
-	// Create a firestore client
-	client, err := dc.firebaseApp.Firestore(context.Background())
-	defer client.Close()
-	if err != nil {
-		return nil, err
-	}
-	// Query for the user
-	iter := client.Collection("users").Where("secret", "==", secret).Documents(context.Background())
-	dsnap, err := iter.Next()
-	if err == iterator.Done {
-		return nil, errors.New("Authentication(): Invalid Secret Key")
-	}
-	if err != nil {
-		return nil, err
-	}
-	// Add the UID to the user data
-	m := dsnap.Data()
-	m["id"] = dsnap.Ref.ID
-	return m, nil
 }
 
 // IsCellOccupied checks the env to see if a cell has an entity by converting

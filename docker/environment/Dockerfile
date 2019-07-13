@@ -2,6 +2,7 @@ FROM scratch
 
 ADD ./bin/environment /
 ADD serviceAccountKey.json /
+ADD .env /
 
 EXPOSE 9090
 

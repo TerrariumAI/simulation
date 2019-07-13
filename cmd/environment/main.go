@@ -31,7 +31,6 @@ func main() {
 	// get configuration
 	var cfg Config
 	flag.StringVar(&cfg.GRPCPort, "grpc-port", "", "gRPC port to bind")
-	flag.StringVar(&cfg.RedisAddr, "redis-addr", "", "gRPC port to bind")
 	flag.StringVar(&cfg.Env, "env", "", "Environment the server is running in")
 	flag.IntVar(&cfg.LogLevel, "log-level", 0, "Global log level")
 	flag.StringVar(&cfg.LogTimeFormat, "log-time-format", "",
@@ -50,7 +49,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	serverAPI := environment.NewEnvironmentServer(cfg.Env, cfg.RedisAddr)
+	serverAPI := environment.NewEnvironmentServer(cfg.Env)
 
 	opts := []grpc.ServerOption{}
 	server := grpc.NewServer(opts...)

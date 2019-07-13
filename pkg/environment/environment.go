@@ -2,6 +2,8 @@ package environment
 
 import (
 	"context"
+	b64 "encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -9,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"google.golang.org/grpc/metadata"
 
 	uuid "github.com/satori/go.uuid"
 
@@ -32,12 +36,17 @@ const (
 type environmentServer struct {
 	// Environment the server is running in
 	env string
-	// Redis Address
-	redisAddr string
 	// Datacom
 	datacom *datacom.Datacom
 	// Mutex to ensure data safety
 	m sync.Mutex
+}
+
+// UserInfo is the struct that will parse the auth response
+type UserInfo struct {
+	Issuer string `json:"issuer"`
+	ID     string `json:"id"`
+	Email  string `json:"email"`
 }
 
 // PosToRedisIndex interlocks an x and y value to use as an
@@ -92,21 +101,19 @@ func ParseEntityContent(content string) (api.Entity, string) {
 }
 
 // NewEnvironmentServer creates simulation service
-func NewEnvironmentServer(env string, redisAddr string) api.EnvironmentServer {
+func NewEnvironmentServer(env string, params ...string) api.EnvironmentServer {
 	// initialize server
 	s := &environmentServer{
 		env: env,
 	}
 
-	datacom, err := datacom.NewDatacom(env, redisAddr)
+	datacom, err := datacom.NewDatacom(env)
 	if err != nil {
 		log.Fatalf("Error initializing Datacom: %v", err)
 		os.Exit(1)
 	}
 
 	s.datacom = datacom
-	// // Remove all remote models that were registered for this server before starting
-	// removeAllRemoteModelsFromFirebase(s.firebaseApp, s.env)
 
 	return s
 }
@@ -117,14 +124,19 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 	s.m.Lock()
 	defer s.m.Unlock()
 
-	// Authenticate the user
-	user, err := s.datacom.AuthenticateAccountWithSecret(ctx)
-	if err != nil {
-		return nil, err
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		fmt.Println("Not ok getting headers")
+		return nil, nil
 	}
+	userInfoHeader := md["x-endpoint-api-userinfo"]
+	sDec, _ := b64.StdEncoding.DecodeString(userInfoHeader[0])
+	userInfo := UserInfo{}
+	json.Unmarshal(sDec, &userInfo)
+
 	// Make sure the user has supplied data
 	if req.Entity == nil {
-		return nil, errors.New("Agent not in request")
+		return nil, errors.New("Entity not in request")
 	}
 	// Make sure the cell is not occupied
 	isCellOccupied, err := s.datacom.IsCellOccupied(req.Entity.X, req.Entity.Y)
@@ -143,7 +155,7 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 	}
 
 	// Add the entity to the environment
-	err = s.datacom.CreateEntity(req.Entity.X, req.Entity.Y, req.Entity.Class, user["id"].(string), req.Entity.ModelID, entityID)
+	err = s.datacom.CreateEntity(req.Entity.X, req.Entity.Y, req.Entity.Class, userInfo.ID, req.Entity.ModelID, entityID)
 
 	// Return the data for the agent
 	return &api.CreateEntityResponse{
@@ -175,7 +187,7 @@ func (s *environmentServer) DeleteEntity(ctx context.Context, req *api.DeleteEnt
 	s.m.Lock()
 	defer s.m.Unlock()
 
-	// Remove the entity from the env
+	// Remove the entity from the environment
 	deleted, err := s.datacom.DeleteEntity(req.Id)
 	if err != nil {
 		return nil, err

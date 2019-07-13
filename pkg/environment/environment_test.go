@@ -15,7 +15,7 @@ const (
 
 func TestCreateEntity(t *testing.T) {
 	// ctxWithoutValidToken := context.Background()
-	md := metadata.Pairs("auth-secret", "MOCK-SECRET")
+	md := metadata.Pairs("x-endpoint-api-userinfo", "{\"id\":\"mock-user-id\"}")
 	ctxWithValidSecret := metadata.NewIncomingContext(context.Background(), md)
 	s := NewEnvironmentServer("testing", redisAddr)
 	type args struct {
