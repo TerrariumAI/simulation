@@ -10,13 +10,11 @@ import (
 	"sync"
 	"time"
 
-	firebase "firebase.google.com/go"
 	"github.com/go-redis/redis"
 	uuid "github.com/satori/go.uuid"
 	api "github.com/terrariumai/simulation/pkg/api/collective"
 	envApi "github.com/terrariumai/simulation/pkg/api/environment"
 	environment "github.com/terrariumai/simulation/pkg/environment"
-	fb "github.com/terrariumai/simulation/pkg/fb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -30,9 +28,6 @@ const (
 type collectiveServer struct {
 	// Environment the server is running in
 	env string
-	// --- Firebase ---
-	// Firebase app
-	firebaseApp *firebase.App
 	// Mutex to ensure data safety
 	m sync.Mutex
 	// Redis client
@@ -65,7 +60,6 @@ func NewCollectiveServer(env string, redisAddr string, envAddress string) api.Co
 	// initialize server
 	s := &collectiveServer{
 		env:         env,
-		firebaseApp: fb.InitializeFirebaseApp(env),
 		redisClient: redisClient,
 	}
 	// initialize env client
