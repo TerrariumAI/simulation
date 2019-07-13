@@ -101,13 +101,13 @@ func ParseEntityContent(content string) (api.Entity, string) {
 }
 
 // NewEnvironmentServer creates simulation service
-func NewEnvironmentServer(env string, params ...string) api.EnvironmentServer {
+func NewEnvironmentServer(env string, redisAddr string) api.EnvironmentServer {
 	// initialize server
 	s := &environmentServer{
 		env: env,
 	}
 
-	datacom, err := datacom.NewDatacom(env)
+	datacom, err := datacom.NewDatacom(env, redisAddr)
 	if err != nil {
 		log.Fatalf("Error initializing Datacom: %v", err)
 		os.Exit(1)

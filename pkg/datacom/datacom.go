@@ -5,11 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
 	"strconv"
 	"strings"
-
-	"github.com/joho/godotenv"
 
 	firebase "firebase.google.com/go"
 	"github.com/go-redis/redis"
@@ -99,19 +96,9 @@ func ParseEntityContent(content string) (envApi.Entity, string) {
 
 // NewDatacom instantiates a new datacom object with proper clients
 // according to the environment
-func NewDatacom(env string) (*Datacom, error) {
+func NewDatacom(env string, redisAddr string) (*Datacom, error) {
 	dc := &Datacom{
 		env: env,
-	}
-
-	redisAddr := "localhost:6379"
-	if env == "prod" {
-		// Load env vars
-		err := godotenv.Load()
-		if err != nil {
-			log.Fatal("Error loading .env file")
-		}
-		redisAddr = os.Getenv("REDIS_ADDR")
 	}
 
 	// If we are training, we don't ever connect to any servers
@@ -294,6 +281,7 @@ func (dc *Datacom) GetEntitiesForModel(modelID string) ([]interface{}, error) {
 	return entitiesContent, nil
 }
 
+// GetEntitiesAroundPosition gets the entities directly around a position
 func (dc *Datacom) GetEntitiesAroundPosition(xMin int32, yMin int32, xMax int32, yMax int32) ([]string, error) {
 	indexMin, err := PosToRedisIndex(xMin, yMin)
 	if err != nil {
