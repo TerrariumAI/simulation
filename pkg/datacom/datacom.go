@@ -41,9 +41,9 @@ type Datacom struct {
 
 // RemoteModel struct for parsing and storing RM data from databases
 type RemoteModel struct {
-	id      string
-	ownerID string
-	name    string
+	ID      string `firestore:"id,omitempty"`
+	OwnerID string `firestore:"ownerId,omitempty"`
+	Name    string `firestore:"name,omitempty"`
 }
 
 // PosToRedisIndex interlocks an x and y value to use as an
@@ -321,7 +321,17 @@ func (dc *Datacom) GetEntitiesAroundPosition(xMin int32, yMin int32, xMax int32,
 
 // GetRemoteModelMetadataForUser checks the database to see if a remote model exists,
 // if so returns metadata
-func (dc *Datacom) GetRemoteModelMetadataForUser(modelID string, userID string) (*RemoteModel, error) {
+func (dc *Datacom) GetRemoteModelMetadataForUser(modelSecret string, userID string) (*RemoteModel, error) {
+	// Test case
+	if dc.env == "testing" {
+		if modelSecret == "MOCK-SECRET" && userID == "MOCK-USER-ID" {
+			return &RemoteModel{
+				ID: "MOCK-MODEL-ID",
+			}, nil
+		}
+		return nil, errors.New("That RM does not belong to you or does not exist")
+	}
+
 	// Init client
 	ctx := context.Background()
 	client, err := dc.firebaseApp.Firestore(ctx)
@@ -330,16 +340,17 @@ func (dc *Datacom) GetRemoteModelMetadataForUser(modelID string, userID string) 
 		return nil, err
 	}
 	// Try to get the RM
-	dsnap, err := client.Collection("remoteModels").Doc(modelID).Get(ctx)
+	iter := client.Collection("remoteModels").Where("secretKey", "==", modelSecret).Limit(1).Documents(ctx)
+	doc, err := iter.Next()
 	if err != nil {
-		return nil, err
+		return nil, errors.New("Invalid secret key")
 	}
 	var remoteModel RemoteModel
-	dsnap.DataTo(&remoteModel)
-	remoteModel.id = modelID
+	doc.DataTo(&remoteModel)
+	remoteModel.ID = modelSecret
 
 	// Check if this is the correct owner
-	if remoteModel.ownerID != userID {
+	if remoteModel.OwnerID != userID {
 		return nil, errors.New("That RM does not belong to you")
 	}
 

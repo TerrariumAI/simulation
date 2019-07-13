@@ -27,10 +27,12 @@ run-e-prod: ## run the server locally with env set to prod
 
 run-c-testing: ## run the server locally with env set to testing
 	go run -race ./cmd/collective/main.go -grpc-port=9090 -environment-addr=localhost:9091 -log-level=-1 -env=testing
-run-c-training: ## run the server locally with env set to training
-	go run -race ./cmd/collective/main.go -grpc-port=9090 -log-level=-1 -env=training
+run-c-staging: ## run the server locally with env set to testing
+	go run -race ./cmd/collective/main.go -grpc-port=9090 -environment-addr=localhost:9091 -log-level=-1 -env=staging
 run-c-prod: ## run the server locally with env set to prod
 	go run -race ./cmd/collective/main.go -grpc-port=9090 -log-level=-1 -env=prod
+run-c-training: ## run the server locally with env set to training
+	go run -race ./cmd/collective/main.go -grpc-port=9090 -log-level=-1 -env=training
 
 ## ----------------------
 ## ------ Testing

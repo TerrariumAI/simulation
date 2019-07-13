@@ -79,20 +79,20 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 		return errors.New("ConnectRemoteModel(): Error getting metadata")
 	}
 	userInfoHeader := md["x-endpoint-api-userinfo"]
-	modelIDHeader := md["model-id"]
-	if len(userInfoHeader) == 0 || len(modelIDHeader) == 0 {
-		return errors.New("ConnectRemoteModel(): authentication or model-id header are missing")
+	modelSecretHeader := md["model-secret"]
+	if len(userInfoHeader) == 0 || len(modelSecretHeader) == 0 {
+		return errors.New("ConnectRemoteModel(): authentication or model-secret header are missing")
 	}
-	modelID := modelIDHeader[0]
+	modelSecret := modelSecretHeader[0]
 	// Parse userinfo
 	sDec, _ := b64.StdEncoding.DecodeString(userInfoHeader[0])
 	userInfo := UserInfo{}
 	json.Unmarshal(sDec, &userInfo)
 
 	// Get RM metadata to make sure it exists
-	err, _ := s.datacom.GetRemoteModelMetadataForUser(modelID, userInfo.ID)
+	remoteModelMD, err := s.datacom.GetRemoteModelMetadataForUser(modelSecret, userInfo.ID)
 	if err != nil {
-		log.Fatalf("ConnectRemoteModel(): That model does not exist")
+		return fmt.Errorf("ConnectRemoteModel(): That model does not exist or invalid secret key: %v", err)
 	}
 
 	sendt1 := time.Now().UnixNano() / 1000000
@@ -105,7 +105,7 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 		}
 
 		// Query db for entities
-		entitiesContent, err := s.datacom.GetEntitiesForModel(modelID)
+		entitiesContent, err := s.datacom.GetEntitiesForModel(remoteModelMD.ID)
 		if err != nil {
 			return err
 		}
