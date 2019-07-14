@@ -9,7 +9,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 
 	"google.golang.org/grpc/metadata"
@@ -82,22 +81,6 @@ func PosToRedisIndex(x int32, y int32) (string, error) {
 //  to an entity content
 func SerializeEntity(index string, x int32, y int32, class int32, ownerUID string, modelID string, id string) string {
 	return fmt.Sprintf("%s:%v:%v:%v:%s:%s:%s", index, x, y, class, ownerUID, modelID, id)
-}
-
-// ParseEntityContent takes entity content and parses it out to an entity
-func ParseEntityContent(content string) (api.Entity, string) {
-	values := strings.Split(content, ":")
-	x, _ := strconv.Atoi(values[1])
-	y, _ := strconv.Atoi(values[2])
-	class, _ := strconv.Atoi(values[3])
-	return api.Entity{
-		X:        int32(x),
-		Y:        int32(y),
-		Class:    int32(class),
-		OwnerUID: values[4],
-		ModelID:  values[5],
-		Id:       values[6],
-	}, values[0]
 }
 
 // NewEnvironmentServer creates simulation service
@@ -258,4 +241,42 @@ func (s *environmentServer) ResetWorld(ctx context.Context, req *empty.Empty) (*
 
 	// Return
 	return &empty.Empty{}, nil
+}
+
+/*
+getRegionForPos(p) {
+    let x = p.x;
+    let y = p.y;
+    if (x < 0) {
+      x -= CELLS_IN_REGION;
+    }
+    if (y < 0) {
+      y -= CELLS_IN_REGION;
+    }
+    return {
+      x:
+        x <= 0
+          ? Math.ceil(x / CELLS_IN_REGION)
+          : Math.floor(x / CELLS_IN_REGION),
+      y:
+        y <= 0
+          ? Math.ceil(y / CELLS_IN_REGION)
+          : Math.floor(y / CELLS_IN_REGION)
+    };
+  }
+*/
+func (s *environmentServer) GetEntitiesInRegion(ctx context.Context, req *api.GetEntitiesInRegionRequest) (*api.GetEntitiesInRegionResponse, error) {
+	// Lock the data, defer unlock until end of call
+	s.m.Lock()
+	defer s.m.Unlock()
+	entities := []*api.Entity{}
+
+	entities, err := s.datacom.GetEntitiesInRegion(req.X, req.Y)
+	if err != nil {
+		log.Printf("GetEntitiesInRegion(): error %v", err)
+	}
+
+	return &api.GetEntitiesInRegionResponse{
+		Entities: entities,
+	}, nil
 }

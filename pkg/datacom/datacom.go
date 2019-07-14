@@ -22,6 +22,8 @@ const (
 
 	maxPositionPadding = 3
 	maxPosition        = 999
+
+	regionSize = 10
 )
 
 // Datacom is an object that makes it easy to communicate with our
@@ -301,6 +303,41 @@ func (dc *Datacom) GetEntitiesAroundPosition(xMin int32, yMin int32, xMax int32,
 	}
 	closeEntitiesContent := rangeQuery.Val()
 	return closeEntitiesContent, nil
+}
+
+// GetEntitiesInRegion returns the entities in a specific region
+func (dc *Datacom) GetEntitiesInRegion(x int32, y int32) ([]*envApi.Entity, error) {
+	entities := []*envApi.Entity{}
+
+	xMin := x * regionSize
+	yMin := y * regionSize
+	xMax := xMin + regionSize
+	yMax := yMin + regionSize
+	// Convert positions to index
+	indexMin, err := PosToRedisIndex(xMin, yMin)
+	if err != nil {
+		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
+	}
+	indexMax, err := PosToRedisIndex(xMax, yMax)
+	if err != nil {
+		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
+	}
+	// Perform the query
+	rangeQuery := dc.redisClient.ZRangeByLex("entities", redis.ZRangeBy{
+		Min: "[" + indexMin,
+		Max: "(" + indexMax,
+	})
+	if err := rangeQuery.Err(); err != nil {
+		return nil, fmt.Errorf("Error in range query: %v", err)
+	}
+	entitiesContent := rangeQuery.Val()
+
+	for _, content := range entitiesContent {
+		entitiy, _ := ParseEntityContent(content)
+		entities = append(entities, &entitiy)
+	}
+
+	return entities, nil
 }
 
 // --------------
