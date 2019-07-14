@@ -347,3 +347,7 @@ func (dc *Datacom) GetRemoteModelMetadataForUser(modelSecret string) (*RemoteMod
 
 	return &remoteModel, nil
 }
+
+// ---------------
+// PUBNUB
+// ---------------
