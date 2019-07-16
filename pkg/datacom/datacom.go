@@ -111,18 +111,6 @@ func NewDatacom(env string, redisAddr string) (*Datacom, error) {
 		return dc, nil
 	}
 
-	// Setup Redis
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
-	_, err := redisClient.Ping().Result()
-	if err != nil {
-		return nil, err
-	}
-	dc.redisClient = redisClient
-
 	// Setup Firebase
 	switch env {
 	case "staging":
@@ -142,6 +130,18 @@ func NewDatacom(env string, redisAddr string) (*Datacom, error) {
 		}
 		dc.firebaseApp = app
 	}
+
+	// Setup Redis
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     redisAddr,
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+	_, err := redisClient.Ping().Result()
+	if err != nil {
+		return nil, err
+	}
+	dc.redisClient = redisClient
 
 	// Setup pubnub
 	config := pubnub.NewConfig()
