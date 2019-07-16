@@ -131,7 +131,13 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 	}
 
 	// Create an id for the entity
-	entityID := uuid.NewV4().String()
+	newUUID, err := uuid.NewV4()
+	if err != nil {
+		err := errors.New("Error generating id")
+		log.Printf("ERROR CreateEntity(): %v\n", err)
+		return nil, err
+	}
+	entityID := newUUID.String()
 	// Or... use given ID for testing
 	if s.env == "testing" {
 		entityID = req.Entity.Id

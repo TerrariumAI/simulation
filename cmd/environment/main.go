@@ -62,5 +62,6 @@ func main() {
 	api.RegisterEnvironmentServer(server, serverAPI)
 
 	log.Printf("Starting Environment Server on port %v", cfg.GRPCPort)
+	log.Printf("Contains new methods.")
 	server.Serve(listen)
 }
