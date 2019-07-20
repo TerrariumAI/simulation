@@ -14,7 +14,8 @@ func (dc *Datacom) GetRemoteModelMetadataBySecret(modelSecret string) (*RemoteMo
 	if dc.env == "testing" {
 		if modelSecret == "MOCK-SECRET" {
 			return &RemoteModel{
-				ID: "MOCK-MODEL-ID",
+				ID:           "MOCK-MODEL-ID",
+				ConnectCount: 1,
 			}, nil
 		}
 		return nil, errors.New("That RM does does not exist")
@@ -54,8 +55,9 @@ func (dc *Datacom) GetRemoteModelMetadataByID(modelID string) (*RemoteModel, err
 	if dc.env == "testing" {
 		if modelID == "MOCK-MODEL-ID" {
 			return &RemoteModel{
-				ID:      "MOCK-MODEL-ID",
-				OwnerID: "MOCK-UID",
+				ID:           "MOCK-MODEL-ID",
+				OwnerID:      "MOCK-UID",
+				ConnectCount: 1,
 			}, nil
 		}
 		return nil, errors.New("That RM does does not exist")
