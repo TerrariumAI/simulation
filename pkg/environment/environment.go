@@ -107,6 +107,7 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 	s.m.Lock()
 	defer s.m.Unlock()
 
+	// Get user info from metadata
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		fmt.Println("Not ok getting headers")
@@ -121,6 +122,34 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 	if req.Entity == nil {
 		return nil, errors.New("Entity not in request")
 	}
+
+	// Validate entity class
+	if req.Entity.Class < 0 || req.Entity.Class > 3 {
+		err := errors.New("Error: invalid class")
+		log.Printf("Error: %v\n", err)
+		return nil, err
+	}
+
+	// Validate modelID
+	if len(req.Entity.ModelID) == 0 {
+		err := errors.New("Error: missing model id")
+		log.Printf("Error: %v\n", err)
+		return nil, err
+	}
+	remoteModelMD, err := s.datacom.GetRemoteModelMetadataByID(req.Entity.ModelID)
+	if err != nil {
+		log.Printf("%v\n", err)
+		return nil, err
+	}
+	if remoteModelMD.OwnerID != userInfo.ID {
+		err := errors.New("you do not own that remote model")
+		return nil, err
+	}
+	if remoteModelMD.ConnectCount == 0 {
+		err := errors.New("you must connect your remote model before creating entities for it")
+		return nil, err
+	}
+
 	// Make sure the cell is not occupied
 	isCellOccupied, err := s.datacom.IsCellOccupied(req.Entity.X, req.Entity.Y)
 	if err != nil {

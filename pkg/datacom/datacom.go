@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+	"os"
 	"strconv"
 	"strings"
 
@@ -43,9 +45,10 @@ type Datacom struct {
 
 // RemoteModel struct for parsing and storing RM data from databases
 type RemoteModel struct {
-	ID      string `firestore:"id,omitempty"`
-	OwnerID string `firestore:"ownerId,omitempty"`
-	Name    string `firestore:"name,omitempty"`
+	ID           string `firestore:"id,omitempty"`
+	OwnerID      string `firestore:"ownerId,omitempty"`
+	Name         string `firestore:"name,omitempty"`
+	ConnectCount int    `firestore:"connectCount,omitempty"`
 }
 
 // PosToRedisIndex interlocks an x and y value to use as an
@@ -115,6 +118,10 @@ func NewDatacom(env string, redisAddr string) (*Datacom, error) {
 	switch env {
 	case "staging":
 		// FIREBASE STAGING
+		if _, err := os.Stat(serviceAccountStagingFileLocation); os.IsNotExist(err) {
+			// path/to/whatever does not exist
+			log.Panic("ERROR: Staging service account file not found")
+		}
 		opt := option.WithCredentialsFile(serviceAccountStagingFileLocation)
 		app, err := firebase.NewApp(context.Background(), nil, opt)
 		if err != nil {

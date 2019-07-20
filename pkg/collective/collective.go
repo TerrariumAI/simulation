@@ -22,7 +22,6 @@ const (
 	minFrameTimeMilliseconds = 50
 )
 
-// toDoServiceServer is implementation of api.ToDoServiceServer proto interface
 type collectiveServer struct {
 	// Environment the server is running in
 	env string
@@ -87,15 +86,15 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 	modelSecret := modelSecretHeader[0]
 
 	// Get RM metadata to make sure it exists
-	remoteModelMD, err := s.datacom.GetRemoteModelMetadataForUser(modelSecret)
+	remoteModelMD, err := s.datacom.GetRemoteModelMetadataBySecret(modelSecret)
 	if err != nil {
 		log.Printf("Error: %v\n", err)
 		return fmt.Errorf("ConnectRemoteModel(): That model does not exist or invalid secret key: %v", err)
 	}
 
 	defer s.cleanupModel(remoteModelMD.ID)
+	s.datacom.UpdateRemoteModelMetadata(remoteModelMD.ID, int32(remoteModelMD.ConnectCount))
 
-	log.Println("Starting loop")
 	sendt1 := time.Now().UnixNano() / 1000000
 	// Start the loop
 	for {
@@ -115,7 +114,7 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 
 		// Generate an observation for each entity
 		for _, content := range entitiesContent {
-			entity, _ := environment.ParseEntityContent(content.(string))
+			entity, _ := datacom.ParseEntityContent(content.(string))
 			obsv := api.Observation{
 				Id: entity.Id,
 			}
@@ -136,7 +135,7 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 				if content.(string) == otherContent {
 					continue
 				}
-				otherEntity, index := environment.ParseEntityContent(content.(string))
+				otherEntity, index := datacom.ParseEntityContent(content.(string))
 				indexEntityMap[index] = otherEntity
 			}
 			for y := entity.Y - 1; y < entity.Y+1; y++ {

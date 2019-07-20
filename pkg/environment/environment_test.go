@@ -2,6 +2,7 @@ package environment
 
 import (
 	"context"
+	b64 "encoding/base64"
 	"reflect"
 	"testing"
 
@@ -10,13 +11,16 @@ import (
 )
 
 const (
-	redisAddr = "localhost:6379"
+	redisAddr          = "localhost:6379"
+	userinfoJSONString = "{\"id\":\"MOCK-UID\"}"
 )
 
 func TestCreateEntity(t *testing.T) {
 	// ctxWithoutValidToken := context.Background()
-	md := metadata.Pairs("x-endpoint-api-userinfo", "{\"id\":\"mock-user-id\"}")
+	userinfoEnc := b64.StdEncoding.EncodeToString([]byte(userinfoJSONString))
+	md := metadata.Pairs("x-endpoint-api-userinfo", userinfoEnc)
 	ctxWithValidSecret := metadata.NewIncomingContext(context.Background(), md)
+
 	s := NewEnvironmentServer("testing", redisAddr)
 	type args struct {
 		ctx context.Context
@@ -86,7 +90,8 @@ func TestCreateEntity(t *testing.T) {
 
 func TestGetEntity(t *testing.T) {
 	// ctxWithoutValidToken := context.Background()
-	md := metadata.Pairs("x-endpoint-api-userinfo", "{\"id\":\"mock-user-id\"}")
+	userinfoEnc := b64.StdEncoding.EncodeToString([]byte(userinfoJSONString))
+	md := metadata.Pairs("x-endpoint-api-userinfo", userinfoEnc)
 	ctxWithValidSecret := metadata.NewIncomingContext(context.Background(), md)
 
 	s := NewEnvironmentServer("testing", redisAddr)
@@ -113,11 +118,12 @@ func TestGetEntity(t *testing.T) {
 			},
 			want: &api.GetEntityResponse{
 				Entity: &api.Entity{
-					Id:      "0",
-					ModelID: "MOCK-MODEL-ID",
-					Class:   1,
-					X:       1,
-					Y:       1,
+					Id:       "0",
+					ModelID:  "MOCK-MODEL-ID",
+					OwnerUID: "MOCK-UID",
+					Class:    1,
+					X:        1,
+					Y:        1,
 				},
 			},
 		},
@@ -149,7 +155,8 @@ func TestGetEntity(t *testing.T) {
 
 func TestGetEntitiesInRegion(t *testing.T) {
 	// ctxWithoutValidToken := context.Background()
-	md := metadata.Pairs("x-endpoint-api-userinfo", "{\"id\":\"mock-user-id\"}")
+	userinfoEnc := b64.StdEncoding.EncodeToString([]byte(userinfoJSONString))
+	md := metadata.Pairs("x-endpoint-api-userinfo", userinfoEnc)
 	ctxWithValidSecret := metadata.NewIncomingContext(context.Background(), md)
 
 	s := NewEnvironmentServer("testing", redisAddr)
@@ -217,7 +224,8 @@ func TestGetEntitiesInRegion(t *testing.T) {
 
 func TestExecuteAgentAction(t *testing.T) {
 	// ctxWithoutValidToken := context.Background()
-	md := metadata.Pairs("auth-secret", "MOCK-SECRET")
+	userinfoEnc := b64.StdEncoding.EncodeToString([]byte(userinfoJSONString))
+	md := metadata.Pairs("x-endpoint-api-userinfo", userinfoEnc)
 	ctxWithValidSecret := metadata.NewIncomingContext(context.Background(), md)
 
 	s := NewEnvironmentServer("testing", redisAddr)
@@ -291,7 +299,8 @@ func TestExecuteAgentAction(t *testing.T) {
 
 func TestDeleteEntity(t *testing.T) {
 	// ctxWithoutValidToken := context.Background()
-	md := metadata.Pairs("auth-secret", "MOCK-SECRET")
+	userinfoEnc := b64.StdEncoding.EncodeToString([]byte(userinfoJSONString))
+	md := metadata.Pairs("x-endpoint-api-userinfo", userinfoEnc)
 	ctxWithValidSecret := metadata.NewIncomingContext(context.Background(), md)
 
 	s := NewEnvironmentServer("testing", redisAddr)
