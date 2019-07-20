@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+
+	"cloud.google.com/go/firestore"
 )
 
 // GetRemoteModelMetadataBySecret checks the database to see if a remote model exists,
@@ -44,6 +46,7 @@ func (dc *Datacom) GetRemoteModelMetadataBySecret(modelSecret string) (*RemoteMo
 
 	var remoteModel RemoteModel
 	docs[0].DataTo(&remoteModel)
+	remoteModel.ID = docs[0].Ref.ID
 
 	return &remoteModel, nil
 }
@@ -81,12 +84,30 @@ func (dc *Datacom) GetRemoteModelMetadataByID(modelID string) (*RemoteModel, err
 
 	var remoteModel RemoteModel
 	dsnap.DataTo(&remoteModel)
+	remoteModel.ID = dsnap.Ref.ID
 
 	return &remoteModel, nil
 }
 
 // UpdateRemoteModelMetadata updates a remote model's metadata
-func (dc *Datacom) UpdateRemoteModelMetadata(id string, connectCount int32) {
-	// TODO:
-	log.Println("WARNING: UpdateRemoteModelMetadata() UNIMPLEMENTED METHOD")
+func (dc *Datacom) UpdateRemoteModelMetadata(remoteModelMD *RemoteModel, connectCount int) error {
+	// Init client
+	ctx := context.Background()
+	client, err := dc.firebaseApp.Firestore(ctx)
+	defer client.Close()
+	if err != nil {
+		return err
+	}
+
+	_, err = client.Collection("remoteModels").Doc(remoteModelMD.ID).Set(ctx, map[string]interface{}{
+		"connectCount": connectCount,
+	}, firestore.MergeAll)
+
+	if err != nil {
+		// Handle any errors in an appropriate way, such as returning them.
+		log.Printf("An error has occurred updating model id=%s: %s", remoteModelMD.ID, err)
+		return err
+	}
+
+	return nil
 }

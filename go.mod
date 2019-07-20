@@ -3,6 +3,7 @@ module github.com/terrariumai/simulation
 go 1.12
 
 require (
+	cloud.google.com/go v0.34.0
 	firebase.google.com/go v3.7.0+incompatible
 	github.com/go-redis/redis v6.15.2+incompatible
 	github.com/go-sql-driver/mysql v1.4.1
