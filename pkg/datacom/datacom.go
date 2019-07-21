@@ -46,7 +46,7 @@ type Datacom struct {
 // RemoteModel struct for parsing and storing RM data from databases
 type RemoteModel struct {
 	ID           string `firestore:"id,omitempty"`
-	OwnerID      string `firestore:"ownerId,omitempty"`
+	OwnerUID     string `firestore:"ownerUID,omitempty"`
 	Name         string `firestore:"name,omitempty"`
 	ConnectCount int    `firestore:"connectCount,omitempty"`
 }

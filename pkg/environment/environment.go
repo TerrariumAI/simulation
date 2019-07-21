@@ -120,7 +120,9 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 
 	// Make sure the user has supplied data
 	if req.Entity == nil {
-		return nil, errors.New("Entity not in request")
+		err := errors.New("Entity not in request")
+		log.Printf("%v", err)
+		return nil, err
 	}
 
 	// Validate entity class
@@ -141,21 +143,25 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 		log.Printf("%v\n", err)
 		return nil, err
 	}
-	if remoteModelMD.OwnerID != userInfo.ID {
+	if remoteModelMD.OwnerUID != userInfo.ID {
 		err := errors.New("you do not own that remote model")
+		log.Printf("Error validating modelID. Metadata owner=%s, but userinfo id=%s\n", remoteModelMD.OwnerUID, userInfo.ID)
 		return nil, err
 	}
 	if remoteModelMD.ConnectCount == 0 {
 		err := errors.New("you must connect your remote model before creating entities for it")
+		log.Printf("Error validating modelID: %v\n", err)
 		return nil, err
 	}
 
 	// Make sure the cell is not occupied
 	isCellOccupied, err := s.datacom.IsCellOccupied(req.Entity.X, req.Entity.Y)
 	if err != nil {
+		log.Printf("Error checking if cell is occupied")
 		return nil, err
 	}
 	if isCellOccupied {
+		log.Printf("Error cell is occupied")
 		return nil, errors.New("That cell is already occupied by an entity")
 	}
 

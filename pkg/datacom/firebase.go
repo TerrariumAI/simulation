@@ -59,7 +59,7 @@ func (dc *Datacom) GetRemoteModelMetadataByID(modelID string) (*RemoteModel, err
 		if modelID == "MOCK-MODEL-ID" {
 			return &RemoteModel{
 				ID:           "MOCK-MODEL-ID",
-				OwnerID:      "MOCK-UID",
+				OwnerUID:     "MOCK-UID",
 				ConnectCount: 1,
 			}, nil
 		}
