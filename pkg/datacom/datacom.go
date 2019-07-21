@@ -5,10 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 
 	firebase "firebase.google.com/go"
+	pubnub "github.com/pubnub/go"
+
 	"github.com/go-redis/redis"
 	envApi "github.com/terrariumai/simulation/pkg/api/environment"
 	"google.golang.org/api/option"
@@ -22,6 +25,8 @@ const (
 
 	maxPositionPadding = 3
 	maxPosition        = 999
+
+	regionSize = 10
 )
 
 // Datacom is an object that makes it easy to communicate with our
@@ -34,13 +39,16 @@ type Datacom struct {
 	firebaseApp *firebase.App
 	// redis client
 	redisClient *redis.Client
+	// pubnub client
+	pubnubClient *pubnub.PubNub
 }
 
 // RemoteModel struct for parsing and storing RM data from databases
 type RemoteModel struct {
-	ID      string `firestore:"id,omitempty"`
-	OwnerID string `firestore:"ownerId,omitempty"`
-	Name    string `firestore:"name,omitempty"`
+	ID           string `firestore:"id,omitempty"`
+	OwnerUID     string `firestore:"ownerUID,omitempty"`
+	Name         string `firestore:"name,omitempty"`
+	ConnectCount int    `firestore:"connectCount,omitempty"`
 }
 
 // PosToRedisIndex interlocks an x and y value to use as an
@@ -106,22 +114,14 @@ func NewDatacom(env string, redisAddr string) (*Datacom, error) {
 		return dc, nil
 	}
 
-	// Setup Redis
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
-	_, err := redisClient.Ping().Result()
-	if err != nil {
-		return nil, err
-	}
-	dc.redisClient = redisClient
-
 	// Setup Firebase
 	switch env {
 	case "staging":
 		// FIREBASE STAGING
+		if _, err := os.Stat(serviceAccountStagingFileLocation); os.IsNotExist(err) {
+			// path/to/whatever does not exist
+			log.Panic("ERROR: Staging service account file not found")
+		}
 		opt := option.WithCredentialsFile(serviceAccountStagingFileLocation)
 		app, err := firebase.NewApp(context.Background(), nil, opt)
 		if err != nil {
@@ -138,216 +138,23 @@ func NewDatacom(env string, redisAddr string) (*Datacom, error) {
 		dc.firebaseApp = app
 	}
 
-	return dc, nil
-}
-
-// IsCellOccupied checks the env to see if a cell has an entity by converting
-// the cell position to an index then querying redis
-func (dc *Datacom) IsCellOccupied(x int32, y int32) (bool, error) {
-	index, err := PosToRedisIndex(x, y)
-	if err != nil {
-		return true, err
-	}
-
-	// Now we can assume positions are correct sizes
-	// (would have thrown an error above if not)
-	keys, _, err := dc.redisClient.ZScan("entities", 0, index+":*", 0).Result()
-	if len(keys) > 0 {
-		return true, nil
-	}
-
-	return false, nil
-}
-
-// CreateEntity sets entity data in the environment. It assumes that
-// the location is open and that the owner and model have already been checked.
-func (dc *Datacom) CreateEntity(x int32, y int32, class int32, ownerUID string, modelID string, entityID string) error {
-	index, err := PosToRedisIndex(x, y)
-	if err != nil {
-		return err
-	}
-
-	// Serialized entity content
-	content := SerializeEntity(index, x, y, class, ownerUID, modelID, entityID)
-
-	// Add the entity to entities sorted set
-	err = dc.redisClient.ZAdd("entities", redis.Z{
-		Score:  float64(0),
-		Member: content,
-	}).Err()
-	if err != nil {
-		return err
-	}
-	// Add the content for later easy indexing
-	err = dc.redisClient.HSet("entities.content", entityID, content).Err()
-	if err != nil {
-		return err
-	}
-	// Add the entitiy to the model's data
-	err = dc.redisClient.SAdd("model:"+modelID+":entities", entityID).Err()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// UpdateEntity updates an entity. It first removes the origional entity
-// data then creates new entity data and index from the given params and
-// writes those.
-func (dc *Datacom) UpdateEntity(origionalContent string, x int32, y int32, class int32, ownerUID string, modelID string, entityID string) error {
-	index, err := PosToRedisIndex(x, y)
-	if err != nil {
-		return err
-	}
-	content := SerializeEntity(index, x, y, class, ownerUID, modelID, entityID)
-	err = dc.redisClient.HSet("entities.content", entityID, content).Err()
-	if err != nil {
-		return err
-	}
-	err = dc.redisClient.ZRem("entities", origionalContent).Err()
-	if err != nil {
-		return err
-	}
-	err = dc.redisClient.ZAdd("entities", redis.Z{
-		Score:  float64(0),
-		Member: content,
-	}).Err()
-
-	return nil
-}
-
-// GetEntity gets an entity from the environment by id
-func (dc *Datacom) GetEntity(id string) (*envApi.Entity, *string, error) {
-	// Get the content
-	hGetEntityContent := dc.redisClient.HGet("entities.content", id)
-	if hGetEntityContent.Err() != nil {
-		return nil, nil, errors.New("Couldn't find an entity by that id")
-	}
-	content := hGetEntityContent.Val()
-	entity, _ := ParseEntityContent(content)
-
-	return &entity, &content, nil
-}
-
-// DeleteEntity completely removes an entity from existence from the environment
-func (dc *Datacom) DeleteEntity(id string) (int64, error) {
-	// Get the content
-	hGetEntityContent := dc.redisClient.HGet("entities.content", id)
-	if hGetEntityContent.Err() != nil {
-		return 0, errors.New("Error deleting entity: Couldn't find an entity by that id")
-	}
-	content := hGetEntityContent.Val()
-	// Parse the content
-	entity, _ := ParseEntityContent(content)
-	// Remove from hash
-	delete := dc.redisClient.HDel("entities.content", entity.Id)
-	if err := delete.Err(); err != nil {
-		return 0, fmt.Errorf("Error deleting entity: %s", err)
-	}
-	// Remove from SS
-	remove := dc.redisClient.ZRem("entities", content)
-	if err := remove.Err(); err != nil {
-		return 0, fmt.Errorf("Error deleting entity: %s", err)
-	}
-	// Remove from model
-	err := dc.redisClient.SRem("model:"+entity.ModelID+":entities", entity.Id).Err()
-	if err != nil {
-		return 0, err
-	}
-
-	return delete.Val(), nil
-}
-
-// GetEntitiesForModel gets a list of entities for a specific model
-func (dc *Datacom) GetEntitiesForModel(modelID string) ([]interface{}, error) {
-	// Get the entitiy IDs for this model
-	entityIdsRequest := dc.redisClient.SMembers("model:" + modelID + ":entities")
-	if err := entityIdsRequest.Err(); err != nil {
-		log.Fatalf("ConnectRemoteModel(): %v", err)
-		return nil, errors.New("ConnectRemoteModel(): Couldn't access the database to get the entity ids for this model")
-	}
-	entityIds := entityIdsRequest.Val()
-	// Get the entities for this model
-	entitiesContentRequest := dc.redisClient.HMGet("entities.content", entityIds...)
-	// Get the content for each entity
-	entitiesContent := make([]interface{}, 0)
-	if len(entityIds) > 0 {
-		if err := entitiesContentRequest.Err(); err != nil {
-			return nil, fmt.Errorf("ConnectRemoteModel(): Couldn't access the database to get the entities: %v", err)
-		}
-		entitiesContent = entitiesContentRequest.Val()
-	}
-	return entitiesContent, nil
-}
-
-// GetEntitiesAroundPosition gets the entities directly around a position
-func (dc *Datacom) GetEntitiesAroundPosition(xMin int32, yMin int32, xMax int32, yMax int32) ([]string, error) {
-	indexMin, err := PosToRedisIndex(xMin, yMin)
-	if err != nil {
-		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
-	}
-	indexMax, err := PosToRedisIndex(xMax, yMax)
-	if err != nil {
-		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
-	}
-	// Perform the query
-	rangeQuery := dc.redisClient.ZRangeByLex("entities", redis.ZRangeBy{
-		Min: "(" + indexMin,
-		Max: "(" + indexMax,
+	// Setup Redis
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     redisAddr,
+		Password: "", // no password set
+		DB:       0,  // use default DB
 	})
-	if err := rangeQuery.Err(); err != nil {
-		return nil, fmt.Errorf("Error in range query: %v", err)
-	}
-	closeEntitiesContent := rangeQuery.Val()
-	return closeEntitiesContent, nil
-}
-
-// --------------
-// FIREBASE
-// --------------
-
-// GetRemoteModelMetadataForUser checks the database to see if a remote model exists,
-// if so returns metadata
-func (dc *Datacom) GetRemoteModelMetadataForUser(modelSecret string) (*RemoteModel, error) {
-	// Test case
-	if dc.env == "testing" {
-		if modelSecret == "MOCK-SECRET" {
-			return &RemoteModel{
-				ID: "MOCK-MODEL-ID",
-			}, nil
-		}
-		return nil, errors.New("That RM does not belong to you or does not exist")
-	}
-
-	// Init client
-	ctx := context.Background()
-	client, err := dc.firebaseApp.Firestore(ctx)
-	defer client.Close()
+	_, err := redisClient.Ping().Result()
 	if err != nil {
 		return nil, err
 	}
+	dc.redisClient = redisClient
 
-	// Try to get the RM
-	q := client.Collection("remoteModels").Where("secretKey", "==", modelSecret).Limit(1)
+	// Setup pubnub
+	config := pubnub.NewConfig()
+	config.SubscribeKey = "sub-c-b4ba4e28-a647-11e9-ad2c-6ad2737329fc"
+	config.PublishKey = "pub-c-83ed11c2-81e1-4d7f-8e94-0abff2b85825"
+	dc.pubnubClient = pubnub.NewPubNub(config)
 
-	docs, err := q.Documents(ctx).GetAll()
-	if err != nil {
-		log.Println("error iter")
-		return nil, fmt.Errorf("invalid secret key: %v", err)
-	}
-	if len(docs) == 0 {
-		log.Println("zero results")
-		return nil, fmt.Errorf("invalid secret key: %v", err)
-	}
-
-	var remoteModel RemoteModel
-	docs[0].DataTo(&remoteModel)
-	remoteModel.ID = modelSecret
-
-	return &remoteModel, nil
+	return dc, nil
 }
-
-// ---------------
-// PUBNUB
-// ---------------

@@ -22,7 +22,6 @@ const (
 	minFrameTimeMilliseconds = 50
 )
 
-// toDoServiceServer is implementation of api.ToDoServiceServer proto interface
 type collectiveServer struct {
 	// Environment the server is running in
 	env string
@@ -87,7 +86,7 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 	modelSecret := modelSecretHeader[0]
 
 	// Get RM metadata to make sure it exists
-	remoteModelMD, err := s.datacom.GetRemoteModelMetadataForUser(modelSecret)
+	remoteModelMD, err := s.datacom.GetRemoteModelMetadataBySecret(modelSecret)
 	if err != nil {
 		log.Printf("Error: %v\n", err)
 		return fmt.Errorf("ConnectRemoteModel(): That model does not exist or invalid secret key: %v", err)
@@ -95,12 +94,15 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 
 	defer s.cleanupModel(remoteModelMD.ID)
 
-	log.Println("Starting loop")
+	// Update the RM to show that this has connected
+	s.datacom.UpdateRemoteModelMetadata(remoteModelMD, remoteModelMD.ConnectCount+1)
+
 	sendt1 := time.Now().UnixNano() / 1000000
 	// Start the loop
 	for {
 		select {
 		case <-ctx.Done():
+			log.Println("WARNING: RM client disconnected")
 			return nil
 		default:
 		}
@@ -108,6 +110,7 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 		// Query db for entities
 		entitiesContent, err := s.datacom.GetEntitiesForModel(remoteModelMD.ID)
 		if err != nil {
+			log.Printf("ERROR querying entities: %v\n", err)
 			return err
 		}
 		// Create a new observation packet to send
@@ -115,7 +118,7 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 
 		// Generate an observation for each entity
 		for _, content := range entitiesContent {
-			entity, _ := environment.ParseEntityContent(content.(string))
+			entity, _ := datacom.ParseEntityContent(content.(string))
 			obsv := api.Observation{
 				Id: entity.Id,
 			}
@@ -126,6 +129,7 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 			// Query for entities near this position
 			closeEntitiesContent, err := s.datacom.GetEntitiesAroundPosition(xMin, yMin, xMax, yMax)
 			if err != nil {
+				log.Printf("ERROR querying close entities: %v\n", err)
 				return err
 			}
 			// Add all the other entities to the indexEntityMap
@@ -136,7 +140,7 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 				if content.(string) == otherContent {
 					continue
 				}
-				otherEntity, index := environment.ParseEntityContent(content.(string))
+				otherEntity, index := datacom.ParseEntityContent(content.(string))
 				indexEntityMap[index] = otherEntity
 			}
 			for y := entity.Y - 1; y < entity.Y+1; y++ {
@@ -168,6 +172,7 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 			sendtDur1 := time.Now().UnixNano() / 1000000
 			if err := stream.Send(&obsvPacket); err != nil {
 				// TODO - Clean disconnect, remove data from database
+				log.Printf("ERROR sending observation packet: %v\n", err)
 				return err
 			}
 			sendtDur2 := time.Now().UnixNano() / 1000000
@@ -190,8 +195,7 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 
 			// Perform actions
 			actions := actionPacket.GetActions()
-			md := metadata.Pairs("auth-secret", "MOCK-SECRET")
-			ctx := metadata.NewOutgoingContext(context.Background(), md)
+			ctx := context.Background()
 			for _, action := range actions {
 				req := envApi.ExecuteAgentActionRequest{
 					Id:        action.Id,
@@ -216,10 +220,17 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 	}
 }
 
-func (s *collectiveServer) cleanupModel(modelID string) {
-	println("Cleaning up model... model:", modelID)
-	// err := s.redisClient.Del("model:" + modelID + ":entities").Err()
-	// if err != nil {
-	// 	fmt.Printf("Error cleaning up model entities: %v \n", err)
-	// }
+func (s *collectiveServer) cleanupModel(id string) {
+	// Get RM metadata to make sure it exists
+	remoteModelMD, err := s.datacom.GetRemoteModelMetadataByID(id)
+	if err != nil {
+		log.Printf("WARNING: Couldn't clean up model because it was not found id=%s\n", id)
+		return
+	}
+	// Update the RM to show that this has disconnected
+	err = s.datacom.UpdateRemoteModelMetadata(remoteModelMD, remoteModelMD.ConnectCount-1)
+	if err != nil {
+		log.Printf("WARNING: Couldn't clean up model, error updating metadata in firebase id=%s\n", id)
+		return
+	}
 }

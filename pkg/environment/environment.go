@@ -9,7 +9,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 
 	"google.golang.org/grpc/metadata"
@@ -84,22 +83,6 @@ func SerializeEntity(index string, x int32, y int32, class int32, ownerUID strin
 	return fmt.Sprintf("%s:%v:%v:%v:%s:%s:%s", index, x, y, class, ownerUID, modelID, id)
 }
 
-// ParseEntityContent takes entity content and parses it out to an entity
-func ParseEntityContent(content string) (api.Entity, string) {
-	values := strings.Split(content, ":")
-	x, _ := strconv.Atoi(values[1])
-	y, _ := strconv.Atoi(values[2])
-	class, _ := strconv.Atoi(values[3])
-	return api.Entity{
-		X:        int32(x),
-		Y:        int32(y),
-		Class:    int32(class),
-		OwnerUID: values[4],
-		ModelID:  values[5],
-		Id:       values[6],
-	}, values[0]
-}
-
 // NewEnvironmentServer creates simulation service
 func NewEnvironmentServer(env string, redisAddr string) api.EnvironmentServer {
 	// initialize server
@@ -124,6 +107,7 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 	s.m.Lock()
 	defer s.m.Unlock()
 
+	// Get user info from metadata
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		fmt.Println("Not ok getting headers")
@@ -136,19 +120,59 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 
 	// Make sure the user has supplied data
 	if req.Entity == nil {
-		return nil, errors.New("Entity not in request")
+		err := errors.New("Entity not in request")
+		log.Printf("%v", err)
+		return nil, err
 	}
+
+	// Validate entity class
+	if req.Entity.Class < 0 || req.Entity.Class > 3 {
+		err := errors.New("Error: invalid class")
+		log.Printf("Error: %v\n", err)
+		return nil, err
+	}
+
+	// Validate modelID
+	if len(req.Entity.ModelID) == 0 {
+		err := errors.New("Error: missing model id")
+		log.Printf("Error: %v\n", err)
+		return nil, err
+	}
+	remoteModelMD, err := s.datacom.GetRemoteModelMetadataByID(req.Entity.ModelID)
+	if err != nil {
+		log.Printf("%v\n", err)
+		return nil, err
+	}
+	if remoteModelMD.OwnerUID != userInfo.ID {
+		err := errors.New("you do not own that remote model")
+		log.Printf("Error validating modelID. Metadata owner=%s, but userinfo id=%s\n", remoteModelMD.OwnerUID, userInfo.ID)
+		return nil, err
+	}
+	if remoteModelMD.ConnectCount == 0 {
+		err := errors.New("you must connect your remote model before creating entities for it")
+		log.Printf("Error validating modelID: %v\n", err)
+		return nil, err
+	}
+
 	// Make sure the cell is not occupied
 	isCellOccupied, err := s.datacom.IsCellOccupied(req.Entity.X, req.Entity.Y)
 	if err != nil {
+		log.Printf("Error checking if cell is occupied")
 		return nil, err
 	}
 	if isCellOccupied {
+		log.Printf("Error cell is occupied")
 		return nil, errors.New("That cell is already occupied by an entity")
 	}
 
 	// Create an id for the entity
-	entityID := uuid.NewV4().String()
+	newUUID, err := uuid.NewV4()
+	if err != nil {
+		err := errors.New("Error generating id")
+		log.Printf("ERROR CreateEntity(): %v\n", err)
+		return nil, err
+	}
+	entityID := newUUID.String()
 	// Or... use given ID for testing
 	if s.env == "testing" {
 		entityID = req.Entity.Id
@@ -258,4 +282,42 @@ func (s *environmentServer) ResetWorld(ctx context.Context, req *empty.Empty) (*
 
 	// Return
 	return &empty.Empty{}, nil
+}
+
+/*
+getRegionForPos(p) {
+    let x = p.x;
+    let y = p.y;
+    if (x < 0) {
+      x -= CELLS_IN_REGION;
+    }
+    if (y < 0) {
+      y -= CELLS_IN_REGION;
+    }
+    return {
+      x:
+        x <= 0
+          ? Math.ceil(x / CELLS_IN_REGION)
+          : Math.floor(x / CELLS_IN_REGION),
+      y:
+        y <= 0
+          ? Math.ceil(y / CELLS_IN_REGION)
+          : Math.floor(y / CELLS_IN_REGION)
+    };
+  }
+*/
+func (s *environmentServer) GetEntitiesInRegion(ctx context.Context, req *api.GetEntitiesInRegionRequest) (*api.GetEntitiesInRegionResponse, error) {
+	// Lock the data, defer unlock until end of call
+	s.m.Lock()
+	defer s.m.Unlock()
+	entities := []*api.Entity{}
+
+	entities, err := s.datacom.GetEntitiesInRegion(req.X, req.Y)
+	if err != nil {
+		log.Printf("GetEntitiesInRegion(): error %v", err)
+	}
+
+	return &api.GetEntitiesInRegionResponse{
+		Entities: entities,
+	}, nil
 }
