@@ -248,7 +248,7 @@ func TestExecuteAgentAction(t *testing.T) {
 				ctx: ctxWithValidSecret,
 				req: &api.ExecuteAgentActionRequest{
 					Id:        "0",
-					Action:    0,
+					Action:    1,
 					Direction: 3,
 				},
 			},

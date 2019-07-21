@@ -29,14 +29,14 @@ func (dc *Datacom) IsCellOccupied(x int32, y int32) (bool, error) {
 
 // CreateEntity sets entity data in the environment. It assumes that
 // the location is open and that the owner and model have already been checked.
-func (dc *Datacom) CreateEntity(x int32, y int32, class int32, ownerUID string, modelID string, entityID string) error {
+func (dc *Datacom) CreateEntity(x int32, y int32, class int32, ownerUID string, modelID string, energy int32, health int32, entityID string) error {
 	index, err := PosToRedisIndex(x, y)
 	if err != nil {
 		return err
 	}
 
 	// Serialized entity content
-	content := SerializeEntity(index, x, y, class, ownerUID, modelID, entityID)
+	content := SerializeEntity(index, x, y, class, ownerUID, modelID, energy, health, entityID)
 
 	// Add the entity to entities sorted set
 	err = dc.redisClient.ZAdd("entities", redis.Z{
@@ -63,6 +63,8 @@ func (dc *Datacom) CreateEntity(x int32, y int32, class int32, ownerUID string, 
 		X:        x,
 		Y:        y,
 		Class:    class,
+		Energy:   energy,
+		Health:   health,
 		OwnerUID: ownerUID,
 		ModelID:  modelID,
 	})
@@ -73,12 +75,12 @@ func (dc *Datacom) CreateEntity(x int32, y int32, class int32, ownerUID string, 
 // UpdateEntity updates an entity. It first removes the origional entity
 // data then creates new entity data and index from the given params and
 // writes those.
-func (dc *Datacom) UpdateEntity(origionalContent string, x int32, y int32, class int32, ownerUID string, modelID string, entityID string) error {
+func (dc *Datacom) UpdateEntity(origionalContent string, x int32, y int32, class int32, ownerUID string, modelID string, energy int32, health int32, entityID string) error {
 	index, err := PosToRedisIndex(x, y)
 	if err != nil {
 		return err
 	}
-	content := SerializeEntity(index, x, y, class, ownerUID, modelID, entityID)
+	content := SerializeEntity(index, x, y, class, ownerUID, modelID, energy, health, entityID)
 	err = dc.redisClient.HSet("entities.content", entityID, content).Err()
 	if err != nil {
 		return err
@@ -98,6 +100,8 @@ func (dc *Datacom) UpdateEntity(origionalContent string, x int32, y int32, class
 		X:        x,
 		Y:        y,
 		Class:    class,
+		Energy:   energy,
+		Health:   health,
 		OwnerUID: ownerUID,
 		ModelID:  modelID,
 	})

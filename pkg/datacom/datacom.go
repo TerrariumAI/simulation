@@ -82,8 +82,8 @@ func PosToRedisIndex(x int32, y int32) (string, error) {
 
 // SerializeEntity takes in all the values for an entity and serializes them
 //  to an entity content
-func SerializeEntity(index string, x int32, y int32, class int32, ownerUID string, modelID string, id string) string {
-	return fmt.Sprintf("%s:%v:%v:%v:%s:%s:%s", index, x, y, class, ownerUID, modelID, id)
+func SerializeEntity(index string, x int32, y int32, class int32, ownerUID string, modelID string, energy int32, health int32, id string) string {
+	return fmt.Sprintf("%s:%v:%v:%v:%s:%s:%v:%v:%s", index, x, y, class, ownerUID, modelID, energy, health, id)
 }
 
 // ParseEntityContent takes entity content and parses it out to an entity
@@ -92,13 +92,19 @@ func ParseEntityContent(content string) (envApi.Entity, string) {
 	x, _ := strconv.Atoi(values[1])
 	y, _ := strconv.Atoi(values[2])
 	class, _ := strconv.Atoi(values[3])
+	ownerUID := values[4]
+	modelID := values[5]
+	energy, _ := strconv.Atoi(values[6])
+	health, _ := strconv.Atoi(values[7])
 	return envApi.Entity{
 		X:        int32(x),
 		Y:        int32(y),
 		Class:    int32(class),
-		OwnerUID: values[4],
-		ModelID:  values[5],
-		Id:       values[6],
+		OwnerUID: ownerUID,
+		ModelID:  modelID,
+		Energy:   int32(energy),
+		Health:   int32(health),
+		Id:       values[8],
 	}, values[0]
 }
 

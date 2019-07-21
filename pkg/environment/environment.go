@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"sync"
@@ -29,6 +30,11 @@ const (
 	regionSize            = 16
 	maxPositionPadding    = 3
 	maxPosition           = 999
+
+	livingEnergyCost = 1
+	moveCost         = 1
+	startingEnergy   = 100
+	startingHealth   = 100
 )
 
 // toDoServiceServer is implementation of api.ToDoServiceServer proto interface
@@ -179,7 +185,7 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 	}
 
 	// Add the entity to the environment
-	err = s.datacom.CreateEntity(req.Entity.X, req.Entity.Y, req.Entity.Class, userInfo.ID, req.Entity.ModelID, entityID)
+	err = s.datacom.CreateEntity(req.Entity.X, req.Entity.Y, req.Entity.Class, userInfo.ID, req.Entity.ModelID, startingEnergy, startingHealth, entityID)
 
 	// Return the data for the agent
 	return &api.CreateEntityResponse{
@@ -248,8 +254,17 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *api.Exe
 		targetX++
 	}
 
+	// Living energy cost
+	// Note: we will handle negative energy as overflow later
+	if entity.Energy > 0 {
+		entity.Energy -= livingEnergyCost
+	} else {
+		entity.Health -= livingEnergyCost
+	}
+
 	switch req.Action {
-	case 0: // MOVE
+	case 0: // REST
+	case 1: // MOVE
 		// Check if cell is occupied
 		isCellOccupied, err := s.datacom.IsCellOccupied(targetX, targetY)
 		if isCellOccupied || err != nil {
@@ -258,15 +273,32 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *api.Exe
 				WasSuccessful: false,
 			}, nil
 		}
-		// Update the entity
-		err = s.datacom.UpdateEntity(*origionalContent, targetX, targetY, entity.Class, entity.OwnerUID, entity.ModelID, entity.Id)
-		if err != nil {
-			return nil, err
-		}
+		entity.X = targetX
+		entity.Y = targetY
 	default: // INVALID
 		return &api.ExecuteAgentActionResponse{
 			WasSuccessful: false,
 		}, nil
+	}
+
+	// Handle overflow energy
+	if entity.Energy < 0 {
+		overflow := int32(math.Abs(float64(entity.Energy)))
+		entity.Health -= overflow
+	}
+
+	// Handle death case
+	if entity.Health <= 0 {
+		s.datacom.DeleteEntity(entity.Id)
+		return &api.ExecuteAgentActionResponse{
+			WasSuccessful: false,
+		}, nil
+	}
+
+	// Update the entity
+	err = s.datacom.UpdateEntity(*origionalContent, entity.X, entity.Y, entity.Class, entity.OwnerUID, entity.ModelID, entity.Energy, entity.Health, entity.Id)
+	if err != nil {
+		return nil, err
 	}
 
 	// Return the data for the agent
