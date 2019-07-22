@@ -30,6 +30,7 @@ const (
 	regionSize            = 16
 	maxPositionPadding    = 3
 	maxPosition           = 999
+	minPosition           = 1
 
 	livingEnergyCost = 1
 	moveCost         = 1
@@ -58,7 +59,7 @@ type UserInfo struct {
 // index in redis
 func PosToRedisIndex(x int32, y int32) (string, error) {
 	// negatives are not allowed
-	if x < 0 || y < 0 || x > maxPosition || y > maxPosition {
+	if x < minPosition || y < minPosition || x > maxPosition || y > maxPosition {
 		return "", errors.New("Invalid position")
 	}
 	xString := strconv.Itoa(int(x))
@@ -116,8 +117,9 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 	// Get user info from metadata
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		fmt.Println("Not ok getting headers")
-		return nil, nil
+		err := errors.New("Incorrect or no headers were provided")
+		log.Printf("ERROR: %s\n", err)
+		return nil, err
 	}
 	userInfoHeader := md["x-endpoint-api-userinfo"]
 	sDec, _ := b64.StdEncoding.DecodeString(userInfoHeader[0])
@@ -265,6 +267,11 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *api.Exe
 	switch req.Action {
 	case 0: // REST
 	case 1: // MOVE
+		if targetX < minPosition || targetY < minPosition {
+			return &api.ExecuteAgentActionResponse{
+				WasSuccessful: false,
+			}, nil
+		}
 		// Check if cell is occupied
 		isCellOccupied, err := s.datacom.IsCellOccupied(targetX, targetY)
 		if isCellOccupied || err != nil {

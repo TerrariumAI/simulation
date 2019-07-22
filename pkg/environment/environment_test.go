@@ -6,22 +6,34 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/alicebob/miniredis"
 	api "github.com/terrariumai/simulation/pkg/api/environment"
 	"google.golang.org/grpc/metadata"
 )
 
-const (
-	redisAddr          = "localhost:6379"
-	userinfoJSONString = "{\"id\":\"MOCK-UID\"}"
-)
-
-func TestCreateEntity(t *testing.T) {
-	// ctxWithoutValidToken := context.Background()
+func setup() (context.Context, *miniredis.Miniredis) {
+	// Context setup
+	userinfoJSONString := "{\"id\":\"MOCK-UID\"}"
 	userinfoEnc := b64.StdEncoding.EncodeToString([]byte(userinfoJSONString))
 	md := metadata.Pairs("x-endpoint-api-userinfo", userinfoEnc)
-	ctxWithValidSecret := metadata.NewIncomingContext(context.Background(), md)
+	ctxValidUserInfo := metadata.NewIncomingContext(context.Background(), md)
+	// Redis Setup
+	redisServer, err := miniredis.Run()
+	if err != nil {
+		panic(err)
+	}
+	return ctxValidUserInfo, redisServer
+}
 
-	s := NewEnvironmentServer("testing", redisAddr)
+func teardown(redisServer *miniredis.Miniredis) {
+	redisServer.Close()
+}
+
+func TestCreateEntity(t *testing.T) {
+	ctx, redisServer := setup()
+	defer teardown(redisServer)
+
+	s := NewEnvironmentServer("testing", redisServer.Addr())
 	type args struct {
 		ctx context.Context
 		req *api.CreateEntityRequest
@@ -37,7 +49,7 @@ func TestCreateEntity(t *testing.T) {
 			name: "Succesful Entity Creation",
 			s:    s,
 			args: args{
-				ctx: ctxWithValidSecret,
+				ctx: ctx,
 				req: &api.CreateEntityRequest{
 					Entity: &api.Entity{
 						Id:       "0",
@@ -57,7 +69,7 @@ func TestCreateEntity(t *testing.T) {
 			name: "Entity already in position",
 			s:    s,
 			args: args{
-				ctx: ctxWithValidSecret,
+				ctx: ctx,
 				req: &api.CreateEntityRequest{
 					Entity: &api.Entity{
 						Id:       "0",
@@ -77,7 +89,7 @@ func TestCreateEntity(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := tt.s.CreateEntity(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("simulationService.CreateEntity() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("environment.CreateEntity() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if err == nil && !reflect.DeepEqual(got, tt.want) {
@@ -89,12 +101,22 @@ func TestCreateEntity(t *testing.T) {
 }
 
 func TestGetEntity(t *testing.T) {
-	// ctxWithoutValidToken := context.Background()
-	userinfoEnc := b64.StdEncoding.EncodeToString([]byte(userinfoJSONString))
-	md := metadata.Pairs("x-endpoint-api-userinfo", userinfoEnc)
-	ctxWithValidSecret := metadata.NewIncomingContext(context.Background(), md)
+	ctx, redisServer := setup()
+	defer teardown(redisServer)
 
-	s := NewEnvironmentServer("testing", redisAddr)
+	s := NewEnvironmentServer("testing", redisServer.Addr())
+
+	// Create entity to test on
+	s.CreateEntity(ctx, &api.CreateEntityRequest{
+		Entity: &api.Entity{
+			Id:       "0",
+			X:        1,
+			Y:        1,
+			Class:    1,
+			OwnerUID: "MOCK-UID",
+			ModelID:  "MOCK-MODEL-ID",
+		},
+	})
 
 	type args struct {
 		ctx context.Context
@@ -111,7 +133,7 @@ func TestGetEntity(t *testing.T) {
 			name: "Succesful Get Entity",
 			s:    s,
 			args: args{
-				ctx: ctxWithValidSecret,
+				ctx: ctx,
 				req: &api.GetEntityRequest{
 					Id: "0",
 				},
@@ -121,6 +143,8 @@ func TestGetEntity(t *testing.T) {
 					Id:       "0",
 					ModelID:  "MOCK-MODEL-ID",
 					OwnerUID: "MOCK-UID",
+					Energy:   100,
+					Health:   100,
 					Class:    1,
 					X:        1,
 					Y:        1,
@@ -131,7 +155,7 @@ func TestGetEntity(t *testing.T) {
 			name: "Entity doesn't exist",
 			s:    s,
 			args: args{
-				ctx: ctxWithValidSecret,
+				ctx: ctx,
 				req: &api.GetEntityRequest{
 					Id: "1",
 				},
@@ -143,7 +167,7 @@ func TestGetEntity(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := tt.s.GetEntity(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("simulationService.GetEntity() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("environment.GetEntity() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if err == nil && !reflect.DeepEqual(got, tt.want) {
@@ -154,12 +178,22 @@ func TestGetEntity(t *testing.T) {
 }
 
 func TestGetEntitiesInRegion(t *testing.T) {
-	// ctxWithoutValidToken := context.Background()
-	userinfoEnc := b64.StdEncoding.EncodeToString([]byte(userinfoJSONString))
-	md := metadata.Pairs("x-endpoint-api-userinfo", userinfoEnc)
-	ctxWithValidSecret := metadata.NewIncomingContext(context.Background(), md)
+	ctx, redisServer := setup()
+	defer teardown(redisServer)
 
-	s := NewEnvironmentServer("testing", redisAddr)
+	s := NewEnvironmentServer("testing", redisServer.Addr())
+
+	// Create entity to test on
+	s.CreateEntity(ctx, &api.CreateEntityRequest{
+		Entity: &api.Entity{
+			Id:       "0",
+			X:        1,
+			Y:        1,
+			Class:    1,
+			OwnerUID: "MOCK-UID",
+			ModelID:  "MOCK-MODEL-ID",
+		},
+	})
 
 	type args struct {
 		ctx context.Context
@@ -176,7 +210,7 @@ func TestGetEntitiesInRegion(t *testing.T) {
 			name: "Succesful",
 			s:    s,
 			args: args{
-				ctx: ctxWithValidSecret,
+				ctx: ctx,
 				req: &api.GetEntitiesInRegionRequest{
 					X: 0,
 					Y: 0,
@@ -185,22 +219,25 @@ func TestGetEntitiesInRegion(t *testing.T) {
 			want: &api.GetEntitiesInRegionResponse{
 				Entities: []*api.Entity{
 					&api.Entity{
-						Id:      "0",
-						ModelID: "MOCK-MODEL-ID",
-						Class:   1,
-						X:       1,
-						Y:       1,
+						Id:       "0",
+						ModelID:  "MOCK-MODEL-ID",
+						OwnerUID: "MOCK-UID",
+						Class:    1,
+						Energy:   100,
+						Health:   100,
+						X:        1,
+						Y:        1,
 					}},
 			},
 		},
 		{
-			name: "Entity doesn't exist",
+			name: "Empty region",
 			s:    s,
 			args: args{
-				ctx: ctxWithValidSecret,
+				ctx: ctx,
 				req: &api.GetEntitiesInRegionRequest{
-					X: 1,
-					Y: 1,
+					X: 5,
+					Y: 5,
 				},
 			},
 			want: &api.GetEntitiesInRegionResponse{
@@ -212,23 +249,21 @@ func TestGetEntitiesInRegion(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := tt.s.GetEntitiesInRegion(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("simulationService.GetEntitiesInRegion() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("environment.GetEntitiesInRegion() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if err == nil && !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("environment.GetEntitiesInRegion() = %v, want %v", got, tt.want)
+				t.Errorf("environment.GetEntitiesInRegion() got %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
 func TestExecuteAgentAction(t *testing.T) {
-	// ctxWithoutValidToken := context.Background()
-	userinfoEnc := b64.StdEncoding.EncodeToString([]byte(userinfoJSONString))
-	md := metadata.Pairs("x-endpoint-api-userinfo", userinfoEnc)
-	ctxWithValidSecret := metadata.NewIncomingContext(context.Background(), md)
+	ctx, redisServer := setup()
+	defer teardown(redisServer)
 
-	s := NewEnvironmentServer("testing", redisAddr)
+	s := NewEnvironmentServer("testing", redisServer.Addr())
 
 	type args struct {
 		ctx context.Context
@@ -245,7 +280,7 @@ func TestExecuteAgentAction(t *testing.T) {
 			name: "Succesful action execution",
 			s:    s,
 			args: args{
-				ctx: ctxWithValidSecret,
+				ctx: ctx,
 				req: &api.ExecuteAgentActionRequest{
 					Id:        "0",
 					Action:    1,
@@ -260,7 +295,7 @@ func TestExecuteAgentAction(t *testing.T) {
 			name: "Invalid action",
 			s:    s,
 			args: args{
-				ctx: ctxWithValidSecret,
+				ctx: ctx,
 				req: &api.ExecuteAgentActionRequest{
 					Id:        "0",
 					Action:    2,
@@ -275,7 +310,7 @@ func TestExecuteAgentAction(t *testing.T) {
 			name: "Entity doesn't exist",
 			s:    s,
 			args: args{
-				ctx: ctxWithValidSecret,
+				ctx: ctx,
 				req: &api.ExecuteAgentActionRequest{
 					Id: "1",
 				},
@@ -298,12 +333,10 @@ func TestExecuteAgentAction(t *testing.T) {
 }
 
 func TestDeleteEntity(t *testing.T) {
-	// ctxWithoutValidToken := context.Background()
-	userinfoEnc := b64.StdEncoding.EncodeToString([]byte(userinfoJSONString))
-	md := metadata.Pairs("x-endpoint-api-userinfo", userinfoEnc)
-	ctxWithValidSecret := metadata.NewIncomingContext(context.Background(), md)
+	ctx, redisServer := setup()
+	defer teardown(redisServer)
 
-	s := NewEnvironmentServer("testing", redisAddr)
+	s := NewEnvironmentServer("testing", redisServer.Addr())
 
 	type args struct {
 		ctx context.Context
@@ -320,7 +353,7 @@ func TestDeleteEntity(t *testing.T) {
 			name: "Succesful Get Entity",
 			s:    s,
 			args: args{
-				ctx: ctxWithValidSecret,
+				ctx: ctx,
 				req: &api.DeleteEntityRequest{
 					Id: "0",
 				},
@@ -333,7 +366,7 @@ func TestDeleteEntity(t *testing.T) {
 			name: "Entity doesn't exist",
 			s:    s,
 			args: args{
-				ctx: ctxWithValidSecret,
+				ctx: ctx,
 				req: &api.DeleteEntityRequest{
 					Id: "1",
 				},

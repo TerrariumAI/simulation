@@ -119,6 +119,13 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 		// Generate an observation for each entity
 		for _, content := range entitiesContent {
 			entity, _ := datacom.ParseEntityContent(content.(string))
+
+			// If the entity is out of bounds for some reason, delete it
+			if entity.X < 1 || entity.Y < 1 {
+				s.datacom.DeleteEntity(entity.Id)
+				continue
+			}
+
 			obsv := api.Observation{
 				Id: entity.Id,
 			}

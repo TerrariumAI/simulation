@@ -44,11 +44,9 @@ run-c-training: ## run the server locally with env set to training
 ## ------ Testing
 ## ----------------------
 
-test: test-vec2 test-simulation ## test all internal packages
-test-vec2: ## run tests for Vec2
-	go test ./pkg/vec2/v1
-test-simulation: ## run tests for the simulation service
-	go test ./pkg/service/v1
+test: test-datacom ## test all internal packages
+test-datacom: ## run tests for the simulation service
+	go test ./pkg/datacom
 
 ## ----------------------
 ## ------ Protobuf
