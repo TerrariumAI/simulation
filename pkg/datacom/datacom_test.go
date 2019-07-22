@@ -1,9 +1,9 @@
-package datacom
+package datacom_test
 
 import (
 	"reflect"
 	"testing"
-
+	"github.com/terrariumai/simulation/pkg/datacom"
 	"github.com/alicebob/miniredis"
 )
 
@@ -40,11 +40,38 @@ func TestPosToRedisIndex(t *testing.T) {
 			"000000",
 			false,
 		},
+		{
+			"Test 1,1",
+			args{
+				x: 1,
+				y: 1,
+			},
+			"000011",
+			false,
+		},
+		{
+			"Test 12,34",
+			args{
+				x: 12,
+				y: 34,
+			},
+			"001324",
+			false,
+		},
+		{
+			"Test 123,456",
+			args{
+				x: 123,
+				y: 456,
+			},
+			"142536",
+			false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := PosToRedisIndex(tt.args.x, tt.args.y)
+			got, err := datacom.PosToRedisIndex(tt.args.x, tt.args.y)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("got: %v, expected %v", err, tt.wantErr)
 				return
