@@ -9,7 +9,6 @@ import (
 	"log"
 	"math"
 	"os"
-	"strconv"
 	"sync"
 
 	"google.golang.org/grpc/metadata"
@@ -55,41 +54,6 @@ type UserInfo struct {
 	Email  string `json:"email"`
 }
 
-// PosToRedisIndex interlocks an x and y value to use as an
-// index in redis
-func PosToRedisIndex(x int32, y int32) (string, error) {
-	// negatives are not allowed
-	if x < minPosition || y < minPosition || x > maxPosition || y > maxPosition {
-		return "", errors.New("Invalid position")
-	}
-	xString := strconv.Itoa(int(x))
-	yString := strconv.Itoa(int(y))
-	interlocked := ""
-	// make sure x and y are the correct length when converted to str
-	if len(xString) > maxPositionPadding || len(yString) > maxPositionPadding {
-		return "", errors.New("X or Y position are too large")
-	}
-	// add padding
-	for len(xString) < maxPositionPadding {
-		xString = "0" + xString
-	}
-	for len(yString) < maxPositionPadding {
-		yString = "0" + yString
-	}
-	// interlock
-	for i := 0; i < maxPositionPadding; i++ {
-		interlocked = interlocked + xString[i:i+1] + yString[i:i+1]
-	}
-
-	return interlocked, nil
-}
-
-// SerializeEntity takes in all the values for an entity and serializes them
-//  to an entity content
-func SerializeEntity(index string, x int32, y int32, class int32, ownerUID string, modelID string, id string) string {
-	return fmt.Sprintf("%s:%v:%v:%v:%s:%s:%s", index, x, y, class, ownerUID, modelID, id)
-}
-
 // NewEnvironmentServer creates simulation service
 func NewEnvironmentServer(env string, redisAddr string) api.EnvironmentServer {
 	// initialize server
@@ -97,7 +61,9 @@ func NewEnvironmentServer(env string, redisAddr string) api.EnvironmentServer {
 		env: env,
 	}
 
-	datacom, err := datacom.NewDatacom(env, redisAddr)
+	// Initialize pubnub pal
+	pubnubPAL := datacom.NewPubnubPAL("sub-c-b4ba4e28-a647-11e9-ad2c-6ad2737329fc", "pub-c-83ed11c2-81e1-4d7f-8e94-0abff2b85825")
+	datacom, err := datacom.NewDatacom(env, redisAddr, pubnubPAL)
 	if err != nil {
 		log.Fatalf("Error initializing Datacom: %v", err)
 		os.Exit(1)

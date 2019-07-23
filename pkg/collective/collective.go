@@ -13,7 +13,6 @@ import (
 
 	api "github.com/terrariumai/simulation/pkg/api/collective"
 	envApi "github.com/terrariumai/simulation/pkg/api/environment"
-	environment "github.com/terrariumai/simulation/pkg/environment"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -118,52 +117,7 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 
 		// Generate an observation for each entity
 		for _, content := range entitiesContent {
-			entity, _ := datacom.ParseEntityContent(content.(string))
 
-			// If the entity is out of bounds for some reason, delete it
-			if entity.X < 1 || entity.Y < 1 {
-				s.datacom.DeleteEntity(entity.Id)
-				continue
-			}
-
-			obsv := api.Observation{
-				Id: entity.Id,
-			}
-			xMin := entity.X - 1
-			xMax := entity.X + 1
-			yMin := entity.Y - 1
-			yMax := entity.Y + 1
-			// Query for entities near this position
-			closeEntitiesContent, err := s.datacom.GetEntitiesAroundPosition(xMin, yMin, xMax, yMax)
-			if err != nil {
-				log.Printf("ERROR querying close entities: %v\n", err)
-				return err
-			}
-			// Add all the other entities to the indexEntityMap
-			// Match them up with the correct positions
-			indexEntityMap := make(map[string]envApi.Entity)
-			for _, otherContent := range closeEntitiesContent {
-				// Don't count the same entity
-				if content.(string) == otherContent {
-					continue
-				}
-				otherEntity, index := datacom.ParseEntityContent(content.(string))
-				indexEntityMap[index] = otherEntity
-			}
-			for y := entity.Y - 1; y < entity.Y+1; y++ {
-				for x := entity.X - 1; x < entity.X+1; x++ {
-					index, err := environment.PosToRedisIndex(x, y)
-					if err != nil {
-						obsv.Cells = append(obsv.Cells, &api.Entity{Id: "", Class: 0})
-						continue
-					}
-					if otherEntity, ok := indexEntityMap[index]; ok {
-						obsv.Cells = append(obsv.Cells, &api.Entity{Id: otherEntity.Id, Class: otherEntity.Class})
-					} else {
-						obsv.Cells = append(obsv.Cells, &api.Entity{Id: "", Class: 0})
-					}
-				}
-			}
 			obsvPacket.Observations = append(obsvPacket.Observations, &obsv)
 		}
 

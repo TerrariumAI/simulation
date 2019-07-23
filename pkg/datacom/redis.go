@@ -6,13 +6,14 @@ import (
 	"log"
 
 	"github.com/go-redis/redis"
+	collectiveApi "github.com/terrariumai/simulation/pkg/api/collective"
 	envApi "github.com/terrariumai/simulation/pkg/api/environment"
 )
 
 // IsCellOccupied checks the env to see if a cell has an entity by converting
 // the cell position to an index then querying redis
-func (dc *Datacom) IsCellOccupied(x int32, y int32) (bool, error) {
-	index, err := PosToRedisIndex(x, y)
+func (dc *Datacom) IsCellOccupied(x uint32, y uint32) (bool, error) {
+	index, err := posToRedisIndex(x, y)
 	if err != nil {
 		return true, err
 	}
@@ -29,14 +30,13 @@ func (dc *Datacom) IsCellOccupied(x int32, y int32) (bool, error) {
 
 // CreateEntity sets entity data in the environment. It assumes that
 // the location is open and that the owner and model have already been checked.
-func (dc *Datacom) CreateEntity(x int32, y int32, class int32, ownerUID string, modelID string, energy int32, health int32, entityID string) error {
-	index, err := PosToRedisIndex(x, y)
+func (dc *Datacom) CreateEntity(e envApi.Entity) error {
+	// Serialized entity content
+	content, err := serializeEntity(e)
 	if err != nil {
+		log.Println("ERROR: ", err)
 		return err
 	}
-
-	// Serialized entity content
-	content := SerializeEntity(index, x, y, class, ownerUID, modelID, energy, health, entityID)
 
 	// Add the entity to entities sorted set
 	err = dc.redisClient.ZAdd("entities", redis.Z{
@@ -47,27 +47,19 @@ func (dc *Datacom) CreateEntity(x int32, y int32, class int32, ownerUID string, 
 		return err
 	}
 	// Add the content for later easy indexing
-	err = dc.redisClient.HSet("entities.content", entityID, content).Err()
+	err = dc.redisClient.HSet("entities.content", e.Id, content).Err()
 	if err != nil {
 		return err
 	}
 	// Add the entitiy to the model's data
-	err = dc.redisClient.SAdd("model:"+modelID+":entities", entityID).Err()
+	err = dc.redisClient.SAdd("model:"+e.ModelID+":entities", e.Id).Err()
 	if err != nil {
 		return err
 	}
 
 	// Send update
-	dc.PublishEvent("createEntity", envApi.Entity{
-		Id:       entityID,
-		X:        x,
-		Y:        y,
-		Class:    class,
-		Energy:   energy,
-		Health:   health,
-		OwnerUID: ownerUID,
-		ModelID:  modelID,
-	})
+	entity, _ := parseEntityContent(content)
+	dc.pubsub.PublishEvent("createEntity", entity)
 
 	return nil
 }
@@ -75,18 +67,20 @@ func (dc *Datacom) CreateEntity(x int32, y int32, class int32, ownerUID string, 
 // UpdateEntity updates an entity. It first removes the origional entity
 // data then creates new entity data and index from the given params and
 // writes those.
-func (dc *Datacom) UpdateEntity(origionalContent string, x int32, y int32, class int32, ownerUID string, modelID string, energy int32, health int32, entityID string) error {
-	index, err := PosToRedisIndex(x, y)
+func (dc *Datacom) UpdateEntity(origionalContent string, e envApi.Entity) error {
+	content, err := serializeEntity(e)
 	if err != nil {
+		log.Println("ERROR: ", err)
 		return err
 	}
-	content := SerializeEntity(index, x, y, class, ownerUID, modelID, energy, health, entityID)
-	err = dc.redisClient.HSet("entities.content", entityID, content).Err()
+	err = dc.redisClient.HSet("entities.content", e.Id, content).Err()
 	if err != nil {
+		log.Println("ERROR: ", err)
 		return err
 	}
 	err = dc.redisClient.ZRem("entities", origionalContent).Err()
 	if err != nil {
+		log.Println("ERROR: ", err)
 		return err
 	}
 	err = dc.redisClient.ZAdd("entities", redis.Z{
@@ -95,16 +89,7 @@ func (dc *Datacom) UpdateEntity(origionalContent string, x int32, y int32, class
 	}).Err()
 
 	// Send update
-	dc.PublishEvent("updateEntity", envApi.Entity{
-		Id:       entityID,
-		X:        x,
-		Y:        y,
-		Class:    class,
-		Energy:   energy,
-		Health:   health,
-		OwnerUID: ownerUID,
-		ModelID:  modelID,
-	})
+	dc.pubsub.PublishEvent("updateEntity", e)
 
 	return nil
 }
@@ -117,10 +102,10 @@ func (dc *Datacom) GetEntity(id string) (*envApi.Entity, *string, error) {
 		return nil, nil, errors.New("Couldn't find an entity by that id")
 	}
 	content := hGetEntityContent.Val()
-	entity, _ := ParseEntityContent(content)
+	entity, _ := parseEntityContent(content)
 
 	// Send update
-	dc.PublishEvent("createEntity", entity)
+	dc.pubsub.PublishEvent("createEntity", entity)
 
 	return &entity, &content, nil
 }
@@ -134,7 +119,7 @@ func (dc *Datacom) DeleteEntity(id string) (int64, error) {
 	}
 	content := hGetEntityContent.Val()
 	// Parse the content
-	entity, _ := ParseEntityContent(content)
+	entity, _ := parseEntityContent(content)
 	// Remove from hash
 	delete := dc.redisClient.HDel("entities.content", entity.Id)
 	if err := delete.Err(); err != nil {
@@ -152,9 +137,7 @@ func (dc *Datacom) DeleteEntity(id string) (int64, error) {
 	}
 
 	// Send update
-	dc.PublishEvent("deleteEntity", envApi.Entity{
-		Id: id,
-	})
+	dc.pubsub.PublishEvent("deleteEntity", entity)
 
 	return delete.Val(), nil
 }
@@ -181,30 +164,86 @@ func (dc *Datacom) GetEntitiesForModel(modelID string) ([]interface{}, error) {
 	return entitiesContent, nil
 }
 
-// GetEntitiesAroundPosition gets the entities directly around a position
-func (dc *Datacom) GetEntitiesAroundPosition(xMin int32, yMin int32, xMax int32, yMax int32) ([]string, error) {
-	indexMin, err := PosToRedisIndex(xMin, yMin)
+// getEntitiesAroundPosition gets the entities directly around a position
+// TODO - this doesn't work correctly as there isn't enough fine tunement to do this. Use another
+// method
+func (dc *Datacom) getEntitiesInArea(xMin uint32, yMin uint32, xMax uint32, yMax uint32) ([]string, error) {
+	indexMin, err := posToRedisIndex(xMin, yMin)
 	if err != nil {
 		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
 	}
-	indexMax, err := PosToRedisIndex(xMax, yMax)
+	indexMax, err := posToRedisIndex(xMax, yMax)
 	if err != nil {
 		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
 	}
 	// Perform the query
 	rangeQuery := dc.redisClient.ZRangeByLex("entities", redis.ZRangeBy{
-		Min: "(" + indexMin,
-		Max: "(" + indexMax,
+		Min: "[" + indexMin,
+		Max: "[" + indexMax,
 	})
 	if err := rangeQuery.Err(); err != nil {
 		return nil, fmt.Errorf("Error in range query: %v", err)
 	}
-	closeEntitiesContent := rangeQuery.Val()
-	return closeEntitiesContent, nil
+	entitiesContent := rangeQuery.Val()
+	return entitiesContent, nil
+}
+
+// GetObservationForEntity returns observations for a specific entity
+func (dc *Datacom) GetObservationForEntity(content string) (*collectiveApi.Observation, error) {
+	entity, index := parseEntityContent(content)
+
+	// If the entity is out of bounds for some reason, delete it
+	// TODO - remove this, make it so it is impossible to get here in the first place
+	if entity.X < 1 || entity.Y < 1 {
+		dc.DeleteEntity(entity.Id)
+		return nil, errors.New("Entity was invalid and has been deleted")
+	}
+
+	obsv := collectiveApi.Observation{
+		Id: entity.Id,
+	}
+	xMin := entity.X - 1
+	xMax := entity.X + 1
+	yMin := entity.Y - 1
+	yMax := entity.Y + 1
+	// Query for entities near this position
+	closeEntitiesContent, err := dc.getEntitiesInArea(xMin, yMin, xMax, yMax)
+	if err != nil {
+		log.Printf("ERROR querying close entities: %v\n", err)
+		return nil, err
+	}
+	// Add all the other entities to the indexEntityMap
+	// Match them up with the correct positions
+	indexEntityMap := make(map[string]envApi.Entity)
+	for _, otherContent := range closeEntitiesContent {
+		// Don't count the same entity
+		if content == otherContent {
+			continue
+		}
+		otherEntity, index := parseEntityContent(otherContent)
+		indexEntityMap[index] = otherEntity
+	}
+	for y := entity.Y + 1; y >= entity.Y-1; y-- {
+		for x := entity.X - 1; x <= entity.X+1; x++ {
+			otherIndex, err := posToRedisIndex(x, y)
+			if err != nil {
+				return nil, err
+			}
+			if otherIndex == index {
+				continue
+			}
+			if otherEntity, ok := indexEntityMap[otherIndex]; ok {
+				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: otherEntity.Id, Class: otherEntity.Class})
+			} else {
+				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: "", Class: 0})
+			}
+		}
+	}
+	return &obsv, nil
 }
 
 // GetEntitiesInRegion returns the entities in a specific region
-func (dc *Datacom) GetEntitiesInRegion(x int32, y int32) ([]*envApi.Entity, error) {
+func (dc *Datacom) GetEntitiesInRegion(x uint32, y uint32) ([]*envApi.Entity, error) {
 	entities := []*envApi.Entity{}
 
 	xMin := x * regionSize
@@ -212,11 +251,11 @@ func (dc *Datacom) GetEntitiesInRegion(x int32, y int32) ([]*envApi.Entity, erro
 	xMax := xMin + regionSize
 	yMax := yMin + regionSize
 	// Convert positions to index
-	indexMin, err := PosToRedisIndex(xMin, yMin)
+	indexMin, err := posToRedisIndex(xMin, yMin)
 	if err != nil {
 		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
 	}
-	indexMax, err := PosToRedisIndex(xMax, yMax)
+	indexMax, err := posToRedisIndex(xMax, yMax)
 	if err != nil {
 		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
 	}
@@ -231,7 +270,7 @@ func (dc *Datacom) GetEntitiesInRegion(x int32, y int32) ([]*envApi.Entity, erro
 	entitiesContent := rangeQuery.Val()
 
 	for _, content := range entitiesContent {
-		entitiy, _ := ParseEntityContent(content)
+		entitiy, _ := parseEntityContent(content)
 		entities = append(entities, &entitiy)
 	}
 

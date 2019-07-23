@@ -2,15 +2,10 @@ package datacom
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"log"
 	"os"
-	"strconv"
-	"strings"
 
 	firebase "firebase.google.com/go"
-	pubnub "github.com/pubnub/go"
 
 	"github.com/go-redis/redis"
 	envApi "github.com/terrariumai/simulation/pkg/api/environment"
@@ -26,7 +21,8 @@ const (
 	maxPositionPadding = 3
 	maxPosition        = 999
 
-	regionSize = 10
+	regionSize            = 10
+	cellsInRegion float64 = 10
 )
 
 // Datacom is an object that makes it easy to communicate with our
@@ -40,7 +36,7 @@ type Datacom struct {
 	// redis client
 	redisClient *redis.Client
 	// pubnub client
-	pubnubClient *pubnub.PubNub
+	pubsub PubsubAccessLayer
 }
 
 // RemoteModel struct for parsing and storing RM data from databases
@@ -51,68 +47,23 @@ type RemoteModel struct {
 	ConnectCount int    `firestore:"connectCount,omitempty"`
 }
 
-// PosToRedisIndex interlocks an x and y value to use as an
-// index in redis
-func PosToRedisIndex(x int32, y int32) (string, error) {
-	// negatives are not allowed
-	if x < 0 || y < 0 || x > maxPosition || y > maxPosition {
-		return "", errors.New("Invalid position")
-	}
-	xString := strconv.Itoa(int(x))
-	yString := strconv.Itoa(int(y))
-	interlocked := ""
-	// make sure x and y are the correct length when converted to str
-	if len(xString) > maxPositionPadding || len(yString) > maxPositionPadding {
-		return "", errors.New("X or Y position are too large")
-	}
-	// add padding
-	for len(xString) < maxPositionPadding {
-		xString = "0" + xString
-	}
-	for len(yString) < maxPositionPadding {
-		yString = "0" + yString
-	}
-	// interlock
-	for i := 0; i < maxPositionPadding; i++ {
-		interlocked = interlocked + xString[i:i+1] + yString[i:i+1]
-	}
+// -------------
+// Access Layers
+// -------------
+// Note: Access layers are interfaces that will hold generic actions for a specific service (pubsub, database, etc.)
+//   This allows us to create a default implementation, AND mock easily.
 
-	return interlocked, nil
-}
-
-// SerializeEntity takes in all the values for an entity and serializes them
-//  to an entity content
-func SerializeEntity(index string, x int32, y int32, class int32, ownerUID string, modelID string, energy int32, health int32, id string) string {
-	return fmt.Sprintf("%s:%v:%v:%v:%s:%s:%v:%v:%s", index, x, y, class, ownerUID, modelID, energy, health, id)
-}
-
-// ParseEntityContent takes entity content and parses it out to an entity
-func ParseEntityContent(content string) (envApi.Entity, string) {
-	values := strings.Split(content, ":")
-	x, _ := strconv.Atoi(values[1])
-	y, _ := strconv.Atoi(values[2])
-	class, _ := strconv.Atoi(values[3])
-	ownerUID := values[4]
-	modelID := values[5]
-	energy, _ := strconv.Atoi(values[6])
-	health, _ := strconv.Atoi(values[7])
-	return envApi.Entity{
-		X:        int32(x),
-		Y:        int32(y),
-		Class:    int32(class),
-		OwnerUID: ownerUID,
-		ModelID:  modelID,
-		Energy:   int32(energy),
-		Health:   int32(health),
-		Id:       values[8],
-	}, values[0]
+// PubsubAccessLayer generic interface for pubsub services.
+type PubsubAccessLayer interface {
+	PublishEvent(eventName string, entity envApi.Entity) error
 }
 
 // NewDatacom instantiates a new datacom object with proper clients
 // according to the environment
-func NewDatacom(env string, redisAddr string) (*Datacom, error) {
+func NewDatacom(env string, redisAddr string, pubsub PubsubAccessLayer) (*Datacom, error) {
 	dc := &Datacom{
-		env: env,
+		env:    env,
+		pubsub: pubsub,
 	}
 
 	// If we are training, we don't ever connect to any servers
@@ -155,12 +106,6 @@ func NewDatacom(env string, redisAddr string) (*Datacom, error) {
 		return nil, err
 	}
 	dc.redisClient = redisClient
-
-	// Setup pubnub
-	config := pubnub.NewConfig()
-	config.SubscribeKey = "sub-c-b4ba4e28-a647-11e9-ad2c-6ad2737329fc"
-	config.PublishKey = "pub-c-83ed11c2-81e1-4d7f-8e94-0abff2b85825"
-	dc.pubnubClient = pubnub.NewPubNub(config)
 
 	return dc, nil
 }
