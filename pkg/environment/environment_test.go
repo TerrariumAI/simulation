@@ -504,7 +504,7 @@ func TestExecuteAgentAction(t *testing.T) {
 			mockIsCellOccupiedResp: isCellOccupiedResp{false, nil},
 			wantUpdateEntityArgs: updateEntityArgs{
 				origionalContent: "mock-original-content",
-				entity:           envApi.Entity{Id: "mock-entity-id", X: 2, Y: 1, Energy: 99, Health: 100},
+				entity:           envApi.Entity{Id: "mock-entity-id", X: 2, Y: 1, Energy: 98, Health: 100},
 			},
 			want: &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: true,

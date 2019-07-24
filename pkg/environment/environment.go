@@ -21,16 +21,13 @@ import (
 )
 
 const (
-	// apiVersion is version of API is provided by server
-	apiVersion  = "v1"
-	regionSize  = 10
 	maxPosition = 999
 	minPosition = 1
 
-	livingEnergyCost = 1
-	moveCost         = 1
-	startingEnergy   = 100
-	startingHealth   = 100
+	agentLivingEnergyCost = 1
+	agentMoveEnergyCost   = 1
+	startingEnergy        = 100
+	startingHealth        = 100
 )
 
 // toDoServiceServer is implementation of api.ToDoServiceServer proto interface
@@ -247,9 +244,9 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 	// Living energy cost
 	// Note: we will handle negative energy as overflow later
 	if entity.Energy > 0 {
-		entity.Energy -= livingEnergyCost
+		entity.Energy -= agentLivingEnergyCost
 	} else {
-		entity.Health -= livingEnergyCost
+		entity.Health -= agentLivingEnergyCost
 	}
 
 	switch req.Action {
@@ -270,6 +267,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		}
 		entity.X = targetX
 		entity.Y = targetY
+		entity.Energy -= agentMoveEnergyCost
 	default: // INVALID
 		return &envApi.ExecuteAgentActionResponse{
 			WasSuccessful: false,
