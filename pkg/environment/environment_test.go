@@ -370,3 +370,82 @@ func TestDeleteEntity(t *testing.T) {
 	}
 
 }
+
+func TestExecuteAgentAction(t *testing.T) {
+	ctx, redisServer := setup()
+	defer teardown(redisServer)
+
+	type args struct {
+		ctx context.Context
+		req *envApi.ExecuteAgentActionRequest
+	}
+	type getEntityResp struct {
+		entity  *envApi.Entity
+		content string
+		err     error
+	}
+
+	tests := []struct {
+		name              string
+		args              args
+		mockGetEntityResp getEntityResp
+		want              *envApi.ExecuteAgentActionResponse
+		wantErr           bool
+		wantErrMessage    string
+	}{
+		{
+			name: "Does not exist",
+			args: args{
+				ctx: ctx,
+				req: &envApi.ExecuteAgentActionRequest{},
+			},
+			wantErr: true,
+			mockGetEntityResp: getEntityResp{
+				entity:  nil,
+				content: "",
+				err:     errors.New("entity does not exist"),
+			},
+			wantErrMessage: "entity does not exist",
+		},
+		{
+			name: "Does not exist",
+			args: args{
+				ctx: ctx,
+				req: &envApi.ExecuteAgentActionRequest{},
+			},
+			wantErr: true,
+			mockGetEntityResp: getEntityResp{
+				entity:  nil,
+				content: "",
+				err:     errors.New("entity does not exist"),
+			},
+			wantErrMessage: "entity does not exist",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup mock
+			mockDAL := &mocks.DataAccessLayer{}
+			s := NewEnvironmentServer("testing", mockDAL)
+
+			mockDAL.On("GetEntity", tt.args.req.Id).Return(tt.mockGetEntityResp.entity, &tt.mockGetEntityResp.content, tt.mockGetEntityResp.err)
+
+			got, err := s.ExecuteAgentAction(tt.args.ctx, tt.args.req)
+			if err != nil {
+				if !tt.wantErr {
+					t.Errorf("error: %v, wantErr: %v", err, tt.wantErr)
+					return
+				}
+				if err.Error() != tt.wantErrMessage {
+					t.Errorf("error message: '%v', want error message: '%v'", err, tt.wantErrMessage)
+					return
+				}
+			}
+			if err == nil && !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("got %v, want %v", got, tt.want)
+			}
+		})
+	}
+
+}

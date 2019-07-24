@@ -99,13 +99,10 @@ func (dc *Datacom) GetEntity(id string) (*envApi.Entity, *string, error) {
 	// Get the content
 	hGetEntityContent := dc.redisClient.HGet("entities.content", id)
 	if hGetEntityContent.Err() != nil {
-		return nil, nil, errors.New("Couldn't find an entity by that id")
+		return nil, nil, errors.New("entity does not exist")
 	}
 	content := hGetEntityContent.Val()
 	entity, _ := parseEntityContent(content)
-
-	// Send update
-	dc.pubsub.PublishEvent("createEntity", entity)
 
 	return &entity, &content, nil
 }

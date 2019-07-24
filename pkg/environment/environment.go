@@ -5,7 +5,6 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"math"
 	"sync"
@@ -218,7 +217,6 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 	s.m.Lock()
 	defer s.m.Unlock()
 
-	fmt.Printf("Execute agent action: %v \n", req)
 	// Get the entity
 	entity, origionalContent, err := s.datacomDAL.GetEntity(req.Id)
 	if err != nil {
