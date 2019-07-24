@@ -64,7 +64,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	serverAPI := environment.NewEnvironmentServer(cfg.Env, cfg.RedisAddr, datacom)
+	serverAPI := environment.NewEnvironmentServer(cfg.Env, datacom)
 
 	opts := []grpc.ServerOption{}
 	server := grpc.NewServer(opts...)

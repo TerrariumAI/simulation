@@ -54,7 +54,7 @@ type UserInfo struct {
 	Email  string `json:"email"`
 }
 
-// DataAccessLayer generic interface for all data access.
+// DataAccessLayer interface for all data access, specificly plugs in from datacom
 type DataAccessLayer interface {
 	// Redis
 	IsCellOccupied(x uint32, y uint32) (bool, error)
@@ -72,13 +72,12 @@ type DataAccessLayer interface {
 }
 
 // NewEnvironmentServer creates simulation service
-func NewEnvironmentServer(env string, redisAddr string, d DataAccessLayer) envApi.EnvironmentServer {
+func NewEnvironmentServer(env string, d DataAccessLayer) envApi.EnvironmentServer {
 	// initialize server
 	s := &environmentServer{
-		env: env,
+		env:        env,
+		datacomDAL: d,
 	}
-
-	s.datacomDAL = d
 
 	return s
 }
