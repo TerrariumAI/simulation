@@ -22,13 +22,10 @@ import (
 
 const (
 	// apiVersion is version of API is provided by server
-	apiVersion            = "v1"
-	agentLivingEnergyCost = 2
-	minFoodBeforeRespawn  = 200
-	regionSize            = 16
-	maxPositionPadding    = 3
-	maxPosition           = 999
-	minPosition           = 1
+	apiVersion  = "v1"
+	regionSize  = 10
+	maxPosition = 999
+	minPosition = 1
 
 	livingEnergyCost = 1
 	moveCost         = 1
@@ -131,6 +128,18 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *envApi.Create
 	}
 	if remoteModelMD.ConnectCount == 0 {
 		err := errors.New("rm is offline")
+		log.Printf("ERROR: %v\n", err)
+		return nil, err
+	}
+
+	// Validate position
+	if req.Entity.X < minPosition || req.Entity.Y < minPosition {
+		err := errors.New("invalid position")
+		log.Printf("ERROR: %v\n", err)
+		return nil, err
+	}
+	if req.Entity.X > maxPosition || req.Entity.Y > maxPosition {
+		err := errors.New("invalid position")
 		log.Printf("ERROR: %v\n", err)
 		return nil, err
 	}
@@ -310,7 +319,8 @@ func (s *environmentServer) GetEntitiesInRegion(ctx context.Context, req *envApi
 
 	entities, err := s.datacomDAL.GetEntitiesInRegion(req.X, req.Y)
 	if err != nil {
-		log.Printf("GetEntitiesInRegion(): error %v", err)
+		log.Printf("ERROR: %v", err)
+		return nil, err
 	}
 
 	return &envApi.GetEntitiesInRegionResponse{

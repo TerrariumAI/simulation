@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis"
+	"github.com/golang/protobuf/ptypes/empty"
 	envApi "github.com/terrariumai/simulation/pkg/api/environment"
 	datacom "github.com/terrariumai/simulation/pkg/datacom"
 	"github.com/terrariumai/simulation/pkg/environment/mocks"
@@ -133,7 +134,7 @@ func TestCreateEntity(t *testing.T) {
 			wantErrMessage: "rm is offline",
 		},
 		{
-			name: "Invalid position",
+			name: "Invalid position (over max position)",
 			args: args{
 				ctx: ctx,
 				req: &envApi.CreateEntityRequest{
@@ -141,11 +142,10 @@ func TestCreateEntity(t *testing.T) {
 						ModelID:  "MOCK-ID",
 						OwnerUID: "MOCK-UID",
 						X:        1000,
-						Y:        0,
+						Y:        50,
 					},
 				},
 			},
-			mockIsCellOccupiedErr: errors.New("invalid position"),
 			mockRMMetadata: &datacom.RemoteModel{
 				OwnerUID:     "MOCK-UID",
 				ConnectCount: 1,
@@ -154,15 +154,35 @@ func TestCreateEntity(t *testing.T) {
 			wantErrMessage: "invalid position",
 		},
 		{
-			name: "Invalid position",
+			name: "Invalid position (under min position)",
 			args: args{
 				ctx: ctx,
 				req: &envApi.CreateEntityRequest{
 					Entity: &envApi.Entity{
 						ModelID:  "MOCK-ID",
 						OwnerUID: "MOCK-UID",
-						X:        1000,
+						X:        5,
 						Y:        0,
+					},
+				},
+			},
+			mockRMMetadata: &datacom.RemoteModel{
+				OwnerUID:     "MOCK-UID",
+				ConnectCount: 1,
+			},
+			wantErr:        true,
+			wantErrMessage: "invalid position",
+		},
+		{
+			name: "Invalid position (cell occupied)",
+			args: args{
+				ctx: ctx,
+				req: &envApi.CreateEntityRequest{
+					Entity: &envApi.Entity{
+						ModelID:  "MOCK-ID",
+						OwnerUID: "MOCK-UID",
+						X:        200,
+						Y:        50,
 					},
 				},
 			},
@@ -175,15 +195,15 @@ func TestCreateEntity(t *testing.T) {
 			wantErrMessage: "cell is already occupied",
 		},
 		{
-			name: "Invalid position",
+			name: "Success",
 			args: args{
 				ctx: ctx,
 				req: &envApi.CreateEntityRequest{
 					Entity: &envApi.Entity{
 						ModelID:  "MOCK-ID",
 						OwnerUID: "MOCK-UID",
-						X:        1000,
-						Y:        0,
+						X:        2,
+						Y:        2,
 						Id:       "0",
 					},
 				},
@@ -384,14 +404,29 @@ func TestExecuteAgentAction(t *testing.T) {
 		content string
 		err     error
 	}
+	type updateEntityArgs struct {
+		entity           envApi.Entity
+		origionalContent string
+	}
+	type isCellOccupiedArgs struct {
+		x uint32
+		y uint32
+	}
+	type isCellOccupiedResp struct {
+		bool
+		error
+	}
 
 	tests := []struct {
-		name              string
-		args              args
-		mockGetEntityResp getEntityResp
-		want              *envApi.ExecuteAgentActionResponse
-		wantErr           bool
-		wantErrMessage    string
+		name                   string
+		args                   args
+		mockGetEntityResp      getEntityResp
+		wantUpdateEntityArgs   updateEntityArgs
+		wantIsCellOccupiedArgs isCellOccupiedArgs
+		mockIsCellOccupiedResp isCellOccupiedResp
+		want                   *envApi.ExecuteAgentActionResponse
+		wantErr                bool
+		wantErrMessage         string
 	}{
 		{
 			name: "Does not exist",
@@ -408,18 +443,72 @@ func TestExecuteAgentAction(t *testing.T) {
 			wantErrMessage: "entity does not exist",
 		},
 		{
-			name: "Does not exist",
+			name: "Test rest",
 			args: args{
 				ctx: ctx,
-				req: &envApi.ExecuteAgentActionRequest{},
+				req: &envApi.ExecuteAgentActionRequest{
+					Id:     "mock-entity-id",
+					Action: 0,
+				},
 			},
-			wantErr: true,
 			mockGetEntityResp: getEntityResp{
-				entity:  nil,
-				content: "",
-				err:     errors.New("entity does not exist"),
+				entity:  &envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 100, Health: 100},
+				content: "mock-original-content",
+				err:     nil,
 			},
-			wantErrMessage: "entity does not exist",
+			wantUpdateEntityArgs: updateEntityArgs{
+				origionalContent: "mock-original-content",
+				entity:           envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 99, Health: 100},
+			},
+			want: &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: true,
+			},
+		},
+		{
+			name: "Test unsuccesful move (occupied cell)",
+			args: args{
+				ctx: ctx,
+				req: &envApi.ExecuteAgentActionRequest{
+					Id:        "mock-entity-id",
+					Action:    1,
+					Direction: 3,
+				},
+			},
+			mockGetEntityResp: getEntityResp{
+				entity:  &envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 100, Health: 100},
+				content: "mock-original-content",
+				err:     nil,
+			},
+			wantIsCellOccupiedArgs: isCellOccupiedArgs{x: 2, y: 1},
+			mockIsCellOccupiedResp: isCellOccupiedResp{true, nil},
+			want: &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: false,
+			},
+		},
+		{
+			name: "Test succesful move",
+			args: args{
+				ctx: ctx,
+				req: &envApi.ExecuteAgentActionRequest{
+					Id:        "mock-entity-id",
+					Action:    1,
+					Direction: 3,
+				},
+			},
+			mockGetEntityResp: getEntityResp{
+				entity:  &envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 100, Health: 100},
+				content: "mock-original-content",
+				err:     nil,
+			},
+			wantIsCellOccupiedArgs: isCellOccupiedArgs{x: 2, y: 1},
+			mockIsCellOccupiedResp: isCellOccupiedResp{false, nil},
+			wantUpdateEntityArgs: updateEntityArgs{
+				origionalContent: "mock-original-content",
+				entity:           envApi.Entity{Id: "mock-entity-id", X: 2, Y: 1, Energy: 99, Health: 100},
+			},
+			want: &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: true,
+			},
 		},
 	}
 
@@ -430,8 +519,149 @@ func TestExecuteAgentAction(t *testing.T) {
 			s := NewEnvironmentServer("testing", mockDAL)
 
 			mockDAL.On("GetEntity", tt.args.req.Id).Return(tt.mockGetEntityResp.entity, &tt.mockGetEntityResp.content, tt.mockGetEntityResp.err)
+			mockDAL.On("UpdateEntity", tt.wantUpdateEntityArgs.origionalContent, tt.wantUpdateEntityArgs.entity).Return(nil)
+			mockDAL.On("IsCellOccupied", tt.wantIsCellOccupiedArgs.x, tt.wantIsCellOccupiedArgs.y).Return(tt.mockIsCellOccupiedResp.bool, tt.mockIsCellOccupiedResp.error)
 
 			got, err := s.ExecuteAgentAction(tt.args.ctx, tt.args.req)
+			if err != nil {
+				if !tt.wantErr {
+					t.Errorf("error: %v, wantErr: %v", err, tt.wantErr)
+					return
+				}
+				if err.Error() != tt.wantErrMessage {
+					t.Errorf("error message: '%v', want error message: '%v'", err, tt.wantErrMessage)
+					return
+				}
+			}
+			if err == nil && !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("got %v, want %v", got, tt.want)
+			}
+		})
+	}
+
+}
+
+func TestResetWorld(t *testing.T) {
+	ctx, redisServer := setup()
+	defer teardown(redisServer)
+
+	type args struct {
+		ctx context.Context
+		req *empty.Empty
+	}
+	tests := []struct {
+		name           string
+		args           args
+		want           *empty.Empty
+		wantErr        bool
+		wantErrMessage string
+	}{
+		{
+			name: "Success",
+			args: args{
+				ctx: ctx,
+				req: &empty.Empty{},
+			},
+			want: &empty.Empty{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup mock
+			mockDAL := &mocks.DataAccessLayer{}
+			s := NewEnvironmentServer("testing", mockDAL)
+
+			got, err := s.ResetWorld(tt.args.ctx, tt.args.req)
+			if err != nil {
+				if !tt.wantErr {
+					t.Errorf("error: %v, wantErr: %v", err, tt.wantErr)
+					return
+				}
+				if err.Error() != tt.wantErrMessage {
+					t.Errorf("error message: '%v', want error message: '%v'", err, tt.wantErrMessage)
+					return
+				}
+			}
+			if err == nil && !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("got %v, want %v", got, tt.want)
+			}
+		})
+	}
+
+}
+
+func TestGetEntitiesInRegion(t *testing.T) {
+	ctx, redisServer := setup()
+	defer teardown(redisServer)
+
+	type args struct {
+		ctx context.Context
+		req *envApi.GetEntitiesInRegionRequest
+	}
+	type getEntitiesInRegionReq struct {
+		x uint32
+		y uint32
+	}
+	type getEntitiesInRegionResp struct {
+		entities []*envApi.Entity
+		err      error
+	}
+	tests := []struct {
+		name                        string
+		args                        args
+		want                        *envApi.GetEntitiesInRegionResponse
+		wantGetEntitiesInRegionReq  getEntitiesInRegionReq
+		mockGetEntitiesInRegionResp getEntitiesInRegionResp
+		wantErr                     bool
+		wantErrMessage              string
+	}{
+		{
+			name: "Error",
+			args: args{
+				ctx: ctx,
+				req: &envApi.GetEntitiesInRegionRequest{
+					X: 1,
+					Y: 2,
+				},
+			},
+			wantGetEntitiesInRegionReq: getEntitiesInRegionReq{x: 1, y: 2},
+			mockGetEntitiesInRegionResp: getEntitiesInRegionResp{
+				entities: nil,
+				err:      errors.New("invalid region"),
+			},
+			wantErr:        true,
+			wantErrMessage: "invalid region",
+		},
+		{
+			name: "Success",
+			args: args{
+				ctx: ctx,
+				req: &envApi.GetEntitiesInRegionRequest{
+					X: 1,
+					Y: 2,
+				},
+			},
+			wantGetEntitiesInRegionReq: getEntitiesInRegionReq{x: 1, y: 2},
+			mockGetEntitiesInRegionResp: getEntitiesInRegionResp{
+				entities: []*envApi.Entity{},
+				err:      nil,
+			},
+			want: &envApi.GetEntitiesInRegionResponse{
+				Entities: []*envApi.Entity{},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup mock
+			mockDAL := &mocks.DataAccessLayer{}
+			mockDAL.On("GetEntitiesInRegion", tt.wantGetEntitiesInRegionReq.x, tt.wantGetEntitiesInRegionReq.y).Return(tt.mockGetEntitiesInRegionResp.entities, tt.mockGetEntitiesInRegionResp.err)
+
+			s := NewEnvironmentServer("testing", mockDAL)
+
+			got, err := s.GetEntitiesInRegion(tt.args.ctx, tt.args.req)
 			if err != nil {
 				if !tt.wantErr {
 					t.Errorf("error: %v, wantErr: %v", err, tt.wantErr)
