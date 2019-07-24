@@ -143,7 +143,7 @@ func (dc *Datacom) DeleteEntity(id string) (int64, error) {
 }
 
 // GetEntitiesForModel gets a list of entities for a specific model
-func (dc *Datacom) GetEntitiesForModel(modelID string) ([]interface{}, error) {
+func (dc *Datacom) GetEntitiesForModel(modelID string) ([]envApi.Entity, error) {
 	// Get the entitiy IDs for this model
 	entityIdsRequest := dc.redisClient.SMembers("model:" + modelID + ":entities")
 	if err := entityIdsRequest.Err(); err != nil {
@@ -161,7 +161,13 @@ func (dc *Datacom) GetEntitiesForModel(modelID string) ([]interface{}, error) {
 		}
 		entitiesContent = entitiesContentRequest.Val()
 	}
-	return entitiesContent, nil
+	// Convert content to entities
+	entities := []envApi.Entity{}
+	for _, content := range entitiesContent {
+		entity, _ := parseEntityContent(content.(string))
+		entities = append(entities, entity)
+	}
+	return entities, nil
 }
 
 // getEntitiesAroundPosition gets the entities directly around a position
@@ -189,9 +195,15 @@ func (dc *Datacom) getEntitiesInArea(xMin uint32, yMin uint32, xMax uint32, yMax
 }
 
 // GetObservationForEntity returns observations for a specific entity
-func (dc *Datacom) GetObservationForEntity(content string) (*collectiveApi.Observation, error) {
-	entity, index := parseEntityContent(content)
-
+func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi.Observation, error) {
+	content, err := serializeEntity(entity)
+	if err != nil {
+		log.Println("ERROR: ", err)
+	}
+	index, err := posToRedisIndex(entity.X, entity.Y)
+	if err != nil {
+		log.Println("ERROR: ", err)
+	}
 	// If the entity is out of bounds for some reason, delete it
 	// TODO - remove this, make it so it is impossible to get here in the first place
 	if entity.X < 1 || entity.Y < 1 {

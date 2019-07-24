@@ -489,7 +489,7 @@ func TestGetObservationsForEntity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			entitiesContent, err := dc.GetEntitiesForModel(tt.args.modelID)
+			entities, err := dc.GetEntitiesForModel(tt.args.modelID)
 			if err != nil && tt.expectErr {
 				return
 			} else if err != nil && !tt.expectErr {
@@ -497,9 +497,9 @@ func TestGetObservationsForEntity(t *testing.T) {
 				return
 			}
 
-			content := entitiesContent[0]
+			entity := entities[0]
 
-			got, err := dc.GetObservationForEntity(content.(string))
+			got, err := dc.GetObservationForEntity(entity)
 			if err != nil && tt.expectErr {
 				return
 			} else if err != nil && !tt.expectErr {

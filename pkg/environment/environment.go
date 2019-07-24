@@ -152,8 +152,14 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 		entityID = req.Entity.Id
 	}
 
+	// Set values for the entity
+	req.Entity.OwnerUID = userInfo.ID
+	req.Entity.Energy = startingEnergy
+	req.Entity.Health = startingHealth
+	req.Entity.Id = entityID
+
 	// Add the entity to the environment
-	err = s.datacom.CreateEntity(req.Entity.X, req.Entity.Y, req.Entity.Class, userInfo.ID, req.Entity.ModelID, startingEnergy, startingHealth, entityID)
+	err = s.datacom.CreateEntity(*req.Entity)
 
 	// Return the data for the agent
 	return &api.CreateEntityResponse{
@@ -256,7 +262,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *api.Exe
 
 	// Handle overflow energy
 	if entity.Energy < 0 {
-		overflow := int32(math.Abs(float64(entity.Energy)))
+		overflow := uint32(math.Abs(float64(entity.Energy)))
 		entity.Health -= overflow
 	}
 
@@ -269,7 +275,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *api.Exe
 	}
 
 	// Update the entity
-	err = s.datacom.UpdateEntity(*origionalContent, entity.X, entity.Y, entity.Class, entity.OwnerUID, entity.ModelID, entity.Energy, entity.Health, entity.Id)
+	err = s.datacom.UpdateEntity(*origionalContent, *entity)
 	if err != nil {
 		return nil, err
 	}
