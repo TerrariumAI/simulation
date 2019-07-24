@@ -7,6 +7,7 @@ import (
 	"os"
 
 	api "github.com/terrariumai/simulation/pkg/api/environment"
+	"github.com/terrariumai/simulation/pkg/datacom"
 	"github.com/terrariumai/simulation/pkg/environment"
 	"google.golang.org/grpc"
 )
@@ -55,7 +56,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	serverAPI := environment.NewEnvironmentServer(cfg.Env, cfg.RedisAddr)
+	// Initialize pubnub pal
+	pubnubPAL := datacom.NewPubnubPAL("sub-c-b4ba4e28-a647-11e9-ad2c-6ad2737329fc", "pub-c-83ed11c2-81e1-4d7f-8e94-0abff2b85825")
+	datacom, err := datacom.NewDatacom(cfg.Env, cfg.RedisAddr, pubnubPAL)
+	if err != nil {
+		log.Fatalf("Error initializing Datacom: %v", err)
+		os.Exit(1)
+	}
+
+	serverAPI := environment.NewEnvironmentServer(cfg.Env, cfg.RedisAddr, datacom)
 
 	opts := []grpc.ServerOption{}
 	server := grpc.NewServer(opts...)

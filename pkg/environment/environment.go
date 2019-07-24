@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"os"
 	"sync"
 
 	"google.golang.org/grpc/metadata"
@@ -18,7 +17,8 @@ import (
 	datacom "github.com/terrariumai/simulation/pkg/datacom"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	api "github.com/terrariumai/simulation/pkg/api/environment"
+	collectiveApi "github.com/terrariumai/simulation/pkg/api/collective"
+	envApi "github.com/terrariumai/simulation/pkg/api/environment"
 )
 
 const (
@@ -42,7 +42,7 @@ type environmentServer struct {
 	// Environment the server is running in
 	env string
 	// Datacom
-	datacom *datacom.Datacom
+	datacomDAL DataAccessLayer
 	// Mutex to ensure data safety
 	m sync.Mutex
 }
@@ -54,28 +54,37 @@ type UserInfo struct {
 	Email  string `json:"email"`
 }
 
+// DataAccessLayer generic interface for all data access.
+type DataAccessLayer interface {
+	// Redis
+	IsCellOccupied(x uint32, y uint32) (bool, error)
+	CreateEntity(e envApi.Entity) error
+	DeleteEntity(id string) (int64, error)
+	UpdateEntity(origionalContent string, e envApi.Entity) error
+	GetEntity(id string) (*envApi.Entity, *string, error)
+	GetEntitiesForModel(modelID string) ([]envApi.Entity, error)
+	GetObservationForEntity(entity envApi.Entity) (*collectiveApi.Observation, error)
+	GetEntitiesInRegion(x uint32, y uint32) ([]*envApi.Entity, error)
+	// Firebase
+	GetRemoteModelMetadataBySecret(modelSecret string) (*datacom.RemoteModel, error)
+	GetRemoteModelMetadataByID(modelID string) (*datacom.RemoteModel, error)
+	UpdateRemoteModelMetadata(remoteModelMD *datacom.RemoteModel, connectCount int) error
+}
+
 // NewEnvironmentServer creates simulation service
-func NewEnvironmentServer(env string, redisAddr string) api.EnvironmentServer {
+func NewEnvironmentServer(env string, redisAddr string, d DataAccessLayer) envApi.EnvironmentServer {
 	// initialize server
 	s := &environmentServer{
 		env: env,
 	}
 
-	// Initialize pubnub pal
-	pubnubPAL := datacom.NewPubnubPAL("sub-c-b4ba4e28-a647-11e9-ad2c-6ad2737329fc", "pub-c-83ed11c2-81e1-4d7f-8e94-0abff2b85825")
-	datacom, err := datacom.NewDatacom(env, redisAddr, pubnubPAL)
-	if err != nil {
-		log.Fatalf("Error initializing Datacom: %v", err)
-		os.Exit(1)
-	}
-
-	s.datacom = datacom
+	s.datacomDAL = d
 
 	return s
 }
 
 // Get data for an entity
-func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEntityRequest) (*api.CreateEntityResponse, error) {
+func (s *environmentServer) CreateEntity(ctx context.Context, req *envApi.CreateEntityRequest) (*envApi.CreateEntityResponse, error) {
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
@@ -112,7 +121,7 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 		log.Printf("Error: %v\n", err)
 		return nil, err
 	}
-	remoteModelMD, err := s.datacom.GetRemoteModelMetadataByID(req.Entity.ModelID)
+	remoteModelMD, err := s.datacomDAL.GetRemoteModelMetadataByID(req.Entity.ModelID)
 	if err != nil {
 		log.Printf("%v\n", err)
 		return nil, err
@@ -129,7 +138,7 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 	}
 
 	// Make sure the cell is not occupied
-	isCellOccupied, err := s.datacom.IsCellOccupied(req.Entity.X, req.Entity.Y)
+	isCellOccupied, err := s.datacomDAL.IsCellOccupied(req.Entity.X, req.Entity.Y)
 	if err != nil {
 		log.Printf("Error checking if cell is occupied")
 		return nil, err
@@ -159,59 +168,59 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *api.CreateEnt
 	req.Entity.Id = entityID
 
 	// Add the entity to the environment
-	err = s.datacom.CreateEntity(*req.Entity)
+	err = s.datacomDAL.CreateEntity(*req.Entity)
 
 	// Return the data for the agent
-	return &api.CreateEntityResponse{
+	return &envApi.CreateEntityResponse{
 		Id: entityID,
 	}, nil
 }
 
 // Get data for an entity
-func (s *environmentServer) GetEntity(ctx context.Context, req *api.GetEntityRequest) (*api.GetEntityResponse, error) {
+func (s *environmentServer) GetEntity(ctx context.Context, req *envApi.GetEntityRequest) (*envApi.GetEntityResponse, error) {
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
 
 	// Get the entity
-	entity, _, err := s.datacom.GetEntity(req.Id)
+	entity, _, err := s.datacomDAL.GetEntity(req.Id)
 	if err != nil {
 		return nil, errors.New("Couldn't find an entity by that id")
 	}
 
 	// Return the data for the agent
-	return &api.GetEntityResponse{
+	return &envApi.GetEntityResponse{
 		Entity: entity,
 	}, nil
 }
 
 // Get data for an entity
-func (s *environmentServer) DeleteEntity(ctx context.Context, req *api.DeleteEntityRequest) (*api.DeleteEntityResponse, error) {
+func (s *environmentServer) DeleteEntity(ctx context.Context, req *envApi.DeleteEntityRequest) (*envApi.DeleteEntityResponse, error) {
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
 
 	// Remove the entity from the environment
-	deleted, err := s.datacom.DeleteEntity(req.Id)
+	deleted, err := s.datacomDAL.DeleteEntity(req.Id)
 	if err != nil {
 		return nil, err
 	}
 
 	// Return the data for the agent
-	return &api.DeleteEntityResponse{
+	return &envApi.DeleteEntityResponse{
 		Deleted: deleted,
 	}, nil
 }
 
 // Get data for an entity
-func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *api.ExecuteAgentActionRequest) (*api.ExecuteAgentActionResponse, error) {
+func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.ExecuteAgentActionRequest) (*envApi.ExecuteAgentActionResponse, error) {
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
 
 	fmt.Printf("Execute agent action: %v \n", req)
 	// Get the entity
-	entity, origionalContent, err := s.datacom.GetEntity(req.Id)
+	entity, origionalContent, err := s.datacomDAL.GetEntity(req.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -240,22 +249,22 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *api.Exe
 	case 0: // REST
 	case 1: // MOVE
 		if targetX < minPosition || targetY < minPosition {
-			return &api.ExecuteAgentActionResponse{
+			return &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: false,
 			}, nil
 		}
 		// Check if cell is occupied
-		isCellOccupied, err := s.datacom.IsCellOccupied(targetX, targetY)
+		isCellOccupied, err := s.datacomDAL.IsCellOccupied(targetX, targetY)
 		if isCellOccupied || err != nil {
 			// Return unsuccessful
-			return &api.ExecuteAgentActionResponse{
+			return &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: false,
 			}, nil
 		}
 		entity.X = targetX
 		entity.Y = targetY
 	default: // INVALID
-		return &api.ExecuteAgentActionResponse{
+		return &envApi.ExecuteAgentActionResponse{
 			WasSuccessful: false,
 		}, nil
 	}
@@ -268,20 +277,20 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *api.Exe
 
 	// Handle death case
 	if entity.Health <= 0 {
-		s.datacom.DeleteEntity(entity.Id)
-		return &api.ExecuteAgentActionResponse{
+		s.datacomDAL.DeleteEntity(entity.Id)
+		return &envApi.ExecuteAgentActionResponse{
 			WasSuccessful: false,
 		}, nil
 	}
 
 	// Update the entity
-	err = s.datacom.UpdateEntity(*origionalContent, *entity)
+	err = s.datacomDAL.UpdateEntity(*origionalContent, *entity)
 	if err != nil {
 		return nil, err
 	}
 
 	// Return the data for the agent
-	return &api.ExecuteAgentActionResponse{
+	return &envApi.ExecuteAgentActionResponse{
 		WasSuccessful: true,
 	}, nil
 }
@@ -295,40 +304,18 @@ func (s *environmentServer) ResetWorld(ctx context.Context, req *empty.Empty) (*
 	return &empty.Empty{}, nil
 }
 
-/*
-getRegionForPos(p) {
-    let x = p.x;
-    let y = p.y;
-    if (x < 0) {
-      x -= CELLS_IN_REGION;
-    }
-    if (y < 0) {
-      y -= CELLS_IN_REGION;
-    }
-    return {
-      x:
-        x <= 0
-          ? Math.ceil(x / CELLS_IN_REGION)
-          : Math.floor(x / CELLS_IN_REGION),
-      y:
-        y <= 0
-          ? Math.ceil(y / CELLS_IN_REGION)
-          : Math.floor(y / CELLS_IN_REGION)
-    };
-  }
-*/
-func (s *environmentServer) GetEntitiesInRegion(ctx context.Context, req *api.GetEntitiesInRegionRequest) (*api.GetEntitiesInRegionResponse, error) {
+func (s *environmentServer) GetEntitiesInRegion(ctx context.Context, req *envApi.GetEntitiesInRegionRequest) (*envApi.GetEntitiesInRegionResponse, error) {
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
-	entities := []*api.Entity{}
+	entities := []*envApi.Entity{}
 
-	entities, err := s.datacom.GetEntitiesInRegion(req.X, req.Y)
+	entities, err := s.datacomDAL.GetEntitiesInRegion(req.X, req.Y)
 	if err != nil {
 		log.Printf("GetEntitiesInRegion(): error %v", err)
 	}
 
-	return &api.GetEntitiesInRegionResponse{
+	return &envApi.GetEntitiesInRegionResponse{
 		Entities: entities,
 	}, nil
 }

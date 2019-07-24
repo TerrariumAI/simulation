@@ -58,15 +58,6 @@ type PubsubAccessLayer interface {
 	PublishEvent(eventName string, entity envApi.Entity) error
 }
 
-// // DataAccessLayer generic interface for all data access.
-// type DataAccessLayer interface {
-// 	IsCellOccupied(x uint32, y uint32) (bool, error)
-// 	CreateEntity(e envApi.Entity) error
-// 	UpdateEntity(origionalContent string, e envApi.Entity) error
-// 	GetEntity(id string) (*envApi.Entity, *string, error)
-// 	GetEntitiesForModel(modelID string) ([]interface{}, error)
-// }
-
 // NewDatacom instantiates a new datacom object with proper clients
 // according to the environment
 func NewDatacom(env string, redisAddr string, pubsub PubsubAccessLayer) (*Datacom, error) {
