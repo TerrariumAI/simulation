@@ -92,7 +92,7 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *envApi.Create
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		err := errors.New("Incorrect or no headers were provided")
-		log.Printf("ERROR: %s\n", err)
+		log.Printf("ERROR: %v\n", err)
 		return nil, err
 	}
 	userInfoHeader := md["x-endpoint-api-userinfo"]
@@ -102,27 +102,27 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *envApi.Create
 
 	// Make sure the user has supplied data
 	if req.Entity == nil {
-		err := errors.New("Entity not in request")
-		log.Printf("%v", err)
+		err := errors.New("entity not in request")
+		log.Printf("ERROR: %v\n", err)
 		return nil, err
 	}
 
 	// Validate entity class
-	if req.Entity.Class < 0 || req.Entity.Class > 3 {
-		err := errors.New("Error: invalid class")
-		log.Printf("Error: %v\n", err)
+	if req.Entity.Class > 3 {
+		err := errors.New("invalid class")
+		log.Printf("ERROR: %v\n", err)
 		return nil, err
 	}
 
 	// Validate modelID
 	if len(req.Entity.ModelID) == 0 {
-		err := errors.New("Error: missing model id")
-		log.Printf("Error: %v\n", err)
+		err := errors.New("missing model id")
+		log.Printf("ERROR: %v\n", err)
 		return nil, err
 	}
 	remoteModelMD, err := s.datacomDAL.GetRemoteModelMetadataByID(req.Entity.ModelID)
 	if err != nil {
-		log.Printf("%v\n", err)
+		log.Printf("ERROR: %v\n", err)
 		return nil, err
 	}
 	if remoteModelMD.OwnerUID != userInfo.ID {
@@ -131,20 +131,21 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *envApi.Create
 		return nil, err
 	}
 	if remoteModelMD.ConnectCount == 0 {
-		err := errors.New("you must connect your remote model before creating entities for it")
-		log.Printf("Error validating modelID: %v\n", err)
+		err := errors.New("rm is offline")
+		log.Printf("ERROR: %v\n", err)
 		return nil, err
 	}
 
 	// Make sure the cell is not occupied
 	isCellOccupied, err := s.datacomDAL.IsCellOccupied(req.Entity.X, req.Entity.Y)
 	if err != nil {
-		log.Printf("Error checking if cell is occupied")
+		log.Printf("ERROR: %v\n", err)
 		return nil, err
 	}
 	if isCellOccupied {
-		log.Printf("Error cell is occupied")
-		return nil, errors.New("That cell is already occupied by an entity")
+		err := errors.New("cell is already occupied")
+		log.Printf("ERROR: %v\n", err)
+		return nil, err
 	}
 
 	// Create an id for the entity
@@ -184,7 +185,7 @@ func (s *environmentServer) GetEntity(ctx context.Context, req *envApi.GetEntity
 	// Get the entity
 	entity, _, err := s.datacomDAL.GetEntity(req.Id)
 	if err != nil {
-		return nil, errors.New("Couldn't find an entity by that id")
+		return nil, errors.New("entity does not exist")
 	}
 
 	// Return the data for the agent

@@ -40,8 +40,9 @@ func (dc *Datacom) GetRemoteModelMetadataBySecret(modelSecret string) (*RemoteMo
 		return nil, fmt.Errorf("invalid secret key: %v", err)
 	}
 	if len(docs) == 0 {
-		log.Println("zero results")
-		return nil, fmt.Errorf("invalid secret key: %v", err)
+		err := errors.New("remote model does not exist")
+		log.Printf("ERROR: %v\n", err)
+		return nil, err
 	}
 
 	var remoteModel RemoteModel

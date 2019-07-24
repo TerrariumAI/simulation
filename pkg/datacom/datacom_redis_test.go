@@ -307,6 +307,10 @@ func TestGetEntity(t *testing.T) {
 	}
 }
 
+func TestDeleteEntity(t *testing.T) {
+	t.Error("implement this")
+}
+
 // -------------------------------------
 // Get Entities For model
 // -------------------------------------

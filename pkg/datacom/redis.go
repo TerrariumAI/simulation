@@ -114,8 +114,9 @@ func (dc *Datacom) GetEntity(id string) (*envApi.Entity, *string, error) {
 func (dc *Datacom) DeleteEntity(id string) (int64, error) {
 	// Get the content
 	hGetEntityContent := dc.redisClient.HGet("entities.content", id)
-	if hGetEntityContent.Err() != nil {
-		return 0, errors.New("Error deleting entity: Couldn't find an entity by that id")
+	if err := hGetEntityContent.Err(); err != nil {
+		log.Printf("ERROR: %v\n", err)
+		return 0, err
 	}
 	content := hGetEntityContent.Val()
 	// Parse the content
@@ -123,16 +124,19 @@ func (dc *Datacom) DeleteEntity(id string) (int64, error) {
 	// Remove from hash
 	delete := dc.redisClient.HDel("entities.content", entity.Id)
 	if err := delete.Err(); err != nil {
-		return 0, fmt.Errorf("Error deleting entity: %s", err)
+		log.Printf("ERROR: %v\n", err)
+		return 0, err
 	}
 	// Remove from SS
 	remove := dc.redisClient.ZRem("entities", content)
 	if err := remove.Err(); err != nil {
-		return 0, fmt.Errorf("Error deleting entity: %s", err)
+		log.Printf("ERROR: %v\n", err)
+		return 0, err
 	}
 	// Remove from model
 	err := dc.redisClient.SRem("model:"+entity.ModelID+":entities", entity.Id).Err()
 	if err != nil {
+		log.Printf("ERROR: %v\n", err)
 		return 0, err
 	}
 

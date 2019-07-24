@@ -18,7 +18,7 @@ func posToRedisIndex(x uint32, y uint32) (string, error) {
 	interlocked := ""
 	// make sure x and y are the correct length when converted to str
 	if len(xString) > maxPositionPadding || len(yString) > maxPositionPadding {
-		return "", errors.New("X or Y position are too large")
+		return "", errors.New("invalid position")
 	}
 	// add padding
 	for len(xString) < maxPositionPadding {
