@@ -40,9 +40,9 @@ type UserInfo struct {
 }
 
 // NewCollectiveServer creates a new collective server
-func NewCollectiveServer(env string, redisAddr string, envAddress string) api.CollectiveServer {
+func NewCollectiveServer(env string, redisAddr string, envAddress string, p datacom.PubsubAccessLayer) api.CollectiveServer {
 	// Init datacom
-	datacom, err := datacom.NewDatacom(env, redisAddr)
+	datacom, err := datacom.NewDatacom(env, redisAddr, p)
 	if err != nil {
 		log.Fatalf("Error initializing Datacom: %v", err)
 	}
@@ -107,7 +107,7 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 		}
 
 		// Query db for entities
-		entitiesContent, err := s.datacom.GetEntitiesForModel(remoteModelMD.ID)
+		entities, err := s.datacom.GetEntitiesForModel(remoteModelMD.ID)
 		if err != nil {
 			log.Printf("ERROR querying entities: %v\n", err)
 			return err
@@ -116,9 +116,12 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 		var obsvPacket api.ObservationPacket
 
 		// Generate an observation for each entity
-		for _, content := range entitiesContent {
-
-			obsvPacket.Observations = append(obsvPacket.Observations, &obsv)
+		for _, e := range entities {
+			obsv, err := s.datacom.GetObservationForEntity(e)
+			if err != nil {
+				log.Printf("ERROR: %v\n", err)
+			}
+			obsvPacket.Observations = append(obsvPacket.Observations, obsv)
 		}
 
 		// We want to get the current time when we send the observation so

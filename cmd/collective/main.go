@@ -8,6 +8,7 @@ import (
 
 	api "github.com/terrariumai/simulation/pkg/api/collective"
 	"github.com/terrariumai/simulation/pkg/collective"
+	"github.com/terrariumai/simulation/pkg/datacom"
 	"google.golang.org/grpc"
 )
 
@@ -63,7 +64,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	serverAPI := collective.NewCollectiveServer(cfg.Env, cfg.RedisAddr, cfg.EnvironmentAddr)
+	pubnubPAL := datacom.NewPubnubPAL("sub-c-b4ba4e28-a647-11e9-ad2c-6ad2737329fc", "pub-c-83ed11c2-81e1-4d7f-8e94-0abff2b85825")
+	serverAPI := collective.NewCollectiveServer(cfg.Env, cfg.RedisAddr, cfg.EnvironmentAddr, pubnubPAL)
 
 	opts := []grpc.ServerOption{}
 	server := grpc.NewServer(opts...)
