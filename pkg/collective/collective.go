@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	minFrameTimeMilliseconds = 50
+	minFrameTimeMilliseconds = 250 // 50
 )
 
 type collectiveServer struct {

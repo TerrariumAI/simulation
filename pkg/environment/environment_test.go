@@ -216,6 +216,28 @@ func TestCreateEntity(t *testing.T) {
 				Id: "0",
 			},
 		},
+		{
+			name: "Success on edge",
+			args: args{
+				ctx: ctx,
+				req: &envApi.CreateEntityRequest{
+					Entity: &envApi.Entity{
+						ModelID:  "MOCK-ID",
+						OwnerUID: "MOCK-UID",
+						X:        1,
+						Y:        1,
+						Id:       "0",
+					},
+				},
+			},
+			mockRMMetadata: &datacom.RemoteModel{
+				OwnerUID:     "MOCK-UID",
+				ConnectCount: 1,
+			},
+			want: &envApi.CreateEntityResponse{
+				Id: "0",
+			},
+		},
 	}
 
 	for _, tt := range tests {

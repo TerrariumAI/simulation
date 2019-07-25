@@ -199,17 +199,21 @@ func (dc *Datacom) getEntitiesInArea(xMin uint32, yMin uint32, xMax uint32, yMax
 func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi.Observation, error) {
 	content, err := serializeEntity(entity)
 	if err != nil {
-		log.Println("ERROR: ", err)
+		log.Printf("ERROR: %v\n", err)
+		return nil, err
 	}
 	index, err := posToRedisIndex(entity.X, entity.Y)
 	if err != nil {
-		log.Println("ERROR: ", err)
+		log.Printf("ERROR: %v\n", err)
+		return nil, err
 	}
 	// If the entity is out of bounds for some reason, delete it
 	// TODO - remove this, make it so it is impossible to get here in the first place
 	if entity.X < 1 || entity.Y < 1 {
 		dc.DeleteEntity(entity.Id)
-		return nil, errors.New("Entity was invalid and has been deleted")
+		err := errors.New("entity was invalid and has been deleted")
+		log.Printf("ERROR: %v\n", err)
+		return nil, err
 	}
 
 	obsv := collectiveApi.Observation{
@@ -222,7 +226,7 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 	// Query for entities near this position
 	closeEntitiesContent, err := dc.getEntitiesInArea(xMin, yMin, xMax, yMax)
 	if err != nil {
-		log.Printf("ERROR querying close entities: %v\n", err)
+		log.Printf("ERROR: %v\n", err)
 		return nil, err
 	}
 	// Add all the other entities to the indexEntityMap
@@ -236,13 +240,20 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 		otherEntity, index := parseEntityContent(otherContent)
 		indexEntityMap[index] = otherEntity
 	}
-	for y := entity.Y + 1; y >= entity.Y-1; y-- {
-		for x := entity.X - 1; x <= entity.X+1; x++ {
-			otherIndex, err := posToRedisIndex(x, y)
+	var x int32
+	var y int32
+	for y = int32(entity.Y) + 1; y >= int32(entity.Y)-1; y-- {
+		for x = int32(entity.X) - 1; x <= int32(entity.X)+1; x++ {
+			otherIndex, err := posToRedisIndex(uint32(x), uint32(y))
 			if err != nil {
 				return nil, err
 			}
 			if otherIndex == index {
+				continue
+			}
+			if x < minPosition || y < minPosition {
+				// If the position is out of bounds, return a rock
+				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: "", Class: 2})
 				continue
 			}
 			if otherEntity, ok := indexEntityMap[otherIndex]; ok {

@@ -18,6 +18,7 @@ const (
 
 	mockSecret = "MOCK-SECRET"
 
+	minPosition        = 1
 	maxPositionPadding = 3
 	maxPosition        = 999
 

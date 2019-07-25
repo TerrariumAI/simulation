@@ -410,6 +410,10 @@ func TestGetObservationsForEntity(t *testing.T) {
 	dc.CreateEntity(envApi.Entity{
 		X: 66, Y: 66, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-4", Health: 100, Energy: 100, Id: "4",
 	})
+	err := dc.CreateEntity(envApi.Entity{
+		X: 1, Y: 1, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-5", Health: 100, Energy: 100, Id: "5",
+	})
+	println(err)
 
 	type args struct {
 		modelID string
@@ -485,6 +489,26 @@ func TestGetObservationsForEntity(t *testing.T) {
 					&collectiveApi.Entity{Id: "", Class: 0},
 					&collectiveApi.Entity{Id: "", Class: 0},
 					&collectiveApi.Entity{Id: "", Class: 0},
+				},
+			},
+			false,
+		},
+		{
+			"Test rocks in invalid positions",
+			args{
+				modelID: "MOCK-MODEL-ID-5",
+			},
+			&collectiveApi.Observation{
+				Id: "5",
+				Cells: []*collectiveApi.Entity{
+					&collectiveApi.Entity{Id: "", Class: 2},
+					&collectiveApi.Entity{Id: "", Class: 0},
+					&collectiveApi.Entity{Id: "", Class: 0},
+					&collectiveApi.Entity{Id: "", Class: 2},
+					&collectiveApi.Entity{Id: "", Class: 0},
+					&collectiveApi.Entity{Id: "", Class: 2},
+					&collectiveApi.Entity{Id: "", Class: 2},
+					&collectiveApi.Entity{Id: "", Class: 2},
 				},
 			},
 			false,
