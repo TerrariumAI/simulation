@@ -308,7 +308,47 @@ func TestGetEntity(t *testing.T) {
 }
 
 func TestDeleteEntity(t *testing.T) {
-	t.Error("implement this")
+	redisServer := setup()
+	defer teardown(redisServer)
+	// Setup pubsub mock
+	mockPAL := &mocks.PubsubAccessLayer{}
+	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
+
+	e := envApi.Entity{
+		X: 0, Y: 0, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
+	}
+
+	mockPAL.On("PublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
+	dc.CreateEntity(e)
+	mockPAL.On("PublishEvent", "deleteEntity", mock.AnythingOfType("Entity")).Return(nil)
+
+	got, _, err := dc.GetEntity(e.Id)
+	if !reflect.DeepEqual(*got, e) {
+		t.Errorf("got %v, expected %v", got, e)
+	}
+	if err != nil {
+		t.Errorf("unexpected err: %v", e)
+	}
+
+	gotCount, err := dc.DeleteEntity(e.Id)
+	var expectedCount int64 = 1
+	expectErr := false
+
+	if err != nil && expectErr {
+		return
+	} else if err != nil && !expectErr {
+		t.Errorf("unexpected error: %v", err)
+		return
+	}
+	if gotCount != expectedCount {
+		t.Errorf("got: %v , expected: %v", got, expectedCount)
+		return
+	}
+
+	got, _, err = dc.GetEntity(e.Id)
+	if err == nil {
+		t.Errorf("expected error, got %v", got)
+	}
 }
 
 // -------------------------------------
