@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
-	"math"
 	"sync"
 
 	"google.golang.org/grpc/metadata"
@@ -243,10 +242,19 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 
 	// Living energy cost
 	// Note: we will handle negative energy as overflow later
-	if entity.Energy > 0 {
+	if entity.Energy >= agentLivingEnergyCost {
 		entity.Energy -= agentLivingEnergyCost
 	} else {
-		entity.Health -= agentLivingEnergyCost
+		diff := agentLivingEnergyCost - entity.Energy
+		if entity.Health >= diff {
+			entity.Health -= diff
+		} else {
+			// KILL
+			s.datacomDAL.DeleteEntity(entity.Id)
+			return &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: false,
+			}, nil
+		}
 	}
 
 	switch req.Action {
@@ -267,22 +275,22 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		}
 		entity.X = targetX
 		entity.Y = targetY
-		entity.Energy -= agentMoveEnergyCost
+		// Adjust energy
+		if entity.Energy >= agentMoveEnergyCost {
+			entity.Energy -= agentMoveEnergyCost
+		} else {
+			diff := agentMoveEnergyCost - entity.Energy
+			if entity.Health >= diff {
+				entity.Health -= diff
+			} else {
+				// KILL
+				s.datacomDAL.DeleteEntity(entity.Id)
+				return &envApi.ExecuteAgentActionResponse{
+					WasSuccessful: false,
+				}, nil
+			}
+		}
 	default: // INVALID
-		return &envApi.ExecuteAgentActionResponse{
-			WasSuccessful: false,
-		}, nil
-	}
-
-	// Handle overflow energy
-	if entity.Energy < 0 {
-		overflow := uint32(math.Abs(float64(entity.Energy)))
-		entity.Health -= overflow
-	}
-
-	// Handle death case
-	if entity.Health <= 0 {
-		s.datacomDAL.DeleteEntity(entity.Id)
 		return &envApi.ExecuteAgentActionResponse{
 			WasSuccessful: false,
 		}, nil
