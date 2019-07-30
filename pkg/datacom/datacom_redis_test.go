@@ -32,20 +32,19 @@ func teardown(redisServer *miniredis.Miniredis) {
 func TestCreateEntity(t *testing.T) {
 	redisServer := setup()
 	defer teardown(redisServer)
-	// Setup pubsub mock
-	mockPAL := &mocks.PubsubAccessLayer{}
-	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 
 	type args struct {
-		entity envApi.Entity
+		entity        envApi.Entity
+		shouldPublish bool
 	}
 	tests := []struct {
-		name     string
-		args     args
-		expected string
+		name                 string
+		args                 args
+		expectedPublishCount int
+		expected             string
 	}{
 		{
-			"Test serialize basic",
+			"Test succesful creation",
 			args{
 				entity: envApi.Entity{
 					X:        123,
@@ -57,16 +56,39 @@ func TestCreateEntity(t *testing.T) {
 					Id:       "0",
 					Class:    1,
 				},
+				shouldPublish: true,
 			},
+			1,
+			"142536:123:456:1:MOCK-UID:MOCK-MODEL-ID:100:100:0",
+		},
+		{
+			"Test no publish",
+			args{
+				entity: envApi.Entity{
+					X:        123,
+					Y:        456,
+					OwnerUID: "MOCK-UID",
+					ModelID:  "MOCK-MODEL-ID",
+					Energy:   100,
+					Health:   100,
+					Id:       "0",
+					Class:    1,
+				},
+				shouldPublish: false,
+			},
+			0,
 			"142536:123:456:1:MOCK-UID:MOCK-MODEL-ID:100:100:0",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Setup pubsub mock
+			mockPAL := &mocks.PubsubAccessLayer{}
+			dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 			mockPAL.On("PublishEvent", "createEntity", tt.args.entity).Return(nil)
 
-			err := dc.CreateEntity(tt.args.entity)
+			err := dc.CreateEntity(tt.args.entity, tt.args.shouldPublish)
 			if err != nil {
 				t.Errorf("got error: %v", err)
 				return
@@ -78,6 +100,9 @@ func TestCreateEntity(t *testing.T) {
 				Password: "", // no password set
 				DB:       0,  // use default DB
 			})
+
+			// Check publish calls
+			mockPAL.AssertNumberOfCalls(t, "PublishEvent", tt.expectedPublishCount)
 
 			keys, cursor, err := redisClient.ZScan("entities", 0, "*", 0).Result()
 			if len(keys) != 2 {
@@ -104,25 +129,27 @@ func TestIsCellOccupied(t *testing.T) {
 
 	dc.CreateEntity(envApi.Entity{
 		X: 0, Y: 0, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
-	})
+	}, true)
 
 	type args struct {
 		x uint32
 		y uint32
 	}
 	tests := []struct {
-		name      string
-		args      args
-		expected  bool
-		expectErr bool
+		name        string
+		args        args
+		expected    bool
+		expectedKey string
+		expectErr   bool
 	}{
 		{
-			"Test cell occupied",
+			"Test cell is occupied",
 			args{
 				x: 0,
 				y: 0,
 			},
 			true,
+			"000000:0:0:1:MOCK-UID:MOCK-MODEL-ID:100:100:0",
 			false,
 		},
 		{
@@ -132,6 +159,7 @@ func TestIsCellOccupied(t *testing.T) {
 				y: 0,
 			},
 			false,
+			"",
 			false,
 		},
 		{
@@ -141,13 +169,14 @@ func TestIsCellOccupied(t *testing.T) {
 				y: 0,
 			},
 			false,
+			"",
 			true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			occupied, err := dc.IsCellOccupied(tt.args.x, tt.args.y)
+			isOccupied, key, err := dc.IsCellOccupied(tt.args.x, tt.args.y)
 			if err != nil && tt.expectErr {
 				return
 			} else if err != nil && !tt.expectErr {
@@ -155,8 +184,11 @@ func TestIsCellOccupied(t *testing.T) {
 				return
 			}
 
-			if occupied != tt.expected {
-				t.Errorf("expected %v, \n\t got: %v", tt.expected, occupied)
+			if isOccupied != tt.expected {
+				t.Errorf("expected %v, \n\t got: %v", tt.expected, isOccupied)
+			}
+			if key != tt.expectedKey {
+				t.Errorf("expectedKey: %v, \n\t got: %v", tt.expectedKey, key)
 			}
 		})
 	}
@@ -175,7 +207,7 @@ func TestUpdateEntity(t *testing.T) {
 
 	dc.CreateEntity(envApi.Entity{
 		X: 0, Y: 0, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
-	})
+	}, true)
 
 	type args struct {
 		origionalContent string
@@ -251,7 +283,7 @@ func TestGetEntity(t *testing.T) {
 
 	dc.CreateEntity(envApi.Entity{
 		X: 0, Y: 0, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
-	})
+	}, true)
 
 	type args struct {
 		id string
@@ -319,7 +351,7 @@ func TestDeleteEntity(t *testing.T) {
 	}
 
 	mockPAL.On("PublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
-	dc.CreateEntity(e)
+	dc.CreateEntity(e, true)
 	mockPAL.On("PublishEvent", "deleteEntity", mock.AnythingOfType("Entity")).Return(nil)
 
 	got, _, err := dc.GetEntity(e.Id)
@@ -364,13 +396,13 @@ func TestGetEntitiesForModel(t *testing.T) {
 
 	dc.CreateEntity(envApi.Entity{
 		X: 0, Y: 0, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
-	})
+	}, true)
 	dc.CreateEntity(envApi.Entity{
 		X: 0, Y: 1, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-2", Health: 100, Energy: 100, Id: "1",
-	})
+	}, true)
 	dc.CreateEntity(envApi.Entity{
 		X: 0, Y: 2, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-2", Health: 100, Energy: 100, Id: "2",
-	})
+	}, true)
 
 	type args struct {
 		id string
@@ -437,22 +469,22 @@ func TestGetObservationsForEntity(t *testing.T) {
 
 	dc.CreateEntity(envApi.Entity{
 		X: 2, Y: 2, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
-	})
+	}, true)
 	dc.CreateEntity(envApi.Entity{
 		X: 2, Y: 3, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "1",
-	})
+	}, true)
 	dc.CreateEntity(envApi.Entity{
 		X: 3, Y: 3, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-2", Health: 100, Energy: 100, Id: "2",
-	})
+	}, true)
 	dc.CreateEntity(envApi.Entity{
 		X: 4, Y: 4, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-3", Health: 100, Energy: 100, Id: "3",
-	})
+	}, true)
 	dc.CreateEntity(envApi.Entity{
 		X: 66, Y: 66, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-4", Health: 100, Energy: 100, Id: "4",
-	})
+	}, true)
 	err := dc.CreateEntity(envApi.Entity{
 		X: 1, Y: 1, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-5", Health: 100, Energy: 100, Id: "5",
-	})
+	}, true)
 	println(err)
 
 	type args struct {

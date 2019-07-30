@@ -250,7 +250,7 @@ func TestCreateEntity(t *testing.T) {
 				e := tt.args.req.Entity
 				e.Energy = 100
 				e.Health = 100
-				mockDAL.On("CreateEntity", *tt.args.req.Entity).Return(nil)
+				mockDAL.On("CreateEntity", *tt.args.req.Entity, true).Return(nil)
 				mockDAL.On("GetRemoteModelMetadataByID", tt.args.req.Entity.ModelID).Return(tt.mockRMMetadata, tt.mockRMMetadataError)
 				mockDAL.On("IsCellOccupied", tt.args.req.Entity.X, tt.args.req.Entity.Y).Return(tt.mockIsCellOccupied, tt.mockIsCellOccupiedErr)
 			}

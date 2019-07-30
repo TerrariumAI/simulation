@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"math/rand"
 	"sync"
 
 	"google.golang.org/grpc/metadata"
@@ -50,7 +51,7 @@ type UserInfo struct {
 type DataAccessLayer interface {
 	// Redis
 	IsCellOccupied(x uint32, y uint32) (bool, error)
-	CreateEntity(e envApi.Entity) error
+	CreateEntity(e envApi.Entity, shouldPublish bool) error
 	DeleteEntity(id string) (int64, error)
 	UpdateEntity(origionalContent string, e envApi.Entity) error
 	GetEntity(id string) (*envApi.Entity, *string, error)
@@ -172,7 +173,7 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *envApi.Create
 	req.Entity.Id = entityID
 
 	// Add the entity to the environment
-	err = s.datacomDAL.CreateEntity(*req.Entity)
+	err = s.datacomDAL.CreateEntity(*req.Entity, true)
 
 	// Return the data for the agent
 	return &envApi.CreateEntityResponse{
@@ -290,6 +291,8 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 				}, nil
 			}
 		}
+	case 2: // EAT
+
 	default: // INVALID
 		return &envApi.ExecuteAgentActionResponse{
 			WasSuccessful: false,
@@ -312,6 +315,36 @@ func (s *environmentServer) ResetWorld(ctx context.Context, req *empty.Empty) (*
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
+
+	// Return
+	return &empty.Empty{}, nil
+}
+
+func (s *environmentServer) SpawnFood(ctx context.Context, req *empty.Empty) (*empty.Empty, error) {
+	// Lock the data, defer unlock until end of call
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	foodCount := 500
+	for i := 0; i < foodCount; i++ {
+		// Create an id for the entity
+		newUUID, err := uuid.NewV4()
+		if err != nil {
+			err := errors.New("Error generating id")
+			log.Printf("ERROR CreateEntity(): %v\n", err)
+			return nil, err
+		}
+		entityID := newUUID.String()
+		// Create entity
+		e := envApi.Entity{
+			Id:    entityID,
+			Class: 3,
+			X:     uint32(rand.Intn(100)),
+			Y:     uint32(rand.Intn(100)),
+		}
+		// Create entity silently (no publish)
+		s.datacomDAL.CreateEntity(e, false)
+	}
 
 	// Return
 	return &empty.Empty{}, nil

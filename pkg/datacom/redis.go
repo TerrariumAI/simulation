@@ -12,25 +12,26 @@ import (
 
 // IsCellOccupied checks the env to see if a cell has an entity by converting
 // the cell position to an index then querying redis
-func (dc *Datacom) IsCellOccupied(x uint32, y uint32) (bool, error) {
+func (dc *Datacom) IsCellOccupied(x uint32, y uint32) (bool, string, error) {
 	index, err := posToRedisIndex(x, y)
 	if err != nil {
-		return true, err
+		// TODO - Returning an empty string here may cause errors down the line
+		return true, "", err
 	}
 
 	// Now we can assume positions are correct sizes
 	// (would have thrown an error above if not)
 	keys, _, err := dc.redisClient.ZScan("entities", 0, index+":*", 0).Result()
 	if len(keys) > 0 {
-		return true, nil
+		return true, keys[0], nil
 	}
 
-	return false, nil
+	return false, "", nil
 }
 
 // CreateEntity sets entity data in the environment. It assumes that
 // the location is open and that the owner and model have already been checked.
-func (dc *Datacom) CreateEntity(e envApi.Entity) error {
+func (dc *Datacom) CreateEntity(e envApi.Entity, shouldPublish bool) error {
 	// Serialized entity content
 	content, err := serializeEntity(e)
 	if err != nil {
@@ -58,8 +59,10 @@ func (dc *Datacom) CreateEntity(e envApi.Entity) error {
 	}
 
 	// Send update
-	entity, _ := parseEntityContent(content)
-	dc.pubsub.PublishEvent("createEntity", entity)
+	if shouldPublish {
+		entity, _ := parseEntityContent(content)
+		dc.pubsub.PublishEvent("createEntity", entity)
+	}
 
 	return nil
 }

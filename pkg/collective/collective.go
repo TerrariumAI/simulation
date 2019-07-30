@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"sync"
 	"time"
@@ -150,7 +149,8 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 			// Wait for a response
 			respDur1 := time.Now().UnixNano() / 1000000
 			actionPacket, err := stream.Recv()
-			if err == io.EOF {
+			if err != nil {
+				fmt.Printf("ERROR: %v\n", err)
 				return err
 			}
 			respDur2 := time.Now().UnixNano() / 1000000

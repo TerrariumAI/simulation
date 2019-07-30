@@ -13,13 +13,13 @@ type DataAccessLayer struct {
 	mock.Mock
 }
 
-// CreateEntity provides a mock function with given fields: e
-func (_m *DataAccessLayer) CreateEntity(e endpoints_terrariumai_environment.Entity) error {
-	ret := _m.Called(e)
+// CreateEntity provides a mock function with given fields: e, shouldPublish
+func (_m *DataAccessLayer) CreateEntity(e endpoints_terrariumai_environment.Entity, shouldPublish bool) error {
+	ret := _m.Called(e, shouldPublish)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(endpoints_terrariumai_environment.Entity) error); ok {
-		r0 = rf(e)
+	if rf, ok := ret.Get(0).(func(endpoints_terrariumai_environment.Entity, bool) error); ok {
+		r0 = rf(e, shouldPublish)
 	} else {
 		r0 = ret.Error(0)
 	}
