@@ -6,7 +6,9 @@ import (
 	"net"
 	"os"
 
+	"github.com/alicebob/miniredis"
 	api "github.com/terrariumai/simulation/pkg/api/environment"
+	console "github.com/terrariumai/simulation/pkg/console"
 	"github.com/terrariumai/simulation/pkg/datacom"
 	"github.com/terrariumai/simulation/pkg/environment"
 	"google.golang.org/grpc"
@@ -39,12 +41,28 @@ func main() {
 		"Print time format for logger e.g. 2006-01-02T15:04:05Z07:00")
 	flag.Parse()
 
+	if len(cfg.Env) == 0 {
+		log.Fatalf("invalid Environment: '%s'", cfg.GRPCPort)
+		os.Exit(1)
+		return
+	}
+
+	// If we are in training, start the redis server
+	if cfg.Env == "training" {
+		redisServer, err := miniredis.Run()
+		if err != nil {
+			panic(err)
+		}
+		defer redisServer.Close()
+		cfg.RedisAddr = redisServer.Addr()
+	}
+
 	if len(cfg.GRPCPort) == 0 {
 		log.Fatalf("invalid TCP port for gRPC server: '%s'", cfg.GRPCPort)
 		os.Exit(1)
 		return
 	}
-	if len(cfg.RedisAddr) == 0 {
+	if len(cfg.RedisAddr) == 0 && cfg.Env == "training" {
 		log.Fatalf("invalid Redis Address: '%s'", cfg.RedisAddr)
 		os.Exit(1)
 		return
@@ -71,5 +89,14 @@ func main() {
 	api.RegisterEnvironmentServer(server, serverAPI)
 
 	log.Printf("Starting Environment Server on port %v", cfg.GRPCPort)
-	server.Serve(listen)
+	if cfg.Env == "training" {
+		log.Println("Training environment is online.")
+		// Start the server
+		go server.Serve(listen)
+		defer server.Stop()
+		// Start the console to listen for commands
+		console.StartConsole(serverAPI)
+	} else {
+		server.Serve(listen)
+	}
 }

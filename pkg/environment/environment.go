@@ -5,6 +5,7 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 	"sync"
@@ -25,7 +26,8 @@ const (
 	minPosition = 1
 
 	agentLivingEnergyCost = 1
-	agentMoveEnergyCost   = 1
+	agentMoveEnergyCost   = 2
+	agentEnergyGainOnEat  = 10
 	startingEnergy        = 100
 	startingHealth        = 100
 )
@@ -50,7 +52,7 @@ type UserInfo struct {
 // DataAccessLayer interface for all data access, specificly plugs in from datacom
 type DataAccessLayer interface {
 	// Redis
-	IsCellOccupied(x uint32, y uint32) (bool, error)
+	IsCellOccupied(x uint32, y uint32) (bool, *envApi.Entity, error)
 	CreateEntity(e envApi.Entity, shouldPublish bool) error
 	DeleteEntity(id string) (int64, error)
 	UpdateEntity(origionalContent string, e envApi.Entity) error
@@ -142,7 +144,7 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *envApi.Create
 	}
 
 	// Make sure the cell is not occupied
-	isCellOccupied, err := s.datacomDAL.IsCellOccupied(req.Entity.X, req.Entity.Y)
+	isCellOccupied, _, err := s.datacomDAL.IsCellOccupied(req.Entity.X, req.Entity.Y)
 	if err != nil {
 		log.Printf("ERROR: %v\n", err)
 		return nil, err
@@ -190,7 +192,8 @@ func (s *environmentServer) GetEntity(ctx context.Context, req *envApi.GetEntity
 	// Get the entity
 	entity, _, err := s.datacomDAL.GetEntity(req.Id)
 	if err != nil {
-		return nil, errors.New("entity does not exist")
+		fmt.Printf("ERROR: %v\n", err)
+		return nil, err
 	}
 
 	// Return the data for the agent
@@ -226,7 +229,12 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 	// Get the entity
 	entity, origionalContent, err := s.datacomDAL.GetEntity(req.Id)
 	if err != nil {
-		return nil, err
+		// Note: returning an error here seems correct, but completely stops a model if an agent was deleted
+		// mid session.
+		// An error here essentially means the agent was removed manually.
+		return &envApi.ExecuteAgentActionResponse{
+			WasSuccessful: false,
+		}, nil
 	}
 
 	var targetX, targetY = entity.X, entity.Y
@@ -267,7 +275,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 			}, nil
 		}
 		// Check if cell is occupied
-		isCellOccupied, err := s.datacomDAL.IsCellOccupied(targetX, targetY)
+		isCellOccupied, _, err := s.datacomDAL.IsCellOccupied(targetX, targetY)
 		if isCellOccupied || err != nil {
 			// Return unsuccessful
 			return &envApi.ExecuteAgentActionResponse{
@@ -292,7 +300,50 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 			}
 		}
 	case 2: // EAT
-
+		// Check if cell is occupied
+		isCellOccupied, other, err := s.datacomDAL.IsCellOccupied(targetX, targetY)
+		if !isCellOccupied || err != nil {
+			fmt.Println("asdf")
+			log.Println("not occupied or error")
+			// Return unsuccessful
+			return &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: false,
+			}, nil
+		}
+		if other.Class != 3 { // FOOD
+			log.Println("invalid class")
+			return &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: false,
+			}, nil
+		}
+		// Update entity
+		entity.Energy += agentEnergyGainOnEat
+		// Delete food
+		s.datacomDAL.DeleteEntity(other.Id)
+		// Spawn another random food entity (loop to ensure another is spawned)
+		// this artificially keeps the ecosystem in check
+		for {
+			// Create an id for the entity
+			newUUID, err := uuid.NewV4()
+			if err != nil {
+				err := errors.New("Error generating id")
+				log.Printf("ERROR CreateEntity(): %v\n", err)
+				return nil, err
+			}
+			entityID := newUUID.String()
+			// Create entity
+			e := envApi.Entity{
+				Id:    entityID,
+				Class: 3,
+				X:     uint32(rand.Intn(100)),
+				Y:     uint32(rand.Intn(100)),
+			}
+			// Create entity silently (no publish)
+			err = s.datacomDAL.CreateEntity(e, true)
+			if err == nil {
+				break
+			}
+		}
 	default: // INVALID
 		return &envApi.ExecuteAgentActionResponse{
 			WasSuccessful: false,

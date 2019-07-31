@@ -38,7 +38,7 @@ run-c-staging: ## run the server locally with env set to testing
 run-c-prod: ## run the server locally with env set to prod
 	go run -race ./cmd/collective/main.go -grpc-port=9090 -environment-addr=localhost:9091 -redis-addr=localhost:6379 -log-level=-1 -env=prod
 run-c-training: ## run the server locally with env set to training
-	go run -race ./cmd/collective/main.go -grpc-port=9090 -log-level=-1 -env=training
+	go run -race ./cmd/collective/main.go -log-level=-1 -env=training
 
 ## ----------------------
 ## ------ Testing

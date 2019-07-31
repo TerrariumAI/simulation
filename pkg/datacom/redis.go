@@ -12,21 +12,22 @@ import (
 
 // IsCellOccupied checks the env to see if a cell has an entity by converting
 // the cell position to an index then querying redis
-func (dc *Datacom) IsCellOccupied(x uint32, y uint32) (bool, string, error) {
+func (dc *Datacom) IsCellOccupied(x uint32, y uint32) (bool, *envApi.Entity, error) {
 	index, err := posToRedisIndex(x, y)
 	if err != nil {
 		// TODO - Returning an empty string here may cause errors down the line
-		return true, "", err
+		return true, nil, err
 	}
 
 	// Now we can assume positions are correct sizes
 	// (would have thrown an error above if not)
 	keys, _, err := dc.redisClient.ZScan("entities", 0, index+":*", 0).Result()
 	if len(keys) > 0 {
-		return true, keys[0], nil
+		e, _ := parseEntityContent(keys[0])
+		return true, &e, nil
 	}
 
-	return false, "", nil
+	return false, nil, nil
 }
 
 // CreateEntity sets entity data in the environment. It assumes that

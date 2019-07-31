@@ -67,11 +67,6 @@ func NewDatacom(env string, redisAddr string, pubsub PubsubAccessLayer) (*Dataco
 		pubsub: pubsub,
 	}
 
-	// If we are training, we don't ever connect to any servers
-	if env == "training" {
-		return dc, nil
-	}
-
 	// Setup Firebase
 	switch env {
 	case "staging":

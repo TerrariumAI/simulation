@@ -12,15 +12,13 @@ import (
 // GetRemoteModelMetadataBySecret checks the database to see if a remote model exists,
 // if so returns metadata
 func (dc *Datacom) GetRemoteModelMetadataBySecret(modelSecret string) (*RemoteModel, error) {
-	// Test case
-	if dc.env == "testing" {
-		if modelSecret == "MOCK-SECRET" {
-			return &RemoteModel{
-				ID:           "MOCK-MODEL-ID",
-				ConnectCount: 1,
-			}, nil
-		}
-		return nil, errors.New("That RM does does not exist")
+	// Training case
+	if dc.env == "training" {
+		return &RemoteModel{
+			ID:           "MOCK-MODEL-ID",
+			OwnerUID:     "MOCK-UID",
+			ConnectCount: 1,
+		}, nil
 	}
 
 	// Init client
@@ -55,16 +53,13 @@ func (dc *Datacom) GetRemoteModelMetadataBySecret(modelSecret string) (*RemoteMo
 // GetRemoteModelMetadataByID checks the database to see if a remote model exists,
 // if so returns metadata
 func (dc *Datacom) GetRemoteModelMetadataByID(modelID string) (*RemoteModel, error) {
-	// Test case
-	if dc.env == "testing" {
-		if modelID == "MOCK-MODEL-ID" {
-			return &RemoteModel{
-				ID:           "MOCK-MODEL-ID",
-				OwnerUID:     "MOCK-UID",
-				ConnectCount: 1,
-			}, nil
-		}
-		return nil, errors.New("That RM does does not exist")
+	// Training case
+	if dc.env == "training" {
+		return &RemoteModel{
+			ID:           "MOCK-MODEL-ID",
+			OwnerUID:     "MOCK-UID",
+			ConnectCount: 1,
+		}, nil
 	}
 
 	// Init client
