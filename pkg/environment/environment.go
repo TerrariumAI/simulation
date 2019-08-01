@@ -234,6 +234,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		// An error here essentially means the agent was removed manually.
 		return &envApi.ExecuteAgentActionResponse{
 			WasSuccessful: false,
+			IsAlive:       false,
 		}, nil
 	}
 
@@ -262,6 +263,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 			s.datacomDAL.DeleteEntity(entity.Id)
 			return &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: false,
+				IsAlive:       false,
 			}, nil
 		}
 	}
@@ -272,6 +274,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		if targetX < minPosition || targetY < minPosition {
 			return &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: false,
+				IsAlive:       true,
 			}, nil
 		}
 		// Check if cell is occupied
@@ -280,6 +283,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 			// Return unsuccessful
 			return &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: false,
+				IsAlive:       true,
 			}, nil
 		}
 		entity.X = targetX
@@ -296,6 +300,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 				s.datacomDAL.DeleteEntity(entity.Id)
 				return &envApi.ExecuteAgentActionResponse{
 					WasSuccessful: false,
+					IsAlive:       false,
 				}, nil
 			}
 		}
@@ -308,12 +313,14 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 			// Return unsuccessful
 			return &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: false,
+				IsAlive:       true,
 			}, nil
 		}
 		if other.Class != 3 { // FOOD
 			log.Println("invalid class")
 			return &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: false,
+				IsAlive:       true,
 			}, nil
 		}
 		// Update entity
@@ -347,6 +354,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 	default: // INVALID
 		return &envApi.ExecuteAgentActionResponse{
 			WasSuccessful: false,
+			IsAlive:       true,
 		}, nil
 	}
 
@@ -359,6 +367,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 	// Return the data for the agent
 	return &envApi.ExecuteAgentActionResponse{
 		WasSuccessful: true,
+		IsAlive:       true,
 	}, nil
 }
 

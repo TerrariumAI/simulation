@@ -104,6 +104,9 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 	// Update the RM to show that this has connected
 	s.datacom.UpdateRemoteModelMetadata(remoteModelMD, remoteModelMD.ConnectCount+1)
 
+	// Dead entity observation array
+	entityDeathObsvs := []api.Observation{}
+
 	// Start the loop
 	for {
 		select {
@@ -129,6 +132,14 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 				log.Printf("ERROR: %v\n", err)
 			}
 			obsvPacket.Observations = append(obsvPacket.Observations, obsv)
+		}
+		// Append death observations
+		if len(entityDeathObsvs) > 0 {
+			for _, obsv := range entityDeathObsvs {
+				obsvPacket.Observations = append(obsvPacket.Observations, &obsv)
+			}
+			// Reset the slice
+			entityDeathObsvs = []api.Observation{}
 		}
 
 		// We want to get the current time when we send the observation so
@@ -160,10 +171,18 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 					Action:    action.Action,
 					Direction: action.Direction,
 				}
-				_, err := s.envClient.ExecuteAgentAction(ctx, &req)
+				resp, err := s.envClient.ExecuteAgentAction(ctx, &req)
 				if err != nil {
 					fmt.Printf("Error sending action: %v \n: ", err)
 					return err
+				}
+				// Check if the agent died during this action
+				if !resp.IsAlive {
+					// Add this observaion to the death obsvs slice to be used in the next loop
+					entityDeathObsvs = append(entityDeathObsvs, api.Observation{
+						Id:      action.Id,
+						IsAlive: false,
+					})
 				}
 			}
 		}
