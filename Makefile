@@ -9,14 +9,15 @@ help: ## Display this help screen
 
 build-environment: ## build the server executable (for linux/docker use only)
 	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o ./bin/environment ./cmd/environment
-build-environment-mac: check-version-env-var
-	GOOS=darwin GOARCH=amd64 CGO_ENABLED=1 go build -a -installsuffix cgo -o ./bin/environment-osx-$(VERSION).sh ./cmd/environment
-build-environment-windows: check-version-env-var
-	GOOS=windows GOARCH=amd64 CGO_ENABLED=1 go build -a -installsuffix cgo -o ./bin/environment-osx-$(VERSION).exe ./cmd/environment
-build-environment-releases: build-environment-mac build-environment-windows
 
 build-collective: ## build the server executable (for linux/docker use only)
 	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o ./bin/collective ./cmd/collective
+
+build-training-mac: check-version-env-var
+	GOOS=darwin GOARCH=amd64 CGO_ENABLED=1 go build -a -installsuffix cgo -o ./bin/training-osx-$(VERSION).sh ./cmd/training
+build-training-windows: check-version-env-var
+	GOOS=windows GOARCH=amd64 CGO_ENABLED=1 go build -a -installsuffix cgo -o ./bin/training-osx-$(VERSION).exe ./cmd/training
+build-training-releases: build-environment-mac build-environment-windows
 
 # build-mac: ## Build distribution binary for mac
 # 	go build -o ./bin/simulation-osx ./cmd/server

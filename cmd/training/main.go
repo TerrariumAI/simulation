@@ -57,9 +57,9 @@ func main() {
 
 	// Start 'em up!
 	log.Println("Training environment is online.")
+	go eServer.Serve(eListen)
+	defer eServer.Stop()
 	go cServer.Serve(cListen)
-	defer cServer.Stop()
-	go cServer.Serve(eListen)
 	defer cServer.Stop()
 
 	// Start the console to listen for commands

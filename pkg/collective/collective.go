@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	minFrameTimeMilliseconds = 250 // 50
+	defaultMinStepTimeMilliseconds int64 = 250 // 50
 )
 
 type collectiveServer struct {
@@ -29,6 +29,8 @@ type collectiveServer struct {
 	datacom *datacom.Datacom
 	// Environment client
 	envClient envApi.EnvironmentClient
+	// Minimum each step should take
+	minStepTimeMilliseconds int64
 }
 
 // UserInfo is the struct that will parse the auth response
@@ -53,11 +55,18 @@ func NewCollectiveServer(env string, redisAddr string, envAddress string, p data
 	}
 	envClient := envApi.NewEnvironmentClient(conn)
 
+	minStepTimeMilliseconds := defaultMinStepTimeMilliseconds
+	// Disavle minimum step time in training, I WANNA GO FAST!
+	if env == "training" {
+		minStepTimeMilliseconds = 0
+	}
+
 	// Init server
 	s := &collectiveServer{
-		env:       env,
-		datacom:   datacom,
-		envClient: envClient,
+		env:                     env,
+		datacom:                 datacom,
+		envClient:               envClient,
+		minStepTimeMilliseconds: minStepTimeMilliseconds,
 	}
 
 	return s
@@ -95,7 +104,6 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 	// Update the RM to show that this has connected
 	s.datacom.UpdateRemoteModelMetadata(remoteModelMD, remoteModelMD.ConnectCount+1)
 
-	sendt1 := time.Now().UnixNano() / 1000000
 	// Start the loop
 	for {
 		select {
@@ -130,32 +138,18 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 
 		// Only attempt any logic if there are observations to send
 		if len(obsvPacket.Observations) > 0 {
-			sendt2 := time.Now().UnixNano() / 1000000
-			// Send the observation packet
-			sendtDur1 := time.Now().UnixNano() / 1000000
 			if err := stream.Send(&obsvPacket); err != nil {
 				// TODO - Clean disconnect, remove data from database
 				log.Printf("ERROR sending observation packet: %v\n", err)
 				return err
 			}
-			sendtDur2 := time.Now().UnixNano() / 1000000
-			sendDurDiff := sendtDur2 - sendtDur1
-			println("SendDurDiff: ", sendDurDiff)
-
-			diff := sendt2 - sendt1
-			println("SendDiff: ", diff)
-			sendt1 = sendt2
 
 			// Wait for a response
-			respDur1 := time.Now().UnixNano() / 1000000
 			actionPacket, err := stream.Recv()
 			if err != nil {
 				fmt.Printf("ERROR: %v\n", err)
 				return err
 			}
-			respDur2 := time.Now().UnixNano() / 1000000
-			respDurDiff := respDur2 - respDur1
-			println("RespDurDiff: ", respDurDiff)
 
 			// Perform actions
 			actions := actionPacket.GetActions()
@@ -177,9 +171,9 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 		// Wait if we got a response too quickly
 		t2 := time.Now().UnixNano() / 1000000
 		delta := t2 - t1
-		if delta < minFrameTimeMilliseconds {
+		if delta < s.minStepTimeMilliseconds {
 			// println("waiting for ", minFrameTimeMilliseconds-delta)
-			time.Sleep(time.Duration((minFrameTimeMilliseconds - delta)) * time.Millisecond)
+			time.Sleep(time.Duration((s.minStepTimeMilliseconds - delta)) * time.Millisecond)
 		}
 	}
 }
