@@ -86,7 +86,7 @@ func TestCreateEntity(t *testing.T) {
 			// Setup pubsub mock
 			mockPAL := &mocks.PubsubAccessLayer{}
 			dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
-			mockPAL.On("PublishEvent", "createEntity", tt.args.entity).Return(nil)
+			mockPAL.On("QueuePublishEvent", "createEntity", tt.args.entity).Return(nil)
 
 			err := dc.CreateEntity(tt.args.entity, tt.args.shouldPublish)
 			if err != nil {
@@ -102,7 +102,7 @@ func TestCreateEntity(t *testing.T) {
 			})
 
 			// Check publish calls
-			mockPAL.AssertNumberOfCalls(t, "PublishEvent", tt.expectedPublishCount)
+			mockPAL.AssertNumberOfCalls(t, "QueuePublishEvent", tt.expectedPublishCount)
 
 			keys, cursor, err := redisClient.ZScan("entities", 0, "*", 0).Result()
 			if len(keys) != 2 {
@@ -124,23 +124,23 @@ func TestIsCellOccupied(t *testing.T) {
 	defer teardown(redisServer)
 	// Setup pubsub mock
 	mockPAL := &mocks.PubsubAccessLayer{}
-	mockPAL.On("PublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
-
-	dc.CreateEntity(envApi.Entity{
+	e := envApi.Entity{
 		X: 0, Y: 0, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
-	}, true)
+	}
+	dc.CreateEntity(e, true)
 
 	type args struct {
 		x uint32
 		y uint32
 	}
 	tests := []struct {
-		name        string
-		args        args
-		expected    bool
-		expectedKey string
-		expectErr   bool
+		name           string
+		args           args
+		expected       bool
+		expectedEntity *envApi.Entity
+		expectErr      bool
 	}{
 		{
 			"Test cell is occupied",
@@ -149,18 +149,18 @@ func TestIsCellOccupied(t *testing.T) {
 				y: 0,
 			},
 			true,
-			"000000:0:0:1:MOCK-UID:MOCK-MODEL-ID:100:100:0",
+			&e,
 			false,
 		},
 		{
-			"Test cell unoccupied",
-			args{
+			name: "Test cell unoccupied",
+			args: args{
 				x: 1,
 				y: 0,
 			},
-			false,
-			"",
-			false,
+			expected:       false,
+			expectedEntity: nil,
+			expectErr:      false,
 		},
 		{
 			"Test error on invalid position",
@@ -169,14 +169,14 @@ func TestIsCellOccupied(t *testing.T) {
 				y: 0,
 			},
 			false,
-			"",
+			nil,
 			true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isOccupied, key, err := dc.IsCellOccupied(tt.args.x, tt.args.y)
+			isOccupied, got, err := dc.IsCellOccupied(tt.args.x, tt.args.y)
 			if err != nil && tt.expectErr {
 				return
 			} else if err != nil && !tt.expectErr {
@@ -187,8 +187,9 @@ func TestIsCellOccupied(t *testing.T) {
 			if isOccupied != tt.expected {
 				t.Errorf("expected %v, \n\t got: %v", tt.expected, isOccupied)
 			}
-			if key != tt.expectedKey {
-				t.Errorf("expectedKey: %v, \n\t got: %v", tt.expectedKey, key)
+
+			if !reflect.DeepEqual(got, tt.expectedEntity) {
+				t.Errorf("got %v, expected %v", got, tt.expectedEntity)
 			}
 		})
 	}
@@ -202,7 +203,7 @@ func TestUpdateEntity(t *testing.T) {
 	defer teardown(redisServer)
 	// Setup pubsub mock
 	mockPAL := &mocks.PubsubAccessLayer{}
-	mockPAL.On("PublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 
 	dc.CreateEntity(envApi.Entity{
@@ -241,7 +242,7 @@ func TestUpdateEntity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup mock for publish
-			mockPAL.On("PublishEvent", "updateEntity", tt.args.entity).Return(nil)
+			mockPAL.On("QueuePublishEvent", "updateEntity", tt.args.entity).Return(nil)
 
 			// Make sure the entity data is there
 			redisClient := redis.NewClient(&redis.Options{
@@ -278,7 +279,7 @@ func TestGetEntity(t *testing.T) {
 	defer teardown(redisServer)
 	// Setup pubsub mock
 	mockPAL := &mocks.PubsubAccessLayer{}
-	mockPAL.On("PublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 
 	dc.CreateEntity(envApi.Entity{
@@ -350,9 +351,9 @@ func TestDeleteEntity(t *testing.T) {
 		X: 0, Y: 0, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
 	}
 
-	mockPAL.On("PublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
 	dc.CreateEntity(e, true)
-	mockPAL.On("PublishEvent", "deleteEntity", mock.AnythingOfType("Entity")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "deleteEntity", mock.AnythingOfType("Entity")).Return(nil)
 
 	got, _, err := dc.GetEntity(e.Id)
 	if !reflect.DeepEqual(*got, e) {
@@ -391,7 +392,7 @@ func TestGetEntitiesForModel(t *testing.T) {
 	defer teardown(redisServer)
 	// Setup pubsub mock
 	mockPAL := &mocks.PubsubAccessLayer{}
-	mockPAL.On("PublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 
 	dc.CreateEntity(envApi.Entity{
@@ -464,7 +465,7 @@ func TestGetObservationsForEntity(t *testing.T) {
 	defer teardown(redisServer)
 	// Setup pubsub mock
 	mockPAL := &mocks.PubsubAccessLayer{}
-	mockPAL.On("PublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 
 	dc.CreateEntity(envApi.Entity{

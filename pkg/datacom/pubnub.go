@@ -4,15 +4,30 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	pubnub "github.com/pubnub/go"
 	envApi "github.com/terrariumai/simulation/pkg/api/environment"
 )
 
+const (
+	publishDelay = 250
+)
+
+type pubMsg struct {
+	channel string
+	msg     map[string]interface{}
+}
+
+type batchPubMsg struct {
+	events []pubMsg
+}
+
 // PubnubPAL specific struct for pubnub
 type PubnubPAL struct {
 	pubnubClient *pubnub.PubNub
 	env          string
+	pubChan      chan pubMsg
 }
 
 // NewPubnubPAL Creates a new pubnub specific Pubsub Access Layer
@@ -21,17 +36,28 @@ func NewPubnubPAL(env string, subkey string, pubkey string) PubsubAccessLayer {
 	config := pubnub.NewConfig()
 	config.SubscribeKey = subkey
 	config.PublishKey = pubkey
-	return &PubnubPAL{
+	p := PubnubPAL{
 		pubnubClient: pubnub.NewPubNub(config),
 		env:          env,
+		pubChan:      make(chan pubMsg),
 	}
+
+	// Start publish loop
+	if env != "training" {
+		go p.StartBatchPublishLoop()
+	}
+
+	return &p
 }
 
-// PublishEvent publishes an event to pubnub for web clients to listen to
-func (p *PubnubPAL) PublishEvent(eventName string, entity envApi.Entity) error {
+// PublishEvent queues an event to be published as a batch later in Publisher
+func (p *PubnubPAL) QueuePublishEvent(eventName string, entity envApi.Entity) error {
+	// Do nothing if we are training
 	if p.env == "training" {
 		return nil
 	}
+
+	// marshal
 	b, err := json.Marshal(entity)
 	if err != nil {
 		log.Printf("PublishEvent(): error: %v\n", err)
@@ -45,13 +71,58 @@ func (p *PubnubPAL) PublishEvent(eventName string, entity envApi.Entity) error {
 
 	x, y := getRegionForPos(entity.X, entity.Y)
 	channel := fmt.Sprintf("%v.%v", x, y)
-	_, _, err = p.pubnubClient.Publish().
-		Channel(channel).Message(msg).Execute()
 
-	if err != nil {
-		log.Printf("PublishEvent(): error publishing: %v\n", err)
-		return err
+	p.pubChan <- pubMsg{
+		channel,
+		msg,
 	}
 
 	return nil
+}
+
+func (p *PubnubPAL) PublishMessage(channel string, message interface{}) error {
+	_, _, err := p.pubnubClient.Publish().
+		Channel(channel).Message(message).Execute()
+
+	return err
+}
+
+func (p *PubnubPAL) BatchPublish() {
+	// maps regionId -> batchMessage
+	batchMap := make(map[string]batchPubMsg)
+
+	// process all messages in channel
+	for i := 0; i < len(p.pubChan); i++ {
+		msg := <-p.pubChan
+		if b, ok := batchMap[msg.channel]; ok { // batch var already exists
+			b.events = append(b.events, msg)
+		} else { // batch var needs to be created
+			// create the new batch holder
+			b := batchPubMsg{
+				events: []pubMsg{msg},
+			}
+			// add it to the map
+			batchMap[msg.channel] = b
+		}
+	}
+
+	// send batches
+	for channel, batch := range batchMap {
+		err := p.PublishMessage(channel, batch)
+
+		if err != nil {
+			log.Printf("ERROR: issue publishing batch: %v\n", err)
+		}
+	}
+}
+
+// StartBatchPublishLoop starts a loop that constantly publishes in batches per region,
+//   then waits publishDelay milliseconds
+func (p *PubnubPAL) StartBatchPublishLoop() {
+	for {
+		// publish
+		p.BatchPublish()
+		// sleep
+		time.Sleep(publishDelay * time.Millisecond)
+	}
 }

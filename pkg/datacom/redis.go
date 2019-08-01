@@ -62,7 +62,7 @@ func (dc *Datacom) CreateEntity(e envApi.Entity, shouldPublish bool) error {
 	// Send update
 	if shouldPublish {
 		entity, _ := parseEntityContent(content)
-		dc.pubsub.PublishEvent("createEntity", entity)
+		dc.pubsub.QueuePublishEvent("createEntity", entity)
 	}
 
 	return nil
@@ -93,7 +93,7 @@ func (dc *Datacom) UpdateEntity(origionalContent string, e envApi.Entity) error 
 	}).Err()
 
 	// Send update
-	dc.pubsub.PublishEvent("updateEntity", e)
+	dc.pubsub.QueuePublishEvent("updateEntity", e)
 
 	return nil
 }
@@ -142,7 +142,7 @@ func (dc *Datacom) DeleteEntity(id string) (int64, error) {
 	}
 
 	// Send update
-	dc.pubsub.PublishEvent("deleteEntity", entity)
+	dc.pubsub.QueuePublishEvent("deleteEntity", entity)
 
 	return delete.Val(), nil
 }

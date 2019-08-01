@@ -10,8 +10,22 @@ type PubsubAccessLayer struct {
 	mock.Mock
 }
 
-// PublishEvent provides a mock function with given fields: eventName, entity
-func (_m *PubsubAccessLayer) PublishEvent(eventName string, entity endpoints_terrariumai_environment.Entity) error {
+// PublishMessage provides a mock function with given fields: channel, message
+func (_m *PubsubAccessLayer) PublishMessage(channel string, message interface{}) error {
+	ret := _m.Called(channel, message)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, interface{}) error); ok {
+		r0 = rf(channel, message)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// QueuePublishEvent provides a mock function with given fields: eventName, entity
+func (_m *PubsubAccessLayer) QueuePublishEvent(eventName string, entity endpoints_terrariumai_environment.Entity) error {
 	ret := _m.Called(eventName, entity)
 
 	var r0 error

@@ -56,7 +56,8 @@ type RemoteModel struct {
 
 // PubsubAccessLayer generic interface for pubsub services.
 type PubsubAccessLayer interface {
-	PublishEvent(eventName string, entity envApi.Entity) error
+	PublishMessage(channel string, message interface{}) error
+	QueuePublishEvent(eventName string, entity envApi.Entity) error
 }
 
 // NewDatacom instantiates a new datacom object with proper clients

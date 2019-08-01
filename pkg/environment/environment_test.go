@@ -459,13 +459,14 @@ func TestExecuteAgentAction(t *testing.T) {
 				ctx: ctx,
 				req: &envApi.ExecuteAgentActionRequest{},
 			},
-			wantErr: true,
 			mockGetEntityResp: getEntityResp{
 				entity:  nil,
 				content: "",
 				err:     errors.New("entity does not exist"),
 			},
-			wantErrMessage: "entity does not exist",
+			want: &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: false,
+			},
 		},
 		{
 			name: "rest reduces energy by 1",
@@ -529,7 +530,7 @@ func TestExecuteAgentAction(t *testing.T) {
 			mockIsCellOccupiedResp: isCellOccupiedResp{false, nil, nil},
 			wantUpdateEntityArgs: updateEntityArgs{
 				origionalContent: "mock-original-content",
-				entity:           envApi.Entity{Id: "mock-entity-id", X: 2, Y: 1, Energy: 98, Health: 100},
+				entity:           envApi.Entity{Id: "mock-entity-id", X: 2, Y: 1, Energy: 97, Health: 100},
 			},
 			want: &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: true,
