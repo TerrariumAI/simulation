@@ -232,10 +232,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		// Note: returning an error here seems correct, but completely stops a model if an agent was deleted
 		// mid session.
 		// An error here essentially means the agent was removed manually.
-		return &envApi.ExecuteAgentActionResponse{
-			WasSuccessful: false,
-			IsAlive:       false,
-		}, nil
+		return nil, err
 	}
 
 	var targetX, targetY = entity.X, entity.Y

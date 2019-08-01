@@ -221,7 +221,8 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 	}
 
 	obsv := collectiveApi.Observation{
-		Id: entity.Id,
+		Id:      entity.Id,
+		IsAlive: true,
 	}
 	xMin := entity.X - 1
 	xMax := entity.X + 1
