@@ -87,6 +87,11 @@ func (dc *Datacom) GetRemoteModelMetadataByID(modelID string) (*RemoteModel, err
 
 // UpdateRemoteModelMetadata updates a remote model's metadata
 func (dc *Datacom) UpdateRemoteModelMetadata(remoteModelMD *RemoteModel, connectCount int) error {
+	// Training case
+	if dc.env == "training" {
+		return nil
+	}
+
 	// Init client
 	ctx := context.Background()
 	client, err := dc.firebaseApp.Firestore(ctx)

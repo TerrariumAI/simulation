@@ -33,9 +33,9 @@ type Config struct {
 func main() {
 	// get configuration
 	var cfg Config
-	flag.StringVar(&cfg.GRPCPort, "grpc-port", "", "gRPC port to bind")
-	flag.StringVar(&cfg.RedisAddr, "redis-addr", "", "Redis address to connect to")
-	flag.StringVar(&cfg.EnvironmentAddr, "environment-addr", "", "Environment service address to connect to")
+	flag.StringVar(&cfg.GRPCPort, "grpc-port", "9090", "gRPC port to bind")
+	flag.StringVar(&cfg.RedisAddr, "redis-addr", "127.0.0.1:12345", "Redis address to connect to")
+	flag.StringVar(&cfg.EnvironmentAddr, "environment-addr", "127.0.0.1:9091", "Environment service address to connect to")
 	flag.StringVar(&cfg.Env, "env", "", "Environment the server is running in")
 	flag.IntVar(&cfg.LogLevel, "log-level", 0, "Global log level")
 	flag.StringVar(&cfg.LogTimeFormat, "log-time-format", "",
@@ -64,7 +64,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	pubnubPAL := datacom.NewPubnubPAL("sub-c-b4ba4e28-a647-11e9-ad2c-6ad2737329fc", "pub-c-83ed11c2-81e1-4d7f-8e94-0abff2b85825")
+	pubnubPAL := datacom.NewPubnubPAL(cfg.Env, "sub-c-b4ba4e28-a647-11e9-ad2c-6ad2737329fc", "pub-c-83ed11c2-81e1-4d7f-8e94-0abff2b85825")
 	serverAPI := collective.NewCollectiveServer(cfg.Env, cfg.RedisAddr, cfg.EnvironmentAddr, pubnubPAL)
 
 	opts := []grpc.ServerOption{}

@@ -9,6 +9,11 @@ help: ## Display this help screen
 
 build-environment: ## build the server executable (for linux/docker use only)
 	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o ./bin/environment ./cmd/environment
+build-environment-mac: check-version-env-var
+	GOOS=darwin GOARCH=amd64 CGO_ENABLED=1 go build -a -installsuffix cgo -o ./bin/environment-osx-$(VERSION).sh ./cmd/environment
+build-environment-windows: check-version-env-var
+	GOOS=windows GOARCH=amd64 CGO_ENABLED=1 go build -a -installsuffix cgo -o ./bin/environment-osx-$(VERSION).exe ./cmd/environment
+build-environment-releases: build-environment-mac build-environment-windows
 
 build-collective: ## build the server executable (for linux/docker use only)
 	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o ./bin/collective ./cmd/collective
@@ -27,7 +32,7 @@ run-e-testing: ## run the server locally with env set to testing
 run-e-staging: ## run the server locally with env set to testing
 	go run -race ./cmd/environment/main.go -grpc-port=9091 -redis-addr=localhost:6379 -log-level=-1 -env=staging
 run-e-training: ## run the server locally with env set to training
-	go run -race ./cmd/environment/main.go -grpc-port=9091 -log-level=-1 -env=training
+	go run -race ./cmd/environment/main.go
 run-e-prod: ## run the server locally with env set to prod
 	go run -race ./cmd/environment/main.go -grpc-port=9091 -log-level=-1 -env=prod
 
@@ -35,10 +40,11 @@ run-c-testing: ## run the server locally with env set to testing
 	go run -race ./cmd/collective/main.go -grpc-port=9090 -redis-addr=localhost:6379 -environment-addr=localhost:9091 -log-level=-1 -env=testing
 run-c-staging: ## run the server locally with env set to testing
 	go run -race ./cmd/collective/main.go -grpc-port=9090 -redis-addr=localhost:6379 -environment-addr=localhost:9091 -log-level=-1 -env=staging
+run-c-training: ## run the server locally with env set to training
+	go run -race ./cmd/collective/main.go
 run-c-prod: ## run the server locally with env set to prod
 	go run -race ./cmd/collective/main.go -grpc-port=9090 -environment-addr=localhost:9091 -redis-addr=localhost:6379 -log-level=-1 -env=prod
-run-c-training: ## run the server locally with env set to training
-	go run -race ./cmd/collective/main.go -log-level=-1 -env=training
+
 
 ## ----------------------
 ## ------ Testing

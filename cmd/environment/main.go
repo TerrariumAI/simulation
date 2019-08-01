@@ -6,9 +6,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/alicebob/miniredis"
 	api "github.com/terrariumai/simulation/pkg/api/environment"
-	console "github.com/terrariumai/simulation/pkg/console"
 	"github.com/terrariumai/simulation/pkg/datacom"
 	"github.com/terrariumai/simulation/pkg/environment"
 	"google.golang.org/grpc"
@@ -33,9 +31,9 @@ type Config struct {
 func main() {
 	// get configuration
 	var cfg Config
-	flag.StringVar(&cfg.GRPCPort, "grpc-port", "", "gRPC port to bind")
+	flag.StringVar(&cfg.GRPCPort, "grpc-port", "9091", "gRPC port to bind")
 	flag.StringVar(&cfg.RedisAddr, "redis-addr", "", "Redis address to connect to")
-	flag.StringVar(&cfg.Env, "env", "", "Environment the server is running in")
+	flag.StringVar(&cfg.Env, "env", "training", "Environment the server is running in")
 	flag.IntVar(&cfg.LogLevel, "log-level", 0, "Global log level")
 	flag.StringVar(&cfg.LogTimeFormat, "log-time-format", "",
 		"Print time format for logger e.g. 2006-01-02T15:04:05Z07:00")
@@ -46,23 +44,12 @@ func main() {
 		os.Exit(1)
 		return
 	}
-
-	// If we are in training, start the redis server
-	if cfg.Env == "training" {
-		redisServer, err := miniredis.Run()
-		if err != nil {
-			panic(err)
-		}
-		defer redisServer.Close()
-		cfg.RedisAddr = redisServer.Addr()
-	}
-
 	if len(cfg.GRPCPort) == 0 {
 		log.Fatalf("invalid TCP port for gRPC server: '%s'", cfg.GRPCPort)
 		os.Exit(1)
 		return
 	}
-	if len(cfg.RedisAddr) == 0 && cfg.Env == "training" {
+	if len(cfg.RedisAddr) == 0 {
 		log.Fatalf("invalid Redis Address: '%s'", cfg.RedisAddr)
 		os.Exit(1)
 		return
@@ -75,7 +62,7 @@ func main() {
 	}
 
 	// Initialize pubnub pal
-	pubnubPAL := datacom.NewPubnubPAL("sub-c-b4ba4e28-a647-11e9-ad2c-6ad2737329fc", "pub-c-83ed11c2-81e1-4d7f-8e94-0abff2b85825")
+	pubnubPAL := datacom.NewPubnubPAL(cfg.Env, "sub-c-b4ba4e28-a647-11e9-ad2c-6ad2737329fc", "pub-c-83ed11c2-81e1-4d7f-8e94-0abff2b85825")
 	datacom, err := datacom.NewDatacom(cfg.Env, cfg.RedisAddr, pubnubPAL)
 	if err != nil {
 		log.Fatalf("Error initializing Datacom: %v", err)
@@ -89,14 +76,5 @@ func main() {
 	api.RegisterEnvironmentServer(server, serverAPI)
 
 	log.Printf("Starting Environment Server on port %v", cfg.GRPCPort)
-	if cfg.Env == "training" {
-		log.Println("Training environment is online.")
-		// Start the server
-		go server.Serve(listen)
-		defer server.Stop()
-		// Start the console to listen for commands
-		console.StartConsole(serverAPI)
-	} else {
-		server.Serve(listen)
-	}
+	server.Serve(listen)
 }
