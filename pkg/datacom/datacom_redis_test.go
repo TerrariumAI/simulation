@@ -614,3 +614,10 @@ func TestGetObservationsForEntity(t *testing.T) {
 		})
 	}
 }
+
+func TestPubnubPAL(t *testing.T) {
+	p := datacom.NewPubnubPAL("prod", "sub-c-b4ba4e28-a647-11e9-ad2c-6ad2737329fc", "pub-c-83ed11c2-81e1-4d7f-8e94-0abff2b85825")
+	p.QueuePublishEvent("test", envApi.Entity{Id: "test-id"})
+	t.Log("Queued publish message, batching...")
+	p.BatchPublish()
+}

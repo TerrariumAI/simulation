@@ -15,12 +15,12 @@ const (
 )
 
 type pubMsg struct {
-	channel string
-	msg     map[string]interface{}
+	Channel string
+	Msg     map[string]interface{}
 }
 
 type batchPubMsg struct {
-	events []pubMsg
+	Events []pubMsg
 }
 
 // PubnubPAL specific struct for pubnub
@@ -39,11 +39,11 @@ func NewPubnubPAL(env string, subkey string, pubkey string) PubsubAccessLayer {
 	p := PubnubPAL{
 		pubnubClient: pubnub.NewPubNub(config),
 		env:          env,
-		pubChan:      make(chan pubMsg),
+		pubChan:      make(chan pubMsg, 99),
 	}
 
 	// Start publish loop
-	if env != "training" {
+	if env != "training" && env != "testing" {
 		go p.StartBatchPublishLoop()
 	}
 
@@ -88,23 +88,28 @@ func (p *PubnubPAL) PublishMessage(channel string, message interface{}) error {
 }
 
 func (p *PubnubPAL) BatchPublish() {
+	if len(p.pubChan) == 0 {
+		return
+	}
+	fmt.Println("Starting batch loop...")
 	// maps regionId -> batchMessage
 	batchMap := make(map[string]batchPubMsg)
 
 	// process all messages in channel
 	for i := 0; i < len(p.pubChan); i++ {
 		msg := <-p.pubChan
-		if b, ok := batchMap[msg.channel]; ok { // batch var already exists
-			b.events = append(b.events, msg)
+		if b, ok := batchMap[msg.Channel]; ok { // batch var already exists
+			b.Events = append(b.Events, msg)
 		} else { // batch var needs to be created
 			// create the new batch holder
 			b := batchPubMsg{
-				events: []pubMsg{msg},
+				Events: []pubMsg{msg},
 			}
 			// add it to the map
-			batchMap[msg.channel] = b
+			batchMap[msg.Channel] = b
 		}
 	}
+	fmt.Println("Created batch...sending...")
 
 	// send batches
 	for channel, batch := range batchMap {
@@ -114,6 +119,8 @@ func (p *PubnubPAL) BatchPublish() {
 			log.Printf("ERROR: issue publishing batch: %v\n", err)
 		}
 	}
+
+	fmt.Println("Sent batch!")
 }
 
 // StartBatchPublishLoop starts a loop that constantly publishes in batches per region,

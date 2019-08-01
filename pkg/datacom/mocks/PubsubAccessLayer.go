@@ -10,6 +10,11 @@ type PubsubAccessLayer struct {
 	mock.Mock
 }
 
+// BatchPublish provides a mock function with given fields:
+func (_m *PubsubAccessLayer) BatchPublish() {
+	_m.Called()
+}
+
 // PublishMessage provides a mock function with given fields: channel, message
 func (_m *PubsubAccessLayer) PublishMessage(channel string, message interface{}) error {
 	ret := _m.Called(channel, message)

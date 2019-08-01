@@ -58,6 +58,7 @@ type RemoteModel struct {
 type PubsubAccessLayer interface {
 	PublishMessage(channel string, message interface{}) error
 	QueuePublishEvent(eventName string, entity envApi.Entity) error
+	BatchPublish()
 }
 
 // NewDatacom instantiates a new datacom object with proper clients
