@@ -503,7 +503,8 @@ func TestGetObservationsForEntity(t *testing.T) {
 				modelID: "MOCK-MODEL-ID-2",
 			},
 			&collectiveApi.Observation{
-				Id: "2",
+				Id:      "2",
+				IsAlive: true,
 				Cells: []*collectiveApi.Entity{
 					&collectiveApi.Entity{Id: "", Class: 0},
 					&collectiveApi.Entity{Id: "", Class: 0},
@@ -529,7 +530,8 @@ func TestGetObservationsForEntity(t *testing.T) {
 				modelID: "MOCK-MODEL-ID-3",
 			},
 			&collectiveApi.Observation{
-				Id: "3",
+				Id:      "3",
+				IsAlive: true,
 				Cells: []*collectiveApi.Entity{
 					&collectiveApi.Entity{Id: "", Class: 0},
 					&collectiveApi.Entity{Id: "", Class: 0},
@@ -552,7 +554,8 @@ func TestGetObservationsForEntity(t *testing.T) {
 				modelID: "MOCK-MODEL-ID-4",
 			},
 			&collectiveApi.Observation{
-				Id: "4",
+				Id:      "4",
+				IsAlive: true,
 				Cells: []*collectiveApi.Entity{
 					&collectiveApi.Entity{Id: "", Class: 0},
 					&collectiveApi.Entity{Id: "", Class: 0},
@@ -572,7 +575,8 @@ func TestGetObservationsForEntity(t *testing.T) {
 				modelID: "MOCK-MODEL-ID-5",
 			},
 			&collectiveApi.Observation{
-				Id: "5",
+				Id:      "5",
+				IsAlive: true,
 				Cells: []*collectiveApi.Entity{
 					&collectiveApi.Entity{Id: "", Class: 2},
 					&collectiveApi.Entity{Id: "", Class: 0},
@@ -616,8 +620,9 @@ func TestGetObservationsForEntity(t *testing.T) {
 }
 
 func TestPubnubPAL(t *testing.T) {
-	p := datacom.NewPubnubPAL("prod", "sub-c-b4ba4e28-a647-11e9-ad2c-6ad2737329fc", "pub-c-83ed11c2-81e1-4d7f-8e94-0abff2b85825")
-	p.QueuePublishEvent("test", envApi.Entity{Id: "test-id", Y: 10})
+	p := datacom.NewPubnubPAL("testing", "sub-c-b4ba4e28-a647-11e9-ad2c-6ad2737329fc", "pub-c-83ed11c2-81e1-4d7f-8e94-0abff2b85825")
+	p.QueuePublishEvent("updateEntity", envApi.Entity{Id: "test-id", Y: 0})
+	p.QueuePublishEvent("updateEntity", envApi.Entity{Id: "test-id-2", X: 5, Y: 0})
 	t.Log("Queued publish message, batching...")
 	p.BatchPublish()
 }

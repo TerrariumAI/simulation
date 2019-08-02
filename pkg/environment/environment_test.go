@@ -454,7 +454,7 @@ func TestExecuteAgentAction(t *testing.T) {
 		wantErrMessage         string
 	}{
 		{
-			name: "entity does not exist throws error",
+			name: "entity does not exist fails",
 			args: args{
 				ctx: ctx,
 				req: &envApi.ExecuteAgentActionRequest{},
@@ -464,9 +464,8 @@ func TestExecuteAgentAction(t *testing.T) {
 				content: "",
 				err:     errors.New("entity does not exist"),
 			},
-			want: &envApi.ExecuteAgentActionResponse{
-				WasSuccessful: false,
-			},
+			wantErr:        true,
+			wantErrMessage: "entity does not exist",
 		},
 		{
 			name: "rest reduces energy by 1",
@@ -488,6 +487,7 @@ func TestExecuteAgentAction(t *testing.T) {
 			},
 			want: &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: true,
+				IsAlive:       true,
 			},
 		},
 		{
@@ -509,6 +509,7 @@ func TestExecuteAgentAction(t *testing.T) {
 			mockIsCellOccupiedResp: isCellOccupiedResp{true, nil, nil},
 			want: &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: false,
+				IsAlive:       true,
 			},
 		},
 		{
@@ -534,6 +535,7 @@ func TestExecuteAgentAction(t *testing.T) {
 			},
 			want: &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: true,
+				IsAlive:       true,
 			},
 		},
 		{
@@ -555,6 +557,7 @@ func TestExecuteAgentAction(t *testing.T) {
 			mockIsCellOccupiedResp: isCellOccupiedResp{false, nil, nil},
 			want: &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: false,
+				IsAlive:       false,
 			},
 		},
 		{
@@ -581,6 +584,7 @@ func TestExecuteAgentAction(t *testing.T) {
 			},
 			want: &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: true,
+				IsAlive:       true,
 			},
 		},
 		{
@@ -602,6 +606,7 @@ func TestExecuteAgentAction(t *testing.T) {
 			mockIsCellOccupiedResp: isCellOccupiedResp{true, &envApi.Entity{Id: "mock-entity-id", X: 2, Y: 1, Class: 1}, nil},
 			want: &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: false,
+				IsAlive:       true,
 			},
 		},
 	}
@@ -630,7 +635,7 @@ func TestExecuteAgentAction(t *testing.T) {
 				}
 			}
 			if err == nil && !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("got %v, want %v", *got, tt.want)
+				t.Errorf("got %v, want %v", *got, *tt.want)
 			}
 		})
 	}
