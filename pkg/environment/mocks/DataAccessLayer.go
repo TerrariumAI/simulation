@@ -194,7 +194,7 @@ func (_m *DataAccessLayer) GetRemoteModelMetadataBySecret(modelSecret string) (*
 }
 
 // IsCellOccupied provides a mock function with given fields: x, y
-func (_m *DataAccessLayer) IsCellOccupied(x uint32, y uint32) (bool, *endpoints_terrariumai_environment.Entity, error) {
+func (_m *DataAccessLayer) IsCellOccupied(x uint32, y uint32) (bool, *endpoints_terrariumai_environment.Entity, string, error) {
 	ret := _m.Called(x, y)
 
 	var r0 bool
@@ -213,14 +213,21 @@ func (_m *DataAccessLayer) IsCellOccupied(x uint32, y uint32) (bool, *endpoints_
 		}
 	}
 
-	var r2 error
-	if rf, ok := ret.Get(2).(func(uint32, uint32) error); ok {
+	var r2 string
+	if rf, ok := ret.Get(2).(func(uint32, uint32) string); ok {
 		r2 = rf(x, y)
 	} else {
-		r2 = ret.Error(2)
+		r2 = ret.Get(2).(string)
 	}
 
-	return r0, r1, r2
+	var r3 error
+	if rf, ok := ret.Get(3).(func(uint32, uint32) error); ok {
+		r3 = rf(x, y)
+	} else {
+		r3 = ret.Error(3)
+	}
+
+	return r0, r1, r2, r3
 }
 
 // UpdateEntity provides a mock function with given fields: origionalContent, e

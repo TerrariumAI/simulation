@@ -54,7 +54,7 @@ type UserInfo struct {
 // DataAccessLayer interface for all data access, specificly plugs in from datacom
 type DataAccessLayer interface {
 	// Redis
-	IsCellOccupied(x uint32, y uint32) (bool, *envApi.Entity, error)
+	IsCellOccupied(x uint32, y uint32) (bool, *envApi.Entity, string, error)
 	CreateEntity(e envApi.Entity, shouldPublish bool) error
 	DeleteEntity(id string) (int64, error)
 	UpdateEntity(origionalContent string, e envApi.Entity) error
@@ -146,7 +146,7 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *envApi.Create
 	}
 
 	// Make sure the cell is not occupied
-	isCellOccupied, _, err := s.datacomDAL.IsCellOccupied(req.Entity.X, req.Entity.Y)
+	isCellOccupied, _, _, err := s.datacomDAL.IsCellOccupied(req.Entity.X, req.Entity.Y)
 	if err != nil {
 		log.Printf("ERROR: %v\n", err)
 		return nil, err
@@ -277,7 +277,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 			}, nil
 		}
 		// Check if cell is occupied
-		isCellOccupied, _, err := s.datacomDAL.IsCellOccupied(targetX, targetY)
+		isCellOccupied, _, _, err := s.datacomDAL.IsCellOccupied(targetX, targetY)
 		if isCellOccupied || err != nil {
 			// Return unsuccessful
 			return &envApi.ExecuteAgentActionResponse{
@@ -305,7 +305,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		}
 	case 2: // EAT
 		// Check if cell is occupied
-		isCellOccupied, other, err := s.datacomDAL.IsCellOccupied(targetX, targetY)
+		isCellOccupied, other, _, err := s.datacomDAL.IsCellOccupied(targetX, targetY)
 		if !isCellOccupied || err != nil {
 			// Return unsuccessful
 			return &envApi.ExecuteAgentActionResponse{
@@ -349,7 +349,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		}
 	case 3: // ATTACK
 		// Check if cell is occupied
-		isCellOccupied, other, err := s.datacomDAL.IsCellOccupied(targetX, targetY)
+		isCellOccupied, other, otherOrigionalContent, err := s.datacomDAL.IsCellOccupied(targetX, targetY)
 		if !isCellOccupied || err != nil {
 			// Return unsuccessful
 			return &envApi.ExecuteAgentActionResponse{
@@ -390,6 +390,11 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 				WasSuccessful: true,
 				IsAlive:       true,
 			}, nil
+		}
+		// Update the entity
+		err = s.datacomDAL.UpdateEntity(otherOrigionalContent, *entity)
+		if err != nil {
+			fmt.Printf("ERROR: %v\n", err)
 		}
 	default: // INVALID
 		return &envApi.ExecuteAgentActionResponse{

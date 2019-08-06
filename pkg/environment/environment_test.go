@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/mock"
+
 	"github.com/alicebob/miniredis"
 	"github.com/golang/protobuf/ptypes/empty"
 	envApi "github.com/terrariumai/simulation/pkg/api/environment"
@@ -427,24 +429,6 @@ func TestExecuteAgentAction(t *testing.T) {
 		ctx context.Context
 		req *envApi.ExecuteAgentActionRequest
 	}
-	type getEntityResp struct {
-		entity  *envApi.Entity
-		content string
-		err     error
-	}
-	type updateEntityArgs struct {
-		entity           envApi.Entity
-		origionalContent string
-	}
-	type isCellOccupiedArgs struct {
-		x uint32
-		y uint32
-	}
-	type isCellOccupiedResp struct {
-		isOccupied bool
-		e          *envApi.Entity
-		err        error
-	}
 
 	tests := []struct {
 		name             string
@@ -521,148 +505,231 @@ func TestExecuteAgentAction(t *testing.T) {
 				IsAlive:       true,
 			},
 		},
-		// {
-		// 	name: "can move to an empty cell",
-		// 	args: args{
-		// 		ctx: ctx,
-		// 		req: &envApi.ExecuteAgentActionRequest{
-		// 			Id:        "mock-entity-id",
-		// 			Action:    1,
-		// 			Direction: 3,
-		// 		},
-		// 	},
-		// 	mockGetEntityResp: getEntityResp{
-		// 		entity:  &envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 100, Health: 100},
-		// 		content: "mock-original-content",
-		// 		err:     nil,
-		// 	},
-		// 	wantIsCellOccupiedArgs: isCellOccupiedArgs{x: 2, y: 1},
-		// 	mockIsCellOccupiedResp: isCellOccupiedResp{false, nil, nil},
-		// 	wantUpdateEntityArgs: updateEntityArgs{
-		// 		origionalContent: "mock-original-content",
-		// 		entity:           envApi.Entity{Id: "mock-entity-id", X: 2, Y: 1, Energy: 97, Health: 100},
-		// 	},
-		// 	want: &envApi.ExecuteAgentActionResponse{
-		// 		WasSuccessful: true,
-		// 		IsAlive:       true,
-		// 	},
-		// },
-		// {
-		// 	name: "moving with too little energy kills",
-		// 	args: args{
-		// 		ctx: ctx,
-		// 		req: &envApi.ExecuteAgentActionRequest{
-		// 			Id:        "mock-entity-id",
-		// 			Action:    1,
-		// 			Direction: 3,
-		// 		},
-		// 	},
-		// 	mockGetEntityResp: getEntityResp{
-		// 		entity:  &envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 1, Health: 0},
-		// 		content: "mock-original-content",
-		// 		err:     nil,
-		// 	},
-		// 	wantIsCellOccupiedArgs: isCellOccupiedArgs{x: 2, y: 1},
-		// 	mockIsCellOccupiedResp: isCellOccupiedResp{false, nil, nil},
-		// 	want: &envApi.ExecuteAgentActionResponse{
-		// 		WasSuccessful: false,
-		// 		IsAlive:       false,
-		// 	},
-		// },
-		// {
-		// 	name: "Succesful eat",
-		// 	args: args{
-		// 		ctx: ctx,
-		// 		req: &envApi.ExecuteAgentActionRequest{
-		// 			Id:        "mock-entity-id",
-		// 			Action:    2,
-		// 			Direction: 3,
-		// 		},
-		// 	},
-		// 	mockGetEntityResp: getEntityResp{
-		// 		entity:  &envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Health: 100, Energy: 80, Class: 1},
-		// 		content: "mock-original-content",
-		// 		err:     nil,
-		// 	},
-		// 	mockCreateEntityResp:   nil,
-		// 	wantIsCellOccupiedArgs: isCellOccupiedArgs{x: 2, y: 1},
-		// 	mockIsCellOccupiedResp: isCellOccupiedResp{true, &envApi.Entity{Id: "mock-entity-id", X: 2, Y: 1, Class: 3}, nil},
-		// 	wantUpdateEntityArgs: updateEntityArgs{
-		// 		origionalContent: "mock-original-content",
-		// 		entity:           envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 89, Health: 100, Class: 1},
-		// 	},
-		// 	want: &envApi.ExecuteAgentActionResponse{
-		// 		WasSuccessful: true,
-		// 		IsAlive:       true,
-		// 	},
-		// },
-		// {
-		// 	name: "Cannot eat non-food entity",
-		// 	args: args{
-		// 		ctx: ctx,
-		// 		req: &envApi.ExecuteAgentActionRequest{
-		// 			Id:        "mock-entity-id",
-		// 			Action:    2,
-		// 			Direction: 3,
-		// 		},
-		// 	},
-		// 	mockGetEntityResp: getEntityResp{
-		// 		entity:  &envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Health: 100, Energy: 80, Class: 1},
-		// 		content: "mock-original-content",
-		// 		err:     nil,
-		// 	},
-		// 	wantIsCellOccupiedArgs: isCellOccupiedArgs{x: 2, y: 1},
-		// 	mockIsCellOccupiedResp: isCellOccupiedResp{true, &envApi.Entity{Id: "mock-entity-id", X: 2, Y: 1, Class: 1}, nil},
-		// 	want: &envApi.ExecuteAgentActionResponse{
-		// 		WasSuccessful: false,
-		// 		IsAlive:       true,
-		// 	},
-		// },
+		{
+			name: "can move to an empty cell",
+			args: args{
+				ctx: ctx,
+				req: &envApi.ExecuteAgentActionRequest{
+					Id:        "mock-entity-id",
+					Action:    1,
+					Direction: 3,
+				},
+			},
+			DALMockFuncCalls: []mockFuncCall{
+				{
+					name: "GetEntity",
+					args: []interface{}{"mock-entity-id"},
+					resp: []interface{}{&envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 100, Health: 100}, "mock-original-content", nil},
+				},
+				{
+					name: "IsCellOccupied",
+					args: []interface{}{uint32(2), uint32(1)},
+					resp: []interface{}{false, nil, nil},
+				},
+				{
+					name: "UpdateEntity",
+					args: []interface{}{"mock-original-content", envApi.Entity{Id: "mock-entity-id", X: 2, Y: 1, Energy: 97, Health: 100}},
+					resp: []interface{}{nil},
+				},
+			},
+			want: &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: true,
+				IsAlive:       true,
+			},
+		},
+		{
+			name: "moving with too little energy kills",
+			args: args{
+				ctx: ctx,
+				req: &envApi.ExecuteAgentActionRequest{
+					Id:        "mock-entity-id",
+					Action:    1,
+					Direction: 3,
+				},
+			},
+			DALMockFuncCalls: []mockFuncCall{
+				{
+					name: "GetEntity",
+					args: []interface{}{"mock-entity-id"},
+					resp: []interface{}{&envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 1, Health: 1}, "mock-original-content", nil},
+				},
+				{
+					name: "IsCellOccupied",
+					args: []interface{}{uint32(2), uint32(1)},
+					resp: []interface{}{false, nil, nil},
+				},
+				{
+					name: "DeleteEntity",
+					args: []interface{}{"mock-entity-id"},
+					resp: []interface{}{int64(1), nil},
+				},
+			},
+			want: &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: false,
+				IsAlive:       false,
+			},
+		},
+		{
+			name: "Succesful eat",
+			args: args{
+				ctx: ctx,
+				req: &envApi.ExecuteAgentActionRequest{
+					Id:        "mock-agent-id",
+					Action:    2,
+					Direction: 3,
+				},
+			},
+			DALMockFuncCalls: []mockFuncCall{
+				{ // Get the agent
+					name: "GetEntity",
+					args: []interface{}{"mock-agent-id"},
+					resp: []interface{}{&envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Energy: 80, Health: 100, Class: 1}, "mock-original-content", nil},
+				},
+				{ // Target cell is occupied by food
+					name: "IsCellOccupied",
+					args: []interface{}{uint32(2), uint32(1)},
+					resp: []interface{}{true, &envApi.Entity{Id: "mock-food-id", X: 2, Y: 1, Class: 3}, nil},
+				},
+				{ // Update the agent after eating
+					name: "UpdateEntity",
+					args: []interface{}{"mock-original-content", envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Energy: 89, Health: 100, Class: 1}},
+					resp: []interface{}{nil},
+				},
+				{ // Delete the food
+					name: "DeleteEntity",
+					args: []interface{}{"mock-food-id"},
+					resp: []interface{}{int64(1), nil},
+				},
+				{ // Create a new food entity somewhere
+					name: "CreateEntity",
+					args: []interface{}{mock.AnythingOfType("Entity"), true},
+					resp: []interface{}{nil},
+				},
+			},
+			want: &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: true,
+				IsAlive:       true,
+			},
+		},
+		{
+			name: "Cannot eat non-food entity",
+			args: args{
+				ctx: ctx,
+				req: &envApi.ExecuteAgentActionRequest{
+					Id:        "mock-agent-id",
+					Action:    2,
+					Direction: 3,
+				},
+			},
+			DALMockFuncCalls: []mockFuncCall{
+				{ // Get the agent
+					name: "GetEntity",
+					args: []interface{}{"mock-agent-id"},
+					resp: []interface{}{&envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Health: 100, Energy: 80, Class: 1}, "mock-original-content", nil},
+				},
+				{ // Target cell is occupied by an agent
+					name: "IsCellOccupied",
+					args: []interface{}{uint32(2), uint32(1)},
+					resp: []interface{}{true, &envApi.Entity{Id: "mock-agent-id-2", X: 2, Y: 1, Class: 1}, nil},
+				},
+			},
+			want: &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: false,
+				IsAlive:       true,
+			},
+		},
 		// // ATTACK
-		// {
-		// 	name: "Cannot attack empty cell",
-		// 	args: args{
-		// 		ctx: ctx,
-		// 		req: &envApi.ExecuteAgentActionRequest{
-		// 			Id:        "mock-entity-id",
-		// 			Action:    3,
-		// 			Direction: 3,
-		// 		},
-		// 	},
-		// 	mockGetEntityResp: getEntityResp{
-		// 		entity:  &envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Health: 100, Energy: 80, Class: 1},
-		// 		content: "mock-original-content",
-		// 		err:     nil,
-		// 	},
-		// 	wantIsCellOccupiedArgs: isCellOccupiedArgs{x: 2, y: 1},
-		// 	mockIsCellOccupiedResp: isCellOccupiedResp{false, nil, nil},
-		// 	want: &envApi.ExecuteAgentActionResponse{
-		// 		WasSuccessful: false,
-		// 		IsAlive:       true,
-		// 	},
-		// },
-		// {
-		// 	name: "Cannot attack non-agent entity",
-		// 	args: args{
-		// 		ctx: ctx,
-		// 		req: &envApi.ExecuteAgentActionRequest{
-		// 			Id:        "mock-entity-id",
-		// 			Action:    3,
-		// 			Direction: 3,
-		// 		},
-		// 	},
-		// 	mockGetEntityResp: getEntityResp{
-		// 		entity:  &envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Health: 100, Energy: 80, Class: 1},
-		// 		content: "mock-original-content",
-		// 		err:     nil,
-		// 	},
-		// 	wantIsCellOccupiedArgs: isCellOccupiedArgs{x: 2, y: 1},
-		// 	mockIsCellOccupiedResp: isCellOccupiedResp{true, &envApi.Entity{Id: "mock-entity-id", X: 2, Y: 1, Class: 3}, nil},
-		// 	want: &envApi.ExecuteAgentActionResponse{
-		// 		WasSuccessful: false,
-		// 		IsAlive:       true,
-		// 	},
-		// },
+		{
+			name: "Cannot attack empty cell",
+			args: args{
+				ctx: ctx,
+				req: &envApi.ExecuteAgentActionRequest{
+					Id:        "mock-agent-id",
+					Action:    3,
+					Direction: 3,
+				},
+			},
+			DALMockFuncCalls: []mockFuncCall{
+				{ // Get the agent
+					name: "GetEntity",
+					args: []interface{}{"mock-agent-id"},
+					resp: []interface{}{&envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Health: 100, Energy: 80, Class: 1}, "mock-original-content", nil},
+				},
+				{ // Target cell is empty
+					name: "IsCellOccupied",
+					args: []interface{}{uint32(2), uint32(1)},
+					resp: []interface{}{false, nil, nil},
+				},
+			},
+			want: &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: false,
+				IsAlive:       true,
+			},
+		},
+		{
+			name: "Cannot attack non-agent entity",
+			args: args{
+				ctx: ctx,
+				req: &envApi.ExecuteAgentActionRequest{
+					Id:        "mock-agent-id",
+					Action:    3,
+					Direction: 3,
+				},
+			},
+			DALMockFuncCalls: []mockFuncCall{
+				{ // Get the agent
+					name: "GetEntity",
+					args: []interface{}{"mock-agent-id"},
+					resp: []interface{}{&envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Health: 100, Energy: 80, Class: 1}, "mock-original-content", nil},
+				},
+				{ // Target cell is occupied by food
+					name: "IsCellOccupied",
+					args: []interface{}{uint32(2), uint32(1)},
+					resp: []interface{}{true, &envApi.Entity{Id: "mock-food-id", X: 2, Y: 1, Class: 3}, nil},
+				},
+			},
+			want: &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: false,
+				IsAlive:       true,
+			},
+		},
+		{
+			name: "Succesful attack",
+			args: args{
+				ctx: ctx,
+				req: &envApi.ExecuteAgentActionRequest{
+					Id:        "mock-agent-id",
+					Action:    3,
+					Direction: 3,
+				},
+			},
+			DALMockFuncCalls: []mockFuncCall{
+				{ // Get the agent
+					name: "GetEntity",
+					args: []interface{}{"mock-agent-id"},
+					resp: []interface{}{&envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Health: 100, Energy: 100, Class: 1}, "mock-original-content", nil},
+				},
+				{ // Target cell is occupied by another agent
+					name: "IsCellOccupied",
+					args: []interface{}{uint32(2), uint32(1)},
+					resp: []interface{}{true, &envApi.Entity{Id: "mock-agent-id-2", X: 2, Y: 1, Health: 100, Energy: 100, Class: 1}, nil},
+				},
+				{ // Update the other agent's health
+					name: "UpdateEntity",
+					args: []interface{}{"mock-original-content", envApi.Entity{Id: "mock-agent-id-2", X: 1, Y: 1, Energy: 100, Health: 90, Class: 1}},
+					resp: []interface{}{nil},
+				},
+				{ // Update the other agent's health
+					name: "UpdateEntity",
+					args: []interface{}{"mock-original-content", envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Energy: 89, Health: 100, Class: 1}},
+					resp: []interface{}{nil},
+				},
+			},
+			want: &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: false,
+				IsAlive:       true,
+			},
+		},
 		// {
 		// 	name: "Succesful attack",
 		// 	args: args{
@@ -693,7 +760,7 @@ func TestExecuteAgentAction(t *testing.T) {
 			mockDAL := &mocks.DataAccessLayer{}
 			s := NewEnvironmentServer("testing", mockDAL)
 			for _, mockFuncCall := range tt.DALMockFuncCalls {
-				mockDAL.On(mockFuncCall.name, mockFuncCall.req...).Return(mockFuncCall.resp...)
+				mockDAL.On(mockFuncCall.name, mockFuncCall.args...).Return(mockFuncCall.resp...)
 			}
 			// for _, mock := range tt.DALGetEntityMocks {
 			// 	mockDAL.On("GetEntity", mock.req...).Return(mock.resp...)
