@@ -27,7 +27,9 @@ const (
 
 	agentLivingEnergyCost = 1
 	agentMoveEnergyCost   = 2
+	agentAttackEnergyCost = 5
 	agentEnergyGainOnEat  = 10
+	agentAttackDmg        = 10
 	startingEnergy        = 100
 	startingHealth        = 100
 )
@@ -56,7 +58,7 @@ type DataAccessLayer interface {
 	CreateEntity(e envApi.Entity, shouldPublish bool) error
 	DeleteEntity(id string) (int64, error)
 	UpdateEntity(origionalContent string, e envApi.Entity) error
-	GetEntity(id string) (*envApi.Entity, *string, error)
+	GetEntity(id string) (*envApi.Entity, string, error)
 	GetEntitiesForModel(modelID string) ([]envApi.Entity, error)
 	GetObservationForEntity(entity envApi.Entity) (*collectiveApi.Observation, error)
 	GetEntitiesInRegion(x uint32, y uint32) ([]*envApi.Entity, error)
@@ -305,8 +307,6 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		// Check if cell is occupied
 		isCellOccupied, other, err := s.datacomDAL.IsCellOccupied(targetX, targetY)
 		if !isCellOccupied || err != nil {
-			fmt.Println("asdf")
-			log.Println("not occupied or error")
 			// Return unsuccessful
 			return &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: false,
@@ -314,7 +314,6 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 			}, nil
 		}
 		if other.Class != 3 { // FOOD
-			log.Println("invalid class")
 			return &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: false,
 				IsAlive:       true,
@@ -348,6 +347,50 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 				break
 			}
 		}
+	case 3: // ATTACK
+		// Check if cell is occupied
+		isCellOccupied, other, err := s.datacomDAL.IsCellOccupied(targetX, targetY)
+		if !isCellOccupied || err != nil {
+			// Return unsuccessful
+			return &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: false,
+				IsAlive:       true,
+			}, nil
+		}
+		// Make sure the other entity is an agent
+		if other.Class != 1 { // AGENT
+			return &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: false,
+				IsAlive:       true,
+			}, nil
+		}
+		// Update this entity's energy
+		if entity.Energy >= agentAttackEnergyCost {
+			entity.Energy -= agentAttackEnergyCost
+		} else {
+			diff := agentAttackEnergyCost - entity.Energy
+			if entity.Health >= diff {
+				entity.Health -= diff
+			} else {
+				// KILL
+				s.datacomDAL.DeleteEntity(entity.Id)
+				return &envApi.ExecuteAgentActionResponse{
+					WasSuccessful: false,
+					IsAlive:       false,
+				}, nil
+			}
+		}
+		// Update other entity's health
+		if other.Health > agentAttackDmg {
+			other.Health -= agentAttackDmg
+		} else {
+			// KILL
+			s.datacomDAL.DeleteEntity(other.Id)
+			return &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: true,
+				IsAlive:       true,
+			}, nil
+		}
 	default: // INVALID
 		return &envApi.ExecuteAgentActionResponse{
 			WasSuccessful: false,
@@ -356,7 +399,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 	}
 
 	// Update the entity
-	err = s.datacomDAL.UpdateEntity(*origionalContent, *entity)
+	err = s.datacomDAL.UpdateEntity(origionalContent, *entity)
 	if err != nil {
 		return nil, err
 	}

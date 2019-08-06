@@ -99,16 +99,16 @@ func (dc *Datacom) UpdateEntity(origionalContent string, e envApi.Entity) error 
 }
 
 // GetEntity gets an entity from the environment by id
-func (dc *Datacom) GetEntity(id string) (*envApi.Entity, *string, error) {
+func (dc *Datacom) GetEntity(id string) (*envApi.Entity, string, error) {
 	// Get the content
 	hGetEntityContent := dc.redisClient.HGet("entities.content", id)
 	if hGetEntityContent.Err() != nil {
-		return nil, nil, errors.New("entity does not exist")
+		return nil, "", errors.New("entity does not exist")
 	}
 	content := hGetEntityContent.Val()
 	entity, _ := parseEntityContent(content)
 
-	return &entity, &content, nil
+	return &entity, content, nil
 }
 
 // DeleteEntity completely removes an entity from existence from the environment
