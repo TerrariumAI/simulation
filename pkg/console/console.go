@@ -95,7 +95,7 @@ func StartConsole(s api.EnvironmentServer) {
 						Entity: &api.Entity{
 							X:       uint32(x),
 							Y:       uint32(y),
-							Class:   1,
+							ClassID: 1,
 							ModelID: "MOCK-MODEL-ID",
 						},
 					})

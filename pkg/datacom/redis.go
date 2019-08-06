@@ -222,6 +222,8 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 
 	obsv := collectiveApi.Observation{
 		Id:      entity.Id,
+		Energy:  entity.Energy,
+		Health:  entity.Health,
 		IsAlive: true,
 	}
 	xMin := entity.X - 1
@@ -258,13 +260,13 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 			}
 			if x < minPosition || y < minPosition {
 				// If the position is out of bounds, return a rock
-				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: "", Class: 2})
+				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: "", ClassID: 2})
 				continue
 			}
 			if otherEntity, ok := indexEntityMap[otherIndex]; ok {
-				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: otherEntity.Id, Class: otherEntity.Class})
+				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: otherEntity.Id, ClassID: otherEntity.Type})
 			} else {
-				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: "", Class: 0})
+				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: "", ClassID: 0})
 			}
 		}
 	}
