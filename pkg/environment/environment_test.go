@@ -9,35 +9,15 @@ import (
 
 	"github.com/alicebob/miniredis"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/stretchr/testify/mock"
 	envApi "github.com/terrariumai/simulation/pkg/api/environment"
 	datacom "github.com/terrariumai/simulation/pkg/datacom"
 	"github.com/terrariumai/simulation/pkg/environment/mocks"
 	"google.golang.org/grpc/metadata"
 )
 
-// type DALGetEntityReq struct {
-// 	id string
-// }
-// type DALGetEntityResp struct {
-// 	entity  *envApi.Entity
-// 	content string
-// 	err     error
-// }
-// type DALGetEntityMock struct {
-// 	req  DALGetEntityReq
-// 	resp DALGetEntityResp
-// }
-
-// func NewDALGetEntityMock(req DALGetEntityReq, resp DALGetEntityResp) DALGetEntityMock {
-// 	return DALGetEntityMock{
-// 		req:  req,
-// 		resp: resp,
-// 	}
-// }
-
 type mockFuncCall struct {
-	req  []interface{}
+	name string
+	args []interface{}
 	resp []interface{}
 }
 
@@ -467,15 +447,11 @@ func TestExecuteAgentAction(t *testing.T) {
 	}
 
 	tests := []struct {
-		name                   string
-		args                   args
-		mockCreateEntityResp   error
-		DALGetEntityMocks      []mockFuncCall
-		wantUpdateEntityArgs   updateEntityArgs
-		wantIsCellOccupiedArgs isCellOccupiedArgs
-		mockIsCellOccupiedResp isCellOccupiedResp
-		want                   *envApi.ExecuteAgentActionResponse
-		wantErr                error
+		name             string
+		args             args
+		DALMockFuncCalls []mockFuncCall
+		want             *envApi.ExecuteAgentActionResponse
+		wantErr          error
 	}{
 		{
 			name: "entity does not exist fails",
@@ -483,59 +459,68 @@ func TestExecuteAgentAction(t *testing.T) {
 				ctx: ctx,
 				req: &envApi.ExecuteAgentActionRequest{},
 			},
-			DALGetEntityMocks: []mockFuncCall{
+			DALMockFuncCalls: []mockFuncCall{
 				{
-					req:  []interface{}{""},
+					name: "GetEntity",
+					args: []interface{}{""},
 					resp: []interface{}{nil, "", errors.New("entity does not exist")},
 				},
 			},
 			wantErr: errors.New("entity does not exist"),
 		},
-		// {
-		// 	name: "rest reduces energy by 1",
-		// 	args: args{
-		// 		ctx: ctx,
-		// 		req: &envApi.ExecuteAgentActionRequest{
-		// 			Id:     "mock-entity-id",
-		// 			Action: 0,
-		// 		},
-		// 	},
-		// 	mockGetEntityResp: getEntityResp{
-		// 		entity:  &envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 100, Health: 100},
-		// 		content: "mock-original-content",
-		// 		err:     nil,
-		// 	},
-		// 	wantUpdateEntityArgs: updateEntityArgs{
-		// 		origionalContent: "mock-original-content",
-		// 		entity:           envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 99, Health: 100},
-		// 	},
-		// 	want: &envApi.ExecuteAgentActionResponse{
-		// 		WasSuccessful: true,
-		// 		IsAlive:       true,
-		// 	},
-		// },
-		// {
-		// 	name: "cannot move to an occupied cell (no error)",
-		// 	args: args{
-		// 		ctx: ctx,
-		// 		req: &envApi.ExecuteAgentActionRequest{
-		// 			Id:        "mock-entity-id",
-		// 			Action:    1,
-		// 			Direction: 3,
-		// 		},
-		// 	},
-		// 	mockGetEntityResp: getEntityResp{
-		// 		entity:  &envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 100, Health: 100},
-		// 		content: "mock-original-content",
-		// 		err:     nil,
-		// 	},
-		// 	wantIsCellOccupiedArgs: isCellOccupiedArgs{x: 2, y: 1},
-		// 	mockIsCellOccupiedResp: isCellOccupiedResp{true, nil, nil},
-		// 	want: &envApi.ExecuteAgentActionResponse{
-		// 		WasSuccessful: false,
-		// 		IsAlive:       true,
-		// 	},
-		// },
+		{
+			name: "rest reduces energy by 1",
+			args: args{
+				ctx: ctx,
+				req: &envApi.ExecuteAgentActionRequest{
+					Id:     "mock-entity-id",
+					Action: 0,
+				},
+			},
+			DALMockFuncCalls: []mockFuncCall{
+				{
+					name: "GetEntity",
+					args: []interface{}{"mock-entity-id"},
+					resp: []interface{}{&envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 100, Health: 100}, "mock-original-content", nil},
+				},
+				{
+					name: "UpdateEntity",
+					args: []interface{}{"mock-original-content", envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 99, Health: 100}},
+					resp: []interface{}{nil},
+				},
+			},
+			want: &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: true,
+				IsAlive:       true,
+			},
+		},
+		{
+			name: "cannot move to an occupied cell (no error)",
+			args: args{
+				ctx: ctx,
+				req: &envApi.ExecuteAgentActionRequest{
+					Id:        "mock-entity-id",
+					Action:    1,
+					Direction: 3,
+				},
+			},
+			DALMockFuncCalls: []mockFuncCall{
+				{
+					name: "GetEntity",
+					args: []interface{}{"mock-entity-id"},
+					resp: []interface{}{&envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 100, Health: 100}, "mock-original-content", nil},
+				},
+				{
+					name: "IsCellOccupied",
+					args: []interface{}{uint32(2), uint32(1)},
+					resp: []interface{}{true, nil, nil},
+				},
+			},
+			want: &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: false,
+				IsAlive:       true,
+			},
+		},
 		// {
 		// 	name: "can move to an empty cell",
 		// 	args: args{
@@ -707,13 +692,16 @@ func TestExecuteAgentAction(t *testing.T) {
 			// Setup mock
 			mockDAL := &mocks.DataAccessLayer{}
 			s := NewEnvironmentServer("testing", mockDAL)
-			for _, mock := range tt.DALGetEntityMocks {
-				mockDAL.On("GetEntity", mock.req...).Return(mock.resp...)
+			for _, mockFuncCall := range tt.DALMockFuncCalls {
+				mockDAL.On(mockFuncCall.name, mockFuncCall.req...).Return(mockFuncCall.resp...)
 			}
-			mockDAL.On("CreateEntity", mock.AnythingOfType("Entity"), mock.AnythingOfType("bool")).Return(tt.mockCreateEntityResp)
-			mockDAL.On("UpdateEntity", tt.wantUpdateEntityArgs.origionalContent, tt.wantUpdateEntityArgs.entity).Return(nil)
-			mockDAL.On("IsCellOccupied", tt.wantIsCellOccupiedArgs.x, tt.wantIsCellOccupiedArgs.y).Return(tt.mockIsCellOccupiedResp.isOccupied, tt.mockIsCellOccupiedResp.e, tt.mockIsCellOccupiedResp.err)
-			mockDAL.On("DeleteEntity", tt.args.req.Id).Return(int64(1), nil)
+			// for _, mock := range tt.DALGetEntityMocks {
+			// 	mockDAL.On("GetEntity", mock.req...).Return(mock.resp...)
+			// }
+			// mockDAL.On("CreateEntity", mock.AnythingOfType("Entity"), mock.AnythingOfType("bool")).Return(tt.mockCreateEntityResp)
+			// mockDAL.On("UpdateEntity", tt.wantUpdateEntityArgs.origionalContent, tt.wantUpdateEntityArgs.entity).Return(nil)
+			// mockDAL.On("IsCellOccupied", tt.wantIsCellOccupiedArgs.x, tt.wantIsCellOccupiedArgs.y).Return(tt.mockIsCellOccupiedResp.isOccupied, tt.mockIsCellOccupiedResp.e, tt.mockIsCellOccupiedResp.err)
+			// mockDAL.On("DeleteEntity", tt.args.req.Id).Return(int64(1), nil)
 
 			got, err := s.ExecuteAgentAction(tt.args.ctx, tt.args.req)
 			if err != nil {
