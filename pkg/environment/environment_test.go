@@ -328,7 +328,7 @@ func TestGetEntity(t *testing.T) {
 		name                   string
 		args                   args
 		mockGetEntityResponse  *envApi.Entity
-		mockGetEntityResponse2 *string
+		mockGetEntityResponse2 string
 		mockGetEntityErr       error
 		want                   *envApi.GetEntityResponse
 		wantErr                bool
