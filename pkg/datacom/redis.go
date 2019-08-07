@@ -264,7 +264,7 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 				continue
 			}
 			if otherEntity, ok := indexEntityMap[otherIndex]; ok {
-				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: otherEntity.Id, ClassID: otherEntity.Type})
+				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: otherEntity.Id, ClassID: otherEntity.ClassID})
 			} else {
 				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: "", ClassID: 0})
 			}

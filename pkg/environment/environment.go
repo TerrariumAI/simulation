@@ -105,7 +105,7 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *envApi.Create
 	}
 
 	// Validate entity class
-	if req.Entity.Class > 3 {
+	if req.Entity.ClassID > 3 {
 		err := errors.New("invalid class")
 		log.Printf("ERROR: %v\n", err)
 		return nil, err
@@ -313,7 +313,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 				IsAlive:       true,
 			}, nil
 		}
-		if other.Class != 3 { // FOOD
+		if other.ClassID != 3 { // FOOD
 			return &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: false,
 				IsAlive:       true,
@@ -337,7 +337,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 			// Create entity
 			e := envApi.Entity{
 				Id:    entityID,
-				Class: 3,
+				ClassID: 3,
 				X:     uint32(rand.Intn(100)),
 				Y:     uint32(rand.Intn(100)),
 			}
@@ -358,7 +358,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 			}, nil
 		}
 		// Make sure the other entity is an agent
-		if other.Class != 1 { // AGENT
+		if other.ClassID != 1 { // AGENT
 			return &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: false,
 				IsAlive:       true,
@@ -443,7 +443,7 @@ func (s *environmentServer) SpawnFood(ctx context.Context, req *empty.Empty) (*e
 		// Create entity
 		e := envApi.Entity{
 			Id:    entityID,
-			Class: 3,
+			ClassID: 3,
 			X:     uint32(rand.Intn(100)),
 			Y:     uint32(rand.Intn(100)),
 		}

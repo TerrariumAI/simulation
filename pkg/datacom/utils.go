@@ -43,7 +43,7 @@ func serializeEntity(e envApi.Entity) (string, error) {
 	if err != nil {
 		log.Println("ERROR: ", err)
 	}
-	return fmt.Sprintf("%s:%v:%v:%v:%s:%s:%v:%v:%s", index, e.X, e.Y, e.Type, e.OwnerUID, e.ModelID, e.Energy, e.Health, e.Id), nil
+	return fmt.Sprintf("%s:%v:%v:%v:%s:%s:%v:%v:%s", index, e.X, e.Y, e.ClassID, e.OwnerUID, e.ModelID, e.Energy, e.Health, e.Id), nil
 }
 
 // ParseEntityContent takes entity content and parses it out to an entity

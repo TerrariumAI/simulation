@@ -54,7 +54,7 @@ func TestCreateEntity(t *testing.T) {
 					Energy:   100,
 					Health:   100,
 					Id:       "0",
-					Class:    1,
+					ClassID:  1,
 				},
 				shouldPublish: true,
 			},
@@ -72,7 +72,7 @@ func TestCreateEntity(t *testing.T) {
 					Energy:   100,
 					Health:   100,
 					Id:       "0",
-					Class:    1,
+					ClassID:  1,
 				},
 				shouldPublish: false,
 			},
@@ -127,7 +127,7 @@ func TestIsCellOccupied(t *testing.T) {
 	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 	e := envApi.Entity{
-		X: 0, Y: 0, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
+		X: 0, Y: 0, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
 	}
 	dc.CreateEntity(e, true)
 
@@ -176,7 +176,7 @@ func TestIsCellOccupied(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isOccupied, got, err := dc.IsCellOccupied(tt.args.x, tt.args.y)
+			isOccupied, got, _, err := dc.IsCellOccupied(tt.args.x, tt.args.y)
 			if err != nil && tt.expectErr {
 				return
 			} else if err != nil && !tt.expectErr {
@@ -207,7 +207,7 @@ func TestUpdateEntity(t *testing.T) {
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 
 	dc.CreateEntity(envApi.Entity{
-		X: 0, Y: 0, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
+		X: 0, Y: 0, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
 	}, true)
 
 	type args struct {
@@ -226,7 +226,7 @@ func TestUpdateEntity(t *testing.T) {
 				entity: envApi.Entity{
 					X:        1,
 					Y:        1,
-					Class:    2,
+					ClassID:  2,
 					OwnerUID: "MOCK-UID-2",
 					ModelID:  "MOCK-MODEL-ID-2",
 					Energy:   90,
@@ -283,7 +283,7 @@ func TestGetEntity(t *testing.T) {
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 
 	dc.CreateEntity(envApi.Entity{
-		X: 0, Y: 0, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
+		X: 0, Y: 0, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
 	}, true)
 
 	type args struct {
@@ -333,7 +333,7 @@ func TestGetEntity(t *testing.T) {
 				return
 			}
 
-			if *content != tt.expected {
+			if content != tt.expected {
 				t.Errorf("expected %v, \n\t got: %v", tt.expected, keys[cursor])
 			}
 		})
@@ -348,7 +348,7 @@ func TestDeleteEntity(t *testing.T) {
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 
 	e := envApi.Entity{
-		X: 0, Y: 0, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
+		X: 0, Y: 0, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
 	}
 
 	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
@@ -396,13 +396,13 @@ func TestGetEntitiesForModel(t *testing.T) {
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 
 	dc.CreateEntity(envApi.Entity{
-		X: 0, Y: 0, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
+		X: 0, Y: 0, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
 	}, true)
 	dc.CreateEntity(envApi.Entity{
-		X: 0, Y: 1, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-2", Health: 100, Energy: 100, Id: "1",
+		X: 0, Y: 1, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-2", Health: 100, Energy: 100, Id: "1",
 	}, true)
 	dc.CreateEntity(envApi.Entity{
-		X: 0, Y: 2, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-2", Health: 100, Energy: 100, Id: "2",
+		X: 0, Y: 2, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-2", Health: 100, Energy: 100, Id: "2",
 	}, true)
 
 	type args struct {
@@ -469,22 +469,22 @@ func TestGetObservationsForEntity(t *testing.T) {
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 
 	dc.CreateEntity(envApi.Entity{
-		X: 2, Y: 2, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
+		X: 2, Y: 2, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
 	}, true)
 	dc.CreateEntity(envApi.Entity{
-		X: 2, Y: 3, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "1",
+		X: 2, Y: 3, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "1",
 	}, true)
 	dc.CreateEntity(envApi.Entity{
-		X: 3, Y: 3, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-2", Health: 100, Energy: 100, Id: "2",
+		X: 3, Y: 3, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-2", Health: 100, Energy: 100, Id: "2",
 	}, true)
 	dc.CreateEntity(envApi.Entity{
-		X: 4, Y: 4, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-3", Health: 100, Energy: 100, Id: "3",
+		X: 4, Y: 4, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-3", Health: 100, Energy: 100, Id: "3",
 	}, true)
 	dc.CreateEntity(envApi.Entity{
-		X: 66, Y: 66, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-4", Health: 100, Energy: 100, Id: "4",
+		X: 66, Y: 66, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-4", Health: 100, Energy: 100, Id: "4",
 	}, true)
 	err := dc.CreateEntity(envApi.Entity{
-		X: 1, Y: 1, Class: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-5", Health: 100, Energy: 100, Id: "5",
+		X: 1, Y: 1, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-5", Health: 100, Energy: 100, Id: "5",
 	}, true)
 	println(err)
 
@@ -506,20 +506,20 @@ func TestGetObservationsForEntity(t *testing.T) {
 				Id:      "2",
 				IsAlive: true,
 				Cells: []*collectiveApi.Entity{
-					&collectiveApi.Entity{Id: "", Class: 0},
-					&collectiveApi.Entity{Id: "", Class: 0},
-					&collectiveApi.Entity{Id: "", Class: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
 					&collectiveApi.Entity{
-						Id:    "1",
-						Class: 1,
+						Id:      "1",
+						ClassID: 1,
 					},
-					&collectiveApi.Entity{Id: "", Class: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
 					&collectiveApi.Entity{
-						Id:    "0",
-						Class: 1,
+						Id:      "0",
+						ClassID: 1,
 					},
-					&collectiveApi.Entity{Id: "", Class: 0},
-					&collectiveApi.Entity{Id: "", Class: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
 				},
 			},
 			false,
@@ -533,17 +533,17 @@ func TestGetObservationsForEntity(t *testing.T) {
 				Id:      "3",
 				IsAlive: true,
 				Cells: []*collectiveApi.Entity{
-					&collectiveApi.Entity{Id: "", Class: 0},
-					&collectiveApi.Entity{Id: "", Class: 0},
-					&collectiveApi.Entity{Id: "", Class: 0},
-					&collectiveApi.Entity{Id: "", Class: 0},
-					&collectiveApi.Entity{Id: "", Class: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
 					&collectiveApi.Entity{
-						Id:    "2",
-						Class: 1,
+						Id:      "2",
+						ClassID: 1,
 					},
-					&collectiveApi.Entity{Id: "", Class: 0},
-					&collectiveApi.Entity{Id: "", Class: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
 				},
 			},
 			false,
@@ -557,14 +557,14 @@ func TestGetObservationsForEntity(t *testing.T) {
 				Id:      "4",
 				IsAlive: true,
 				Cells: []*collectiveApi.Entity{
-					&collectiveApi.Entity{Id: "", Class: 0},
-					&collectiveApi.Entity{Id: "", Class: 0},
-					&collectiveApi.Entity{Id: "", Class: 0},
-					&collectiveApi.Entity{Id: "", Class: 0},
-					&collectiveApi.Entity{Id: "", Class: 0},
-					&collectiveApi.Entity{Id: "", Class: 0},
-					&collectiveApi.Entity{Id: "", Class: 0},
-					&collectiveApi.Entity{Id: "", Class: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
 				},
 			},
 			false,
@@ -578,14 +578,14 @@ func TestGetObservationsForEntity(t *testing.T) {
 				Id:      "5",
 				IsAlive: true,
 				Cells: []*collectiveApi.Entity{
-					&collectiveApi.Entity{Id: "", Class: 2},
-					&collectiveApi.Entity{Id: "", Class: 0},
-					&collectiveApi.Entity{Id: "", Class: 0},
-					&collectiveApi.Entity{Id: "", Class: 2},
-					&collectiveApi.Entity{Id: "", Class: 0},
-					&collectiveApi.Entity{Id: "", Class: 2},
-					&collectiveApi.Entity{Id: "", Class: 2},
-					&collectiveApi.Entity{Id: "", Class: 2},
+					&collectiveApi.Entity{Id: "", ClassID: 2},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 2},
+					&collectiveApi.Entity{Id: "", ClassID: 0},
+					&collectiveApi.Entity{Id: "", ClassID: 2},
+					&collectiveApi.Entity{Id: "", ClassID: 2},
+					&collectiveApi.Entity{Id: "", ClassID: 2},
 				},
 			},
 			false,
