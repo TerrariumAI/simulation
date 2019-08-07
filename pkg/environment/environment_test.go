@@ -728,7 +728,7 @@ func TestExecuteAgentAction(t *testing.T) {
 			},
 		},
 		{
-			name: "Succesful attack",
+			name: "Succesful attack decreases health of other, energy of this",
 			args: args{
 				ctx: ctx,
 				req: &envApi.ExecuteAgentActionRequest{
@@ -754,9 +754,8 @@ func TestExecuteAgentAction(t *testing.T) {
 						mock.MatchedBy(func(content string) bool {
 							return content == "mock:origional:agent:content"
 						}),
-						mock.AnythingOfType("Entity"),
+						envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Health: 100, Energy: 94, ClassID: 1},
 					},
-					// args: []interface{}{"mock:origional:agent:content", envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Health: 100, Energy: 94, ClassID: 1}},
 					resp: []interface{}{nil},
 				},
 				{ // Update the other agent's health
@@ -765,9 +764,8 @@ func TestExecuteAgentAction(t *testing.T) {
 						mock.MatchedBy(func(content string) bool {
 							return content == "mock:origional:agent2:content"
 						}),
-						mock.AnythingOfType("Entity"),
+						envApi.Entity{Id: "mock-agent-id-2", X: 2, Y: 1, Health: 90, Energy: 100, ClassID: 1},
 					},
-					// args: []interface{}{"mock:origional:agent2:content", envApi.Entity{Id: "mock-agent-id-2", X: 2, Y: 1, Health: 90, Energy: 100, ClassID: 1}},
 					resp: []interface{}{nil},
 				},
 			},
@@ -776,6 +774,53 @@ func TestExecuteAgentAction(t *testing.T) {
 				IsAlive:       true,
 			},
 		},
+		// {
+		// 	name: "Succesful attack kills other if health is low, decreases energy of this",
+		// 	args: args{
+		// 		ctx: ctx,
+		// 		req: &envApi.ExecuteAgentActionRequest{
+		// 			Id:        "mock-agent-id",
+		// 			Action:    3,
+		// 			Direction: 3,
+		// 		},
+		// 	},
+		// 	DALMockFuncCalls: []mockFuncCall{
+		// 		{ // Get the agent
+		// 			name: "GetEntity",
+		// 			args: []interface{}{"mock-agent-id"},
+		// 			resp: []interface{}{&envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Health: 100, Energy: 100, ClassID: 1}, "mock:origional:agent:content", nil},
+		// 		},
+		// 		{ // Target cell is occupied by another agent
+		// 			name: "IsCellOccupied",
+		// 			args: []interface{}{uint32(2), uint32(1)},
+		// 			resp: []interface{}{true, &envApi.Entity{Id: "mock-agent-id-2", X: 2, Y: 1, Health: 100, Energy: 100, ClassID: 1}, "mock:origional:agent2:content", nil},
+		// 		},
+		// 		{ // Update the other agent's health
+		// 			name: "UpdateEntity",
+		// 			args: []interface{}{
+		// 				mock.MatchedBy(func(content string) bool {
+		// 					return content == "mock:origional:agent:content"
+		// 				}),
+		// 				mock.AnythingOfType("Entity"),
+		// 			},
+		// 			resp: []interface{}{nil},
+		// 		},
+		// 		{ // Update the other agent's health
+		// 			name: "UpdateEntity",
+		// 			args: []interface{}{
+		// 				mock.MatchedBy(func(content string) bool {
+		// 					return content == "mock:origional:agent2:content"
+		// 				}),
+		// 				mock.AnythingOfType("Entity"),
+		// 			},
+		// 			resp: []interface{}{nil},
+		// 		},
+		// 	},
+		// 	want: &envApi.ExecuteAgentActionResponse{
+		// 		WasSuccessful: true,
+		// 		IsAlive:       true,
+		// 	},
+		// },
 	}
 
 	for _, tt := range tests {

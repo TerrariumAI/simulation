@@ -336,10 +336,10 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 			entityID := newUUID.String()
 			// Create entity
 			e := envApi.Entity{
-				Id:    entityID,
+				Id:      entityID,
 				ClassID: 3,
-				X:     uint32(rand.Intn(100)),
-				Y:     uint32(rand.Intn(100)),
+				X:       uint32(rand.Intn(100)),
+				Y:       uint32(rand.Intn(100)),
 			}
 			// Create entity silently (no publish)
 			err = s.datacomDAL.CreateEntity(e, true)
@@ -392,7 +392,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 			}, nil
 		}
 		// Update the entity
-		err = s.datacomDAL.UpdateEntity(otherOrigionalContent, *entity)
+		err = s.datacomDAL.UpdateEntity(otherOrigionalContent, *other)
 		if err != nil {
 			fmt.Printf("ERROR: %v\n", err)
 		}
@@ -442,10 +442,10 @@ func (s *environmentServer) SpawnFood(ctx context.Context, req *empty.Empty) (*e
 		entityID := newUUID.String()
 		// Create entity
 		e := envApi.Entity{
-			Id:    entityID,
+			Id:      entityID,
 			ClassID: 3,
-			X:     uint32(rand.Intn(100)),
-			Y:     uint32(rand.Intn(100)),
+			X:       uint32(rand.Intn(100)),
+			Y:       uint32(rand.Intn(100)),
 		}
 		// Create entity silently (no publish)
 		s.datacomDAL.CreateEntity(e, false)
