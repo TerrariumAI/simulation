@@ -750,17 +750,29 @@ func TestExecuteAgentAction(t *testing.T) {
 				},
 				{ // Update the other agent's health
 					name: "UpdateEntity",
-					args: []interface{}{"mock:origional:agent:content", envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Health: 100, Energy: 94, ClassID: 1}},
+					args: []interface{}{
+						mock.MatchedBy(func(content string) bool {
+							return content == "mock:origional:agent:content"
+						}),
+						mock.AnythingOfType("Entity"),
+					},
+					// args: []interface{}{"mock:origional:agent:content", envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Health: 100, Energy: 94, ClassID: 1}},
 					resp: []interface{}{nil},
 				},
 				{ // Update the other agent's health
 					name: "UpdateEntity",
-					args: []interface{}{"mock:origional:agent2:content", envApi.Entity{Id: "mock-agent-id-2", X: 2, Y: 1, Health: 90, Energy: 100, ClassID: 1}},
+					args: []interface{}{
+						mock.MatchedBy(func(content string) bool {
+							return content == "mock:origional:agent2:content"
+						}),
+						mock.AnythingOfType("Entity"),
+					},
+					// args: []interface{}{"mock:origional:agent2:content", envApi.Entity{Id: "mock-agent-id-2", X: 2, Y: 1, Health: 90, Energy: 100, ClassID: 1}},
 					resp: []interface{}{nil},
 				},
 			},
 			want: &envApi.ExecuteAgentActionResponse{
-				WasSuccessful: false,
+				WasSuccessful: true,
 				IsAlive:       true,
 			},
 		},
