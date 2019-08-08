@@ -383,19 +383,16 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		// Update other entity's health
 		if other.Health > agentAttackDmg {
 			other.Health -= agentAttackDmg
+			// Update the entity
+			err = s.datacomDAL.UpdateEntity(otherOrigionalContent, *other)
+			if err != nil {
+				fmt.Printf("ERROR: %v\n", err)
+			}
 		} else {
 			// KILL
 			s.datacomDAL.DeleteEntity(other.Id)
-			return &envApi.ExecuteAgentActionResponse{
-				WasSuccessful: true,
-				IsAlive:       true,
-			}, nil
 		}
-		// Update the entity
-		err = s.datacomDAL.UpdateEntity(otherOrigionalContent, *other)
-		if err != nil {
-			fmt.Printf("ERROR: %v\n", err)
-		}
+
 	default: // INVALID
 		return &envApi.ExecuteAgentActionResponse{
 			WasSuccessful: false,

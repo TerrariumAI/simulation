@@ -23,6 +23,11 @@ type mockFuncCall struct {
 	resp []interface{}
 }
 
+type numOfCallsAssertion struct {
+	name string
+	num  int
+}
+
 func setup() (context.Context, *miniredis.Miniredis) {
 	// Context setup
 	userinfoJSONString := "{\"id\":\"MOCK-UID\"}"
@@ -465,11 +470,12 @@ func TestExecuteAgentAction(t *testing.T) {
 	}
 
 	tests := []struct {
-		name             string
-		args             args
-		DALMockFuncCalls []mockFuncCall
-		want             *envApi.ExecuteAgentActionResponse
-		wantErr          error
+		name                 string
+		args                 args
+		DALMockFuncCalls     []mockFuncCall
+		numOfCallsAssertions []numOfCallsAssertion
+		want                 *envApi.ExecuteAgentActionResponse
+		wantErr              error
 	}{
 		{
 			name: "entity does not exist fails",
@@ -774,6 +780,52 @@ func TestExecuteAgentAction(t *testing.T) {
 				IsAlive:       true,
 			},
 		},
+		{
+			name: "Succesful attack kills other, energy of this",
+			args: args{
+				ctx: ctx,
+				req: &envApi.ExecuteAgentActionRequest{
+					Id:        "mock-agent-id",
+					Action:    3,
+					Direction: 3,
+				},
+			},
+			DALMockFuncCalls: []mockFuncCall{
+				{ // Get the agent
+					name: "GetEntity",
+					args: []interface{}{"mock-agent-id"},
+					resp: []interface{}{&envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Health: 100, Energy: 100, ClassID: 1}, "mock:origional:agent:content", nil},
+				},
+				{ // Target cell is occupied by another agent
+					name: "IsCellOccupied",
+					args: []interface{}{uint32(2), uint32(1)},
+					resp: []interface{}{true, &envApi.Entity{Id: "mock-agent-id-2", X: 2, Y: 1, Health: 5, Energy: 100, ClassID: 1}, "mock:origional:agent2:content", nil},
+				},
+				{ // Kill other agent
+					name: "DeleteEntity",
+					args: []interface{}{"mock-agent-id-2"},
+					resp: []interface{}{int64(1), nil},
+				},
+				{ // Update this agent
+					name: "UpdateEntity",
+					args: []interface{}{
+						mock.MatchedBy(func(content string) bool {
+							return content == "mock:origional:agent:content"
+						}),
+						envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Health: 100, Energy: 94, ClassID: 1},
+					},
+					resp: []interface{}{nil},
+				},
+			},
+			numOfCallsAssertions: []numOfCallsAssertion{
+				{"DeleteEntity", 1},
+				{"UpdateEntity", 1},
+			},
+			want: &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: true,
+				IsAlive:       true,
+			},
+		},
 		// {
 		// 	name: "Succesful attack kills other if health is low, decreases energy of this",
 		// 	args: args{
@@ -829,11 +881,15 @@ func TestExecuteAgentAction(t *testing.T) {
 			mockDAL := &mocks.DataAccessLayer{}
 			s := NewEnvironmentServer("testing", mockDAL)
 			for _, mockFuncCall := range tt.DALMockFuncCalls {
-				// mockDAL.On(mockFuncCall.name, mockFuncCall.args...).Return(mockFuncCall.resp...).Once()
 				mockDAL.On(mockFuncCall.name, mockFuncCall.args...).Return(mockFuncCall.resp...)
 			}
 
 			got, err := s.ExecuteAgentAction(tt.args.ctx, tt.args.req)
+
+			for _, assertion := range tt.numOfCallsAssertions {
+				mockDAL.AssertNumberOfCalls(t, assertion.name, assertion.num)
+			}
+
 			if err != nil {
 				if tt.wantErr == nil {
 					t.Errorf("error: %v, wantErr: %v", err, tt.wantErr)
