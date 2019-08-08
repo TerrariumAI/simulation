@@ -12,11 +12,11 @@ import (
 
 // IsCellOccupied checks the env to see if a cell has an entity by converting
 // the cell position to an index then querying redis
-func (dc *Datacom) IsCellOccupied(x uint32, y uint32) (bool, *envApi.Entity, error) {
+func (dc *Datacom) IsCellOccupied(x uint32, y uint32) (bool, *envApi.Entity, string, error) {
 	index, err := posToRedisIndex(x, y)
 	if err != nil {
 		// TODO - Returning an empty string here may cause errors down the line
-		return true, nil, err
+		return true, nil, "", err
 	}
 
 	// Now we can assume positions are correct sizes
@@ -24,10 +24,10 @@ func (dc *Datacom) IsCellOccupied(x uint32, y uint32) (bool, *envApi.Entity, err
 	keys, _, err := dc.redisClient.ZScan("entities", 0, index+":*", 0).Result()
 	if len(keys) > 0 {
 		e, _ := parseEntityContent(keys[0])
-		return true, &e, nil
+		return true, &e, keys[0], nil
 	}
 
-	return false, nil, nil
+	return false, nil, "", nil
 }
 
 // CreateEntity sets entity data in the environment. It assumes that
@@ -99,16 +99,16 @@ func (dc *Datacom) UpdateEntity(origionalContent string, e envApi.Entity) error 
 }
 
 // GetEntity gets an entity from the environment by id
-func (dc *Datacom) GetEntity(id string) (*envApi.Entity, *string, error) {
+func (dc *Datacom) GetEntity(id string) (*envApi.Entity, string, error) {
 	// Get the content
 	hGetEntityContent := dc.redisClient.HGet("entities.content", id)
 	if hGetEntityContent.Err() != nil {
-		return nil, nil, errors.New("entity does not exist")
+		return nil, "", errors.New("entity does not exist")
 	}
 	content := hGetEntityContent.Val()
 	entity, _ := parseEntityContent(content)
 
-	return &entity, &content, nil
+	return &entity, content, nil
 }
 
 // DeleteEntity completely removes an entity from existence from the environment
@@ -222,6 +222,8 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 
 	obsv := collectiveApi.Observation{
 		Id:      entity.Id,
+		Energy:  entity.Energy,
+		Health:  entity.Health,
 		IsAlive: true,
 	}
 	xMin := entity.X - 1
@@ -258,13 +260,13 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 			}
 			if x < minPosition || y < minPosition {
 				// If the position is out of bounds, return a rock
-				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: "", Class: 2})
+				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: "", ClassID: 2})
 				continue
 			}
 			if otherEntity, ok := indexEntityMap[otherIndex]; ok {
-				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: otherEntity.Id, Class: otherEntity.Class})
+				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: otherEntity.Id, ClassID: otherEntity.ClassID})
 			} else {
-				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: "", Class: 0})
+				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: "", ClassID: 0})
 			}
 		}
 	}

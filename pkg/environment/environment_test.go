@@ -7,14 +7,26 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/mock"
+
 	"github.com/alicebob/miniredis"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/stretchr/testify/mock"
 	envApi "github.com/terrariumai/simulation/pkg/api/environment"
 	datacom "github.com/terrariumai/simulation/pkg/datacom"
 	"github.com/terrariumai/simulation/pkg/environment/mocks"
 	"google.golang.org/grpc/metadata"
 )
+
+type mockFuncCall struct {
+	name string
+	args []interface{}
+	resp []interface{}
+}
+
+type numOfCallsAssertion struct {
+	name string
+	num  int
+}
 
 func setup() (context.Context, *miniredis.Miniredis) {
 	// Context setup
@@ -42,97 +54,100 @@ func TestCreateEntity(t *testing.T) {
 		ctx context.Context
 		req *envApi.CreateEntityRequest
 	}
+
 	tests := []struct {
-		name                  string
-		args                  args
-		mockRMMetadata        *datacom.RemoteModel
-		mockRMMetadataError   error
-		mockIsCellOccupied    bool
-		mockIsCellOccupiedErr error
-		want                  *envApi.CreateEntityResponse
-		wantErr               bool
-		wantErrMessage        string
+		name             string
+		args             args
+		DALMockFuncCalls []mockFuncCall
+		want             *envApi.CreateEntityResponse
+		wantErr          error
 	}{
 		{
-			name: "Entity not in request error",
+			name: "Fails if entity is not in the request",
 			args: args{
 				ctx: ctx,
 				req: &envApi.CreateEntityRequest{},
 			},
-			wantErr:        true,
-			wantErrMessage: "entity not in request",
+			wantErr: errors.New("entity not in request"),
 		},
 		{
-			name: "Invalid class",
+			name: "Class must be valid",
 			args: args{
 				ctx: ctx,
 				req: &envApi.CreateEntityRequest{
 					Entity: &envApi.Entity{
-						Class: 4,
+						ClassID: 4,
 					},
 				},
 			},
-			wantErr:        true,
-			wantErrMessage: "invalid class",
+			wantErr: errors.New("invalid class"),
 		},
 		{
-			name: "Missing model id",
+			name: "Must specify model id",
 			args: args{
 				ctx: ctx,
 				req: &envApi.CreateEntityRequest{
 					Entity: &envApi.Entity{},
 				},
 			},
-			wantErr:        true,
-			wantErrMessage: "missing model id",
+			wantErr: errors.New("missing model id"),
 		},
 		{
-			name: "Missing model id",
+			name: "Model must exist",
 			args: args{
 				ctx: ctx,
 				req: &envApi.CreateEntityRequest{
 					Entity: &envApi.Entity{
-						ModelID: "asdf",
+						ModelID: "mock-model-id",
 					},
 				},
 			},
-			mockRMMetadataError: errors.New("remote model does not exist"),
-			wantErr:             true,
-			wantErrMessage:      "remote model does not exist",
+			DALMockFuncCalls: []mockFuncCall{
+				{ // Get the metadata for the RM
+					name: "GetRemoteModelMetadataByID",
+					args: []interface{}{"mock-model-id"},
+					resp: []interface{}{nil, errors.New("remote model does not exist")},
+				},
+			},
+			wantErr: errors.New("remote model does not exist"),
 		},
 		{
-			name: "No access",
+			name: "User must have access to the model",
 			args: args{
 				ctx: ctx,
 				req: &envApi.CreateEntityRequest{
 					Entity: &envApi.Entity{
-						ModelID: "MOCK-ID",
+						ModelID: "mock-model-id",
 					},
 				},
 			},
-			mockRMMetadata: &datacom.RemoteModel{
-				OwnerUID: "incorrect-uid",
+			DALMockFuncCalls: []mockFuncCall{
+				{ // Get the metadata for the RM
+					name: "GetRemoteModelMetadataByID",
+					args: []interface{}{"mock-model-id"},
+					resp: []interface{}{&datacom.RemoteModel{OwnerUID: "incorrect-model-id"}, nil},
+				},
 			},
-			wantErr:        true,
-			wantErrMessage: "you do not own that remote model",
+			wantErr: errors.New("you do not own that remote model"),
 		},
 		{
-			name: "No access",
+			name: "Model must be online",
 			args: args{
 				ctx: ctx,
 				req: &envApi.CreateEntityRequest{
 					Entity: &envApi.Entity{
-						ModelID:  "MOCK-ID",
-						OwnerUID: "MOCK-UID",
+						ModelID: "mock-model-id",
 					},
 				},
 			},
-			mockRMMetadata: &datacom.RemoteModel{
-				OwnerUID:     "MOCK-UID",
-				ConnectCount: 0,
+			DALMockFuncCalls: []mockFuncCall{
+				{ // Get the metadata for the RM
+					name: "GetRemoteModelMetadataByID",
+					args: []interface{}{"mock-model-id"},
+					resp: []interface{}{&datacom.RemoteModel{OwnerUID: "MOCK-UID", ConnectCount: 0}, nil},
+				},
 			},
-			wantErr:        true,
-			wantErrMessage: "rm is offline",
+			wantErr: errors.New("rm is offline"),
 		},
 		{
 			name: "Invalid position (over max position)",
@@ -140,19 +155,21 @@ func TestCreateEntity(t *testing.T) {
 				ctx: ctx,
 				req: &envApi.CreateEntityRequest{
 					Entity: &envApi.Entity{
-						ModelID:  "MOCK-ID",
+						ModelID:  "mock-model-id",
 						OwnerUID: "MOCK-UID",
 						X:        1000,
 						Y:        50,
 					},
 				},
 			},
-			mockRMMetadata: &datacom.RemoteModel{
-				OwnerUID:     "MOCK-UID",
-				ConnectCount: 1,
+			DALMockFuncCalls: []mockFuncCall{
+				{ // Get the metadata for the RM
+					name: "GetRemoteModelMetadataByID",
+					args: []interface{}{"mock-model-id"},
+					resp: []interface{}{&datacom.RemoteModel{OwnerUID: "MOCK-UID", ConnectCount: 1}, nil},
+				},
 			},
-			wantErr:        true,
-			wantErrMessage: "invalid position",
+			wantErr: errors.New("invalid position"),
 		},
 		{
 			name: "Invalid position (under min position)",
@@ -160,119 +177,148 @@ func TestCreateEntity(t *testing.T) {
 				ctx: ctx,
 				req: &envApi.CreateEntityRequest{
 					Entity: &envApi.Entity{
-						ModelID:  "MOCK-ID",
+						ModelID:  "mock-model-id",
 						OwnerUID: "MOCK-UID",
-						X:        5,
-						Y:        0,
+						X:        0,
+						Y:        5,
 					},
 				},
 			},
-			mockRMMetadata: &datacom.RemoteModel{
-				OwnerUID:     "MOCK-UID",
-				ConnectCount: 1,
+			DALMockFuncCalls: []mockFuncCall{
+				{ // Get the metadata for the RM
+					name: "GetRemoteModelMetadataByID",
+					args: []interface{}{"mock-model-id"},
+					resp: []interface{}{&datacom.RemoteModel{OwnerUID: "MOCK-UID", ConnectCount: 1}, nil},
+				},
 			},
-			wantErr:        true,
-			wantErrMessage: "invalid position",
+			wantErr: errors.New("invalid position"),
 		},
 		{
-			name: "Invalid position (cell occupied)",
+			name: "Cannot create entity in occupied cell",
 			args: args{
 				ctx: ctx,
 				req: &envApi.CreateEntityRequest{
 					Entity: &envApi.Entity{
-						ModelID:  "MOCK-ID",
+						ModelID:  "mock-model-id",
 						OwnerUID: "MOCK-UID",
-						X:        200,
-						Y:        50,
+						X:        1,
+						Y:        1,
 					},
 				},
 			},
-			mockIsCellOccupiedErr: errors.New("cell is already occupied"),
-			mockRMMetadata: &datacom.RemoteModel{
-				OwnerUID:     "MOCK-UID",
-				ConnectCount: 1,
+			DALMockFuncCalls: []mockFuncCall{
+				{ // Get the metadata for the RM
+					name: "GetRemoteModelMetadataByID",
+					args: []interface{}{"mock-model-id"},
+					resp: []interface{}{&datacom.RemoteModel{OwnerUID: "MOCK-UID", ConnectCount: 1}, nil},
+				},
+				{ // Check if the cell is occupied in the target position
+					name: "IsCellOccupied",
+					args: []interface{}{uint32(1), uint32(1)},
+					resp: []interface{}{true, nil, "", nil},
+				},
 			},
-			wantErr:        true,
-			wantErrMessage: "cell is already occupied",
+			wantErr: errors.New("cell is already occupied"),
 		},
 		{
-			name: "Success",
+			name: "Succesful in middle position",
 			args: args{
 				ctx: ctx,
 				req: &envApi.CreateEntityRequest{
 					Entity: &envApi.Entity{
-						ModelID:  "MOCK-ID",
+						ModelID:  "mock-model-id",
 						OwnerUID: "MOCK-UID",
-						X:        2,
-						Y:        2,
+						X:        25,
+						Y:        25,
 						Id:       "0",
+						ClassID:  1,
 					},
 				},
 			},
-			mockRMMetadata: &datacom.RemoteModel{
-				OwnerUID:     "MOCK-UID",
-				ConnectCount: 1,
+			DALMockFuncCalls: []mockFuncCall{
+				{ // Get the metadata for the RM
+					name: "GetRemoteModelMetadataByID",
+					args: []interface{}{"mock-model-id"},
+					resp: []interface{}{&datacom.RemoteModel{OwnerUID: "MOCK-UID", ConnectCount: 1}, nil},
+				},
+				{ // Check if the cell is occupied in the target position
+					name: "IsCellOccupied",
+					args: []interface{}{uint32(25), uint32(25)},
+					resp: []interface{}{false, nil, "", nil},
+				},
+				{ // Create the entity
+					name: "CreateEntity",
+					args: []interface{}{envApi.Entity{Id: "0", ClassID: 1, X: uint32(25), Y: uint32(25), Energy: uint32(100), Health: uint32(100), OwnerUID: "MOCK-UID", ModelID: "mock-model-id"}, true},
+					resp: []interface{}{nil},
+				},
 			},
 			want: &envApi.CreateEntityResponse{
 				Id: "0",
 			},
 		},
 		{
-			name: "Success on edge",
+			name: "Succesful on edge",
 			args: args{
 				ctx: ctx,
 				req: &envApi.CreateEntityRequest{
 					Entity: &envApi.Entity{
-						ModelID:  "MOCK-ID",
+						ModelID:  "mock-model-id",
 						OwnerUID: "MOCK-UID",
 						X:        1,
 						Y:        1,
 						Id:       "0",
+						ClassID:  1,
 					},
 				},
 			},
-			mockRMMetadata: &datacom.RemoteModel{
-				OwnerUID:     "MOCK-UID",
-				ConnectCount: 1,
+			DALMockFuncCalls: []mockFuncCall{
+				{ // Get the metadata for the RM
+					name: "GetRemoteModelMetadataByID",
+					args: []interface{}{"mock-model-id"},
+					resp: []interface{}{&datacom.RemoteModel{OwnerUID: "MOCK-UID", ConnectCount: 1}, nil},
+				},
+				{ // Check if the cell is occupied in the target position
+					name: "IsCellOccupied",
+					args: []interface{}{uint32(1), uint32(1)},
+					resp: []interface{}{false, nil, "", nil},
+				},
+				{ // Create the entity
+					name: "CreateEntity",
+					args: []interface{}{envApi.Entity{Id: "0", ClassID: 1, X: uint32(1), Y: uint32(1), Energy: uint32(100), Health: uint32(100), OwnerUID: "MOCK-UID", ModelID: "mock-model-id"}, true},
+					resp: []interface{}{nil},
+				},
 			},
 			want: &envApi.CreateEntityResponse{
 				Id: "0",
 			},
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup mock
 			mockDAL := &mocks.DataAccessLayer{}
 			s := NewEnvironmentServer("testing", mockDAL)
-
-			if tt.args.req.Entity != nil {
-				e := tt.args.req.Entity
-				e.Energy = 100
-				e.Health = 100
-				mockDAL.On("CreateEntity", *tt.args.req.Entity, true).Return(nil)
-				mockDAL.On("GetRemoteModelMetadataByID", tt.args.req.Entity.ModelID).Return(tt.mockRMMetadata, tt.mockRMMetadataError)
-				mockDAL.On("IsCellOccupied", tt.args.req.Entity.X, tt.args.req.Entity.Y).Return(tt.mockIsCellOccupied, nil, tt.mockIsCellOccupiedErr)
+			for _, mockFuncCall := range tt.DALMockFuncCalls {
+				mockDAL.On(mockFuncCall.name, mockFuncCall.args...).Return(mockFuncCall.resp...)
 			}
-
+			// Call function
 			got, err := s.CreateEntity(tt.args.ctx, tt.args.req)
+			// Check results
 			if err != nil {
-				if !tt.wantErr {
+				if tt.wantErr == nil {
 					t.Errorf("error: %v, wantErr: %v", err, tt.wantErr)
 					return
 				}
-				if err.Error() != tt.wantErrMessage {
-					t.Errorf("error message: '%v', want error message: '%v'", err, tt.wantErrMessage)
+				if err.Error() != tt.wantErr.Error() {
+					t.Errorf("error message: '%v', want error message: '%v'", err, tt.wantErr.Error())
 					return
 				}
 			}
 			if err == nil && !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("environment.CreateEntity() = %v, want %v", got, tt.want)
+				t.Errorf("got %v, want %v", *got, *tt.want)
 			}
 		})
 	}
-
 }
 
 func TestGetEntity(t *testing.T) {
@@ -287,7 +333,7 @@ func TestGetEntity(t *testing.T) {
 		name                   string
 		args                   args
 		mockGetEntityResponse  *envApi.Entity
-		mockGetEntityResponse2 *string
+		mockGetEntityResponse2 string
 		mockGetEntityErr       error
 		want                   *envApi.GetEntityResponse
 		wantErr                bool
@@ -422,36 +468,14 @@ func TestExecuteAgentAction(t *testing.T) {
 		ctx context.Context
 		req *envApi.ExecuteAgentActionRequest
 	}
-	type getEntityResp struct {
-		entity  *envApi.Entity
-		content string
-		err     error
-	}
-	type updateEntityArgs struct {
-		entity           envApi.Entity
-		origionalContent string
-	}
-	type isCellOccupiedArgs struct {
-		x uint32
-		y uint32
-	}
-	type isCellOccupiedResp struct {
-		isOccupied bool
-		e          *envApi.Entity
-		err        error
-	}
 
 	tests := []struct {
-		name                   string
-		args                   args
-		mockCreateEntityResp   error
-		mockGetEntityResp      getEntityResp
-		wantUpdateEntityArgs   updateEntityArgs
-		wantIsCellOccupiedArgs isCellOccupiedArgs
-		mockIsCellOccupiedResp isCellOccupiedResp
-		want                   *envApi.ExecuteAgentActionResponse
-		wantErr                bool
-		wantErrMessage         string
+		name                 string
+		args                 args
+		DALMockFuncCalls     []mockFuncCall
+		numOfCallsAssertions []numOfCallsAssertion
+		want                 *envApi.ExecuteAgentActionResponse
+		wantErr              error
 	}{
 		{
 			name: "entity does not exist fails",
@@ -459,13 +483,14 @@ func TestExecuteAgentAction(t *testing.T) {
 				ctx: ctx,
 				req: &envApi.ExecuteAgentActionRequest{},
 			},
-			mockGetEntityResp: getEntityResp{
-				entity:  nil,
-				content: "",
-				err:     errors.New("entity does not exist"),
+			DALMockFuncCalls: []mockFuncCall{
+				{
+					name: "GetEntity",
+					args: []interface{}{""},
+					resp: []interface{}{nil, "", errors.New("entity does not exist")},
+				},
 			},
-			wantErr:        true,
-			wantErrMessage: "entity does not exist",
+			wantErr: errors.New("entity does not exist"),
 		},
 		{
 			name: "rest reduces energy by 1",
@@ -476,14 +501,17 @@ func TestExecuteAgentAction(t *testing.T) {
 					Action: 0,
 				},
 			},
-			mockGetEntityResp: getEntityResp{
-				entity:  &envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 100, Health: 100},
-				content: "mock-original-content",
-				err:     nil,
-			},
-			wantUpdateEntityArgs: updateEntityArgs{
-				origionalContent: "mock-original-content",
-				entity:           envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 99, Health: 100},
+			DALMockFuncCalls: []mockFuncCall{
+				{
+					name: "GetEntity",
+					args: []interface{}{"mock-entity-id"},
+					resp: []interface{}{&envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 100, Health: 100}, "mock-original-content", nil},
+				},
+				{
+					name: "UpdateEntity",
+					args: []interface{}{"mock-original-content", envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 99, Health: 100}},
+					resp: []interface{}{nil},
+				},
 			},
 			want: &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: true,
@@ -500,13 +528,18 @@ func TestExecuteAgentAction(t *testing.T) {
 					Direction: 3,
 				},
 			},
-			mockGetEntityResp: getEntityResp{
-				entity:  &envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 100, Health: 100},
-				content: "mock-original-content",
-				err:     nil,
+			DALMockFuncCalls: []mockFuncCall{
+				{
+					name: "GetEntity",
+					args: []interface{}{"mock-entity-id"},
+					resp: []interface{}{&envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 100, Health: 100}, "mock-original-content", nil},
+				},
+				{
+					name: "IsCellOccupied",
+					args: []interface{}{uint32(2), uint32(1)},
+					resp: []interface{}{true, nil, "", nil},
+				},
 			},
-			wantIsCellOccupiedArgs: isCellOccupiedArgs{x: 2, y: 1},
-			mockIsCellOccupiedResp: isCellOccupiedResp{true, nil, nil},
 			want: &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: false,
 				IsAlive:       true,
@@ -522,16 +555,22 @@ func TestExecuteAgentAction(t *testing.T) {
 					Direction: 3,
 				},
 			},
-			mockGetEntityResp: getEntityResp{
-				entity:  &envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 100, Health: 100},
-				content: "mock-original-content",
-				err:     nil,
-			},
-			wantIsCellOccupiedArgs: isCellOccupiedArgs{x: 2, y: 1},
-			mockIsCellOccupiedResp: isCellOccupiedResp{false, nil, nil},
-			wantUpdateEntityArgs: updateEntityArgs{
-				origionalContent: "mock-original-content",
-				entity:           envApi.Entity{Id: "mock-entity-id", X: 2, Y: 1, Energy: 97, Health: 100},
+			DALMockFuncCalls: []mockFuncCall{
+				{
+					name: "GetEntity",
+					args: []interface{}{"mock-entity-id"},
+					resp: []interface{}{&envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 100, Health: 100}, "mock-original-content", nil},
+				},
+				{
+					name: "IsCellOccupied",
+					args: []interface{}{uint32(2), uint32(1)},
+					resp: []interface{}{false, nil, "", nil},
+				},
+				{
+					name: "UpdateEntity",
+					args: []interface{}{"mock-original-content", envApi.Entity{Id: "mock-entity-id", X: 2, Y: 1, Energy: 97, Health: 100}},
+					resp: []interface{}{nil},
+				},
 			},
 			want: &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: true,
@@ -548,13 +587,23 @@ func TestExecuteAgentAction(t *testing.T) {
 					Direction: 3,
 				},
 			},
-			mockGetEntityResp: getEntityResp{
-				entity:  &envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 1, Health: 0},
-				content: "mock-original-content",
-				err:     nil,
+			DALMockFuncCalls: []mockFuncCall{
+				{
+					name: "GetEntity",
+					args: []interface{}{"mock-entity-id"},
+					resp: []interface{}{&envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 1, Health: 1}, "mock-original-content", nil},
+				},
+				{
+					name: "IsCellOccupied",
+					args: []interface{}{uint32(2), uint32(1)},
+					resp: []interface{}{false, nil, "", nil},
+				},
+				{
+					name: "DeleteEntity",
+					args: []interface{}{"mock-entity-id"},
+					resp: []interface{}{int64(1), nil},
+				},
 			},
-			wantIsCellOccupiedArgs: isCellOccupiedArgs{x: 2, y: 1},
-			mockIsCellOccupiedResp: isCellOccupiedResp{false, nil, nil},
 			want: &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: false,
 				IsAlive:       false,
@@ -565,22 +614,37 @@ func TestExecuteAgentAction(t *testing.T) {
 			args: args{
 				ctx: ctx,
 				req: &envApi.ExecuteAgentActionRequest{
-					Id:        "mock-entity-id",
+					Id:        "mock-agent-id",
 					Action:    2,
 					Direction: 3,
 				},
 			},
-			mockGetEntityResp: getEntityResp{
-				entity:  &envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Health: 100, Energy: 80, Class: 1},
-				content: "mock-original-content",
-				err:     nil,
-			},
-			mockCreateEntityResp:   nil,
-			wantIsCellOccupiedArgs: isCellOccupiedArgs{x: 2, y: 1},
-			mockIsCellOccupiedResp: isCellOccupiedResp{true, &envApi.Entity{Id: "mock-entity-id", X: 2, Y: 1, Class: 3}, nil},
-			wantUpdateEntityArgs: updateEntityArgs{
-				origionalContent: "mock-original-content",
-				entity:           envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Energy: 89, Health: 100, Class: 1},
+			DALMockFuncCalls: []mockFuncCall{
+				{ // Get the agent
+					name: "GetEntity",
+					args: []interface{}{"mock-agent-id"},
+					resp: []interface{}{&envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Energy: 80, Health: 100, ClassID: 1}, "mock-original-content", nil},
+				},
+				{ // Target cell is occupied by food
+					name: "IsCellOccupied",
+					args: []interface{}{uint32(2), uint32(1)},
+					resp: []interface{}{true, &envApi.Entity{Id: "mock-food-id", X: 2, Y: 1, ClassID: 3}, "mock:food:content", nil},
+				},
+				{ // Update the agent after eating
+					name: "UpdateEntity",
+					args: []interface{}{"mock-original-content", envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Energy: 89, Health: 100, ClassID: 1}},
+					resp: []interface{}{nil},
+				},
+				{ // Delete the food
+					name: "DeleteEntity",
+					args: []interface{}{"mock-food-id"},
+					resp: []interface{}{int64(1), nil},
+				},
+				{ // Create a new food entity somewhere
+					name: "CreateEntity",
+					args: []interface{}{mock.AnythingOfType("Entity"), true},
+					resp: []interface{}{nil},
+				},
 			},
 			want: &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: true,
@@ -592,23 +656,223 @@ func TestExecuteAgentAction(t *testing.T) {
 			args: args{
 				ctx: ctx,
 				req: &envApi.ExecuteAgentActionRequest{
-					Id:        "mock-entity-id",
+					Id:        "mock-agent-id",
 					Action:    2,
 					Direction: 3,
 				},
 			},
-			mockGetEntityResp: getEntityResp{
-				entity:  &envApi.Entity{Id: "mock-entity-id", X: 1, Y: 1, Health: 100, Energy: 80, Class: 1},
-				content: "mock-original-content",
-				err:     nil,
+			DALMockFuncCalls: []mockFuncCall{
+				{ // Get the agent
+					name: "GetEntity",
+					args: []interface{}{"mock-agent-id"},
+					resp: []interface{}{&envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Health: 100, Energy: 80, ClassID: 1}, "mock-original-content", nil},
+				},
+				{ // Target cell is occupied by an agent
+					name: "IsCellOccupied",
+					args: []interface{}{uint32(2), uint32(1)},
+					resp: []interface{}{true, &envApi.Entity{Id: "mock-agent-id-2", X: 2, Y: 1, ClassID: 1}, "mock:agent:content", nil},
+				},
 			},
-			wantIsCellOccupiedArgs: isCellOccupiedArgs{x: 2, y: 1},
-			mockIsCellOccupiedResp: isCellOccupiedResp{true, &envApi.Entity{Id: "mock-entity-id", X: 2, Y: 1, Class: 1}, nil},
 			want: &envApi.ExecuteAgentActionResponse{
 				WasSuccessful: false,
 				IsAlive:       true,
 			},
 		},
+		// // ATTACK
+		{
+			name: "Cannot attack empty cell",
+			args: args{
+				ctx: ctx,
+				req: &envApi.ExecuteAgentActionRequest{
+					Id:        "mock-agent-id",
+					Action:    3,
+					Direction: 3,
+				},
+			},
+			DALMockFuncCalls: []mockFuncCall{
+				{ // Get the agent
+					name: "GetEntity",
+					args: []interface{}{"mock-agent-id"},
+					resp: []interface{}{&envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Health: 100, Energy: 80, ClassID: 1}, "mock-original-content", nil},
+				},
+				{ // Target cell is empty
+					name: "IsCellOccupied",
+					args: []interface{}{uint32(2), uint32(1)},
+					resp: []interface{}{false, nil, "", nil},
+				},
+			},
+			want: &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: false,
+				IsAlive:       true,
+			},
+		},
+		{
+			name: "Cannot attack non-agent entity",
+			args: args{
+				ctx: ctx,
+				req: &envApi.ExecuteAgentActionRequest{
+					Id:        "mock-agent-id",
+					Action:    3,
+					Direction: 3,
+				},
+			},
+			DALMockFuncCalls: []mockFuncCall{
+				{ // Get the agent
+					name: "GetEntity",
+					args: []interface{}{"mock-agent-id"},
+					resp: []interface{}{&envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Health: 100, Energy: 80, ClassID: 1}, "mock-original-content", nil},
+				},
+				{ // Target cell is occupied by food
+					name: "IsCellOccupied",
+					args: []interface{}{uint32(2), uint32(1)},
+					resp: []interface{}{true, &envApi.Entity{Id: "mock-food-id", X: 2, Y: 1, ClassID: 3}, "mock:food:content", nil},
+				},
+			},
+			want: &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: false,
+				IsAlive:       true,
+			},
+		},
+		{
+			name: "Succesful attack decreases health of other, energy of this",
+			args: args{
+				ctx: ctx,
+				req: &envApi.ExecuteAgentActionRequest{
+					Id:        "mock-agent-id",
+					Action:    3,
+					Direction: 3,
+				},
+			},
+			DALMockFuncCalls: []mockFuncCall{
+				{ // Get the agent
+					name: "GetEntity",
+					args: []interface{}{"mock-agent-id"},
+					resp: []interface{}{&envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Health: 100, Energy: 100, ClassID: 1}, "mock:origional:agent:content", nil},
+				},
+				{ // Target cell is occupied by another agent
+					name: "IsCellOccupied",
+					args: []interface{}{uint32(2), uint32(1)},
+					resp: []interface{}{true, &envApi.Entity{Id: "mock-agent-id-2", X: 2, Y: 1, Health: 100, Energy: 100, ClassID: 1}, "mock:origional:agent2:content", nil},
+				},
+				{ // Update the other agent's health
+					name: "UpdateEntity",
+					args: []interface{}{
+						mock.MatchedBy(func(content string) bool {
+							return content == "mock:origional:agent:content"
+						}),
+						envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Health: 100, Energy: 94, ClassID: 1},
+					},
+					resp: []interface{}{nil},
+				},
+				{ // Update the other agent's health
+					name: "UpdateEntity",
+					args: []interface{}{
+						mock.MatchedBy(func(content string) bool {
+							return content == "mock:origional:agent2:content"
+						}),
+						envApi.Entity{Id: "mock-agent-id-2", X: 2, Y: 1, Health: 90, Energy: 100, ClassID: 1},
+					},
+					resp: []interface{}{nil},
+				},
+			},
+			want: &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: true,
+				IsAlive:       true,
+			},
+		},
+		{
+			name: "Succesful attack kills other, energy of this",
+			args: args{
+				ctx: ctx,
+				req: &envApi.ExecuteAgentActionRequest{
+					Id:        "mock-agent-id",
+					Action:    3,
+					Direction: 3,
+				},
+			},
+			DALMockFuncCalls: []mockFuncCall{
+				{ // Get the agent
+					name: "GetEntity",
+					args: []interface{}{"mock-agent-id"},
+					resp: []interface{}{&envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Health: 100, Energy: 100, ClassID: 1}, "mock:origional:agent:content", nil},
+				},
+				{ // Target cell is occupied by another agent
+					name: "IsCellOccupied",
+					args: []interface{}{uint32(2), uint32(1)},
+					resp: []interface{}{true, &envApi.Entity{Id: "mock-agent-id-2", X: 2, Y: 1, Health: 5, Energy: 100, ClassID: 1}, "mock:origional:agent2:content", nil},
+				},
+				{ // Kill other agent
+					name: "DeleteEntity",
+					args: []interface{}{"mock-agent-id-2"},
+					resp: []interface{}{int64(1), nil},
+				},
+				{ // Update this agent
+					name: "UpdateEntity",
+					args: []interface{}{
+						mock.MatchedBy(func(content string) bool {
+							return content == "mock:origional:agent:content"
+						}),
+						envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Health: 100, Energy: 94, ClassID: 1},
+					},
+					resp: []interface{}{nil},
+				},
+			},
+			numOfCallsAssertions: []numOfCallsAssertion{
+				{"DeleteEntity", 1},
+				{"UpdateEntity", 1},
+			},
+			want: &envApi.ExecuteAgentActionResponse{
+				WasSuccessful: true,
+				IsAlive:       true,
+			},
+		},
+		// {
+		// 	name: "Succesful attack kills other if health is low, decreases energy of this",
+		// 	args: args{
+		// 		ctx: ctx,
+		// 		req: &envApi.ExecuteAgentActionRequest{
+		// 			Id:        "mock-agent-id",
+		// 			Action:    3,
+		// 			Direction: 3,
+		// 		},
+		// 	},
+		// 	DALMockFuncCalls: []mockFuncCall{
+		// 		{ // Get the agent
+		// 			name: "GetEntity",
+		// 			args: []interface{}{"mock-agent-id"},
+		// 			resp: []interface{}{&envApi.Entity{Id: "mock-agent-id", X: 1, Y: 1, Health: 100, Energy: 100, ClassID: 1}, "mock:origional:agent:content", nil},
+		// 		},
+		// 		{ // Target cell is occupied by another agent
+		// 			name: "IsCellOccupied",
+		// 			args: []interface{}{uint32(2), uint32(1)},
+		// 			resp: []interface{}{true, &envApi.Entity{Id: "mock-agent-id-2", X: 2, Y: 1, Health: 100, Energy: 100, ClassID: 1}, "mock:origional:agent2:content", nil},
+		// 		},
+		// 		{ // Update the other agent's health
+		// 			name: "UpdateEntity",
+		// 			args: []interface{}{
+		// 				mock.MatchedBy(func(content string) bool {
+		// 					return content == "mock:origional:agent:content"
+		// 				}),
+		// 				mock.AnythingOfType("Entity"),
+		// 			},
+		// 			resp: []interface{}{nil},
+		// 		},
+		// 		{ // Update the other agent's health
+		// 			name: "UpdateEntity",
+		// 			args: []interface{}{
+		// 				mock.MatchedBy(func(content string) bool {
+		// 					return content == "mock:origional:agent2:content"
+		// 				}),
+		// 				mock.AnythingOfType("Entity"),
+		// 			},
+		// 			resp: []interface{}{nil},
+		// 		},
+		// 	},
+		// 	want: &envApi.ExecuteAgentActionResponse{
+		// 		WasSuccessful: true,
+		// 		IsAlive:       true,
+		// 	},
+		// },
 	}
 
 	for _, tt := range tests {
@@ -616,21 +880,23 @@ func TestExecuteAgentAction(t *testing.T) {
 			// Setup mock
 			mockDAL := &mocks.DataAccessLayer{}
 			s := NewEnvironmentServer("testing", mockDAL)
-
-			mockDAL.On("CreateEntity", mock.AnythingOfType("Entity"), mock.AnythingOfType("bool")).Return(tt.mockCreateEntityResp)
-			mockDAL.On("GetEntity", tt.args.req.Id).Return(tt.mockGetEntityResp.entity, &tt.mockGetEntityResp.content, tt.mockGetEntityResp.err)
-			mockDAL.On("UpdateEntity", tt.wantUpdateEntityArgs.origionalContent, tt.wantUpdateEntityArgs.entity).Return(nil)
-			mockDAL.On("IsCellOccupied", tt.wantIsCellOccupiedArgs.x, tt.wantIsCellOccupiedArgs.y).Return(tt.mockIsCellOccupiedResp.isOccupied, tt.mockIsCellOccupiedResp.e, tt.mockIsCellOccupiedResp.err)
-			mockDAL.On("DeleteEntity", tt.args.req.Id).Return(int64(1), nil)
+			for _, mockFuncCall := range tt.DALMockFuncCalls {
+				mockDAL.On(mockFuncCall.name, mockFuncCall.args...).Return(mockFuncCall.resp...)
+			}
 
 			got, err := s.ExecuteAgentAction(tt.args.ctx, tt.args.req)
+
+			for _, assertion := range tt.numOfCallsAssertions {
+				mockDAL.AssertNumberOfCalls(t, assertion.name, assertion.num)
+			}
+
 			if err != nil {
-				if !tt.wantErr {
+				if tt.wantErr == nil {
 					t.Errorf("error: %v, wantErr: %v", err, tt.wantErr)
 					return
 				}
-				if err.Error() != tt.wantErrMessage {
-					t.Errorf("error message: '%v', want error message: '%v'", err, tt.wantErrMessage)
+				if err.Error() != tt.wantErr.Error() {
+					t.Errorf("error message: '%v', want error message: '%v'", err, tt.wantErr.Error())
 					return
 				}
 			}

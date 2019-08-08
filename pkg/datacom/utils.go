@@ -43,7 +43,7 @@ func serializeEntity(e envApi.Entity) (string, error) {
 	if err != nil {
 		log.Println("ERROR: ", err)
 	}
-	return fmt.Sprintf("%s:%v:%v:%v:%s:%s:%v:%v:%s", index, e.X, e.Y, e.Class, e.OwnerUID, e.ModelID, e.Energy, e.Health, e.Id), nil
+	return fmt.Sprintf("%s:%v:%v:%v:%s:%s:%v:%v:%s", index, e.X, e.Y, e.ClassID, e.OwnerUID, e.ModelID, e.Energy, e.Health, e.Id), nil
 }
 
 // ParseEntityContent takes entity content and parses it out to an entity
@@ -51,7 +51,7 @@ func parseEntityContent(content string) (entity envApi.Entity, index string) {
 	values := strings.Split(content, ":")
 	x, _ := strconv.Atoi(values[1])
 	y, _ := strconv.Atoi(values[2])
-	class, _ := strconv.Atoi(values[3])
+	classID, _ := strconv.Atoi(values[3])
 	ownerUID := values[4]
 	modelID := values[5]
 	energy, _ := strconv.Atoi(values[6])
@@ -59,7 +59,7 @@ func parseEntityContent(content string) (entity envApi.Entity, index string) {
 	return envApi.Entity{
 		X:        uint32(x),
 		Y:        uint32(y),
-		Class:    uint32(class),
+		ClassID:  uint32(classID),
 		OwnerUID: ownerUID,
 		ModelID:  modelID,
 		Energy:   uint32(energy),
