@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc/metadata"
 
 	api "github.com/terrariumai/simulation/pkg/api/environment"
@@ -36,6 +37,11 @@ var (
 			[]string{
 				"id:string",
 			},
+		},
+		{
+			"spawnFood",
+			"Spawns food randomly in the environment",
+			[]string{},
 		},
 	}
 )
@@ -75,7 +81,7 @@ func StartConsole(s api.EnvironmentServer) {
 				}
 
 				// Create call context
-				userinfoJSONString := "{\"id\":\"MOCK-UID\"}"
+				userinfoJSONString := "{\"id\":\"MOCK-UID\",\"isAdmin\":true}"
 				userinfoEnc := b64.StdEncoding.EncodeToString([]byte(userinfoJSONString))
 				md := metadata.Pairs("x-endpoint-api-userinfo", userinfoEnc)
 				ctx := metadata.NewIncomingContext(context.Background(), md)
@@ -95,7 +101,7 @@ func StartConsole(s api.EnvironmentServer) {
 						Entity: &api.Entity{
 							X:       uint32(x),
 							Y:       uint32(y),
-							ClassIDID: 1,
+							ClassID: 1,
 							ModelID: "MOCK-MODEL-ID",
 						},
 					})
@@ -114,6 +120,8 @@ func StartConsole(s api.EnvironmentServer) {
 					} else {
 						fmt.Printf("\t%v\n", resp)
 					}
+				case "spawnFood":
+					s.SpawnFood(ctx, &empty.Empty{})
 				default:
 					fmt.Printf("\tUnrecognized command\n")
 				}

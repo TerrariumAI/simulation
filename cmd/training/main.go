@@ -56,11 +56,11 @@ func main() {
 	envApi.RegisterEnvironmentServer(eServer, eServerAPI)
 
 	// Start 'em up!
-	log.Println("Training environment is online.")
 	go eServer.Serve(eListen)
 	defer eServer.Stop()
 	go cServer.Serve(cListen)
 	defer cServer.Stop()
+	log.Println("Training environment is running locally on port 9090.")
 
 	// Start the console to listen for commands
 	console.StartConsole(eServerAPI)

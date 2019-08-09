@@ -16,7 +16,10 @@ build-collective: ## build the server executable (for linux/docker use only)
 build-training-mac: check-version-env-var
 	GOOS=darwin GOARCH=amd64 CGO_ENABLED=1 go build -a -installsuffix cgo -o ./bin/training-osx-$(VERSION).sh ./cmd/training
 build-training-windows: check-version-env-var
-	GOOS=windows GOARCH=amd64 CGO_ENABLED=1 go build -a -installsuffix cgo -o ./bin/training-osx-$(VERSION).exe ./cmd/training
+	GOOS=windows GOARCH=amd64 CGO_ENABLED=1 go build -a -installsuffix cgo -o ./bin/training-windows-$(VERSION).exe ./cmd/training
+build-training-linux: check-version-env-var
+	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o ./bin/training-linux-$(VERSION).sh ./cmd/training
+
 build-training-releases: build-environment-mac build-environment-windows
 
 # build-mac: ## Build distribution binary for mac
@@ -46,6 +49,18 @@ run-c-training: ## run the server locally with env set to training
 run-c-prod: ## run the server locally with env set to prod
 	go run -race ./cmd/collective/main.go -grpc-port=9090 -environment-addr=localhost:9091 -redis-addr=localhost:6379 -log-level=-1 -env=prod
 
+run-esp:
+	sudo docker run \
+			--rm \
+			--name="esp" \
+			--publish=8082:8082 \
+			--volume=$(PWD):/esp \
+			gcr.io/endpoints-release/endpoints-runtime:1 \
+			--service=environment.endpoints.olamai-testing.cloud.goog \
+			--rollout_strategy=managed \
+			--http_port=8082 \
+			--backend=docker.for.mac.localhost:8080 \
+			--service_account_key=/esp/serviceAccountKey_staging.json
 
 ## ----------------------
 ## ------ Testing

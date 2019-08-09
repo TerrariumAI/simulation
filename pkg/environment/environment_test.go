@@ -125,7 +125,7 @@ func TestCreateEntity(t *testing.T) {
 				{ // Get the metadata for the RM
 					name: "GetRemoteModelMetadataByID",
 					args: []interface{}{"mock-model-id"},
-					resp: []interface{}{&datacom.RemoteModel{OwnerUID: "incorrect-model-id"}, nil},
+					resp: []interface{}{&datacom.RemoteModel{ID: "mock-model-id", OwnerUID: "incorrect-model-id"}, nil},
 				},
 			},
 			wantErr: errors.New("you do not own that remote model"),
@@ -144,10 +144,36 @@ func TestCreateEntity(t *testing.T) {
 				{ // Get the metadata for the RM
 					name: "GetRemoteModelMetadataByID",
 					args: []interface{}{"mock-model-id"},
-					resp: []interface{}{&datacom.RemoteModel{OwnerUID: "MOCK-UID", ConnectCount: 0}, nil},
+					resp: []interface{}{&datacom.RemoteModel{ID: "mock-model-id", OwnerUID: "MOCK-UID", ConnectCount: 0}, nil},
 				},
 			},
 			wantErr: errors.New("rm is offline"),
+		},
+		{
+			name: "Cannot create more than 5 entities manually",
+			args: args{
+				ctx: ctx,
+				req: &envApi.CreateEntityRequest{
+					Entity: &envApi.Entity{
+						ModelID: "mock-model-id",
+						X:       1,
+						Y:       1,
+					},
+				},
+			},
+			DALMockFuncCalls: []mockFuncCall{
+				{ // Get the metadata for the RM
+					name: "GetRemoteModelMetadataByID",
+					args: []interface{}{"mock-model-id"},
+					resp: []interface{}{&datacom.RemoteModel{ID: "mock-model-id", OwnerUID: "MOCK-UID", ConnectCount: 1}, nil},
+				},
+				{ // Get entities for the RM
+					name: "GetEntitiesForModel",
+					args: []interface{}{"mock-model-id"},
+					resp: []interface{}{[]envApi.Entity{envApi.Entity{}, envApi.Entity{}, envApi.Entity{}, envApi.Entity{}, envApi.Entity{}}, nil},
+				},
+			},
+			wantErr: errors.New("you can only manually create 5 entities at a time"),
 		},
 		{
 			name: "Invalid position (over max position)",
@@ -166,7 +192,12 @@ func TestCreateEntity(t *testing.T) {
 				{ // Get the metadata for the RM
 					name: "GetRemoteModelMetadataByID",
 					args: []interface{}{"mock-model-id"},
-					resp: []interface{}{&datacom.RemoteModel{OwnerUID: "MOCK-UID", ConnectCount: 1}, nil},
+					resp: []interface{}{&datacom.RemoteModel{ID: "mock-model-id", OwnerUID: "MOCK-UID", ConnectCount: 1}, nil},
+				},
+				{ // Get entities for the RM
+					name: "GetEntitiesForModel",
+					args: []interface{}{"mock-model-id"},
+					resp: []interface{}{[]envApi.Entity{}, nil},
 				},
 			},
 			wantErr: errors.New("invalid position"),
@@ -188,7 +219,12 @@ func TestCreateEntity(t *testing.T) {
 				{ // Get the metadata for the RM
 					name: "GetRemoteModelMetadataByID",
 					args: []interface{}{"mock-model-id"},
-					resp: []interface{}{&datacom.RemoteModel{OwnerUID: "MOCK-UID", ConnectCount: 1}, nil},
+					resp: []interface{}{&datacom.RemoteModel{ID: "mock-model-id", OwnerUID: "MOCK-UID", ConnectCount: 1}, nil},
+				},
+				{ // Get entities for the RM
+					name: "GetEntitiesForModel",
+					args: []interface{}{"mock-model-id"},
+					resp: []interface{}{[]envApi.Entity{}, nil},
 				},
 			},
 			wantErr: errors.New("invalid position"),
@@ -210,7 +246,12 @@ func TestCreateEntity(t *testing.T) {
 				{ // Get the metadata for the RM
 					name: "GetRemoteModelMetadataByID",
 					args: []interface{}{"mock-model-id"},
-					resp: []interface{}{&datacom.RemoteModel{OwnerUID: "MOCK-UID", ConnectCount: 1}, nil},
+					resp: []interface{}{&datacom.RemoteModel{ID: "mock-model-id", OwnerUID: "MOCK-UID", ConnectCount: 1}, nil},
+				},
+				{ // Get entities for the RM
+					name: "GetEntitiesForModel",
+					args: []interface{}{"mock-model-id"},
+					resp: []interface{}{[]envApi.Entity{}, nil},
 				},
 				{ // Check if the cell is occupied in the target position
 					name: "IsCellOccupied",
@@ -239,7 +280,12 @@ func TestCreateEntity(t *testing.T) {
 				{ // Get the metadata for the RM
 					name: "GetRemoteModelMetadataByID",
 					args: []interface{}{"mock-model-id"},
-					resp: []interface{}{&datacom.RemoteModel{OwnerUID: "MOCK-UID", ConnectCount: 1}, nil},
+					resp: []interface{}{&datacom.RemoteModel{ID: "mock-model-id", OwnerUID: "MOCK-UID", ConnectCount: 1}, nil},
+				},
+				{ // Get entities for the RM
+					name: "GetEntitiesForModel",
+					args: []interface{}{"mock-model-id"},
+					resp: []interface{}{[]envApi.Entity{}, nil},
 				},
 				{ // Check if the cell is occupied in the target position
 					name: "IsCellOccupied",
@@ -275,7 +321,12 @@ func TestCreateEntity(t *testing.T) {
 				{ // Get the metadata for the RM
 					name: "GetRemoteModelMetadataByID",
 					args: []interface{}{"mock-model-id"},
-					resp: []interface{}{&datacom.RemoteModel{OwnerUID: "MOCK-UID", ConnectCount: 1}, nil},
+					resp: []interface{}{&datacom.RemoteModel{ID: "mock-model-id", OwnerUID: "MOCK-UID", ConnectCount: 1}, nil},
+				},
+				{ // Get entities for the RM
+					name: "GetEntitiesForModel",
+					args: []interface{}{"mock-model-id"},
+					resp: []interface{}{[]envApi.Entity{}, nil},
 				},
 				{ // Check if the cell is occupied in the target position
 					name: "IsCellOccupied",

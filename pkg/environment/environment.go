@@ -22,8 +22,9 @@ import (
 )
 
 const (
-	maxPosition = 999
-	minPosition = 1
+	maxPosition            = 999
+	minPosition            = 1
+	maxUserCreatedEntities = 5
 
 	agentLivingEnergyCost = 1
 	agentMoveEnergyCost   = 2
@@ -46,9 +47,10 @@ type environmentServer struct {
 
 // UserInfo is the struct that will parse the auth response
 type UserInfo struct {
-	Issuer string `json:"issuer"`
-	ID     string `json:"id"`
-	Email  string `json:"email"`
+	Issuer  string `json:"issuer"`
+	ID      string `json:"id"`
+	Email   string `json:"email"`
+	IsAdmin bool   `json:"isAdmin"`
 }
 
 // DataAccessLayer interface for all data access, specificly plugs in from datacom
@@ -130,6 +132,17 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *envApi.Create
 	if remoteModelMD.ConnectCount == 0 {
 		err := errors.New("rm is offline")
 		log.Printf("ERROR: %v\n", err)
+		return nil, err
+	}
+
+	// Make sure user can't create more than limit
+	entities, err := s.datacomDAL.GetEntitiesForModel(remoteModelMD.ID)
+	if err != nil {
+		log.Printf("ERROR querying entities: %v\n", err)
+		return nil, err
+	}
+	if len(entities) >= maxUserCreatedEntities {
+		err := errors.New("you can only manually create 5 entities at a time")
 		return nil, err
 	}
 
@@ -426,6 +439,23 @@ func (s *environmentServer) SpawnFood(ctx context.Context, req *empty.Empty) (*e
 	// Lock the data, defer unlock until end of call
 	s.m.Lock()
 	defer s.m.Unlock()
+
+	// Get user info from metadata
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		err := errors.New("Incorrect or no headers were provided")
+		log.Printf("ERROR: %v\n", err)
+		return nil, err
+	}
+	userInfoHeader := md["x-endpoint-api-userinfo"]
+	sDec, _ := b64.StdEncoding.DecodeString(userInfoHeader[0])
+	userInfo := UserInfo{}
+	json.Unmarshal(sDec, &userInfo)
+	if !userInfo.IsAdmin {
+		err := errors.New("must be admin")
+		log.Printf("ERROR: %v\n", err)
+		return nil, err
+	}
 
 	foodCount := 500
 	for i := 0; i < foodCount; i++ {
