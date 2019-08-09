@@ -47,10 +47,9 @@ type environmentServer struct {
 
 // UserInfo is the struct that will parse the auth response
 type UserInfo struct {
-	Issuer  string `json:"issuer"`
-	ID      string `json:"id"`
-	Email   string `json:"email"`
-	IsAdmin bool   `json:"isAdmin"`
+	Issuer string `json:"issuer"`
+	ID     string `json:"id"`
+	Email  string `json:"email"`
 }
 
 // DataAccessLayer interface for all data access, specificly plugs in from datacom
@@ -451,8 +450,8 @@ func (s *environmentServer) SpawnFood(ctx context.Context, req *empty.Empty) (*e
 	sDec, _ := b64.StdEncoding.DecodeString(userInfoHeader[0])
 	userInfo := UserInfo{}
 	json.Unmarshal(sDec, &userInfo)
-	if !userInfo.IsAdmin {
-		err := errors.New("must be admin")
+	if userInfo.Email != "zacharyholland@gmail.com" {
+		err := errors.New("must be zac to perform this action")
 		log.Printf("ERROR: %v\n", err)
 		return nil, err
 	}
