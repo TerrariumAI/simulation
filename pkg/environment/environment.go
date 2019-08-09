@@ -141,7 +141,7 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *envApi.Create
 		log.Printf("ERROR querying entities: %v\n", err)
 		return nil, err
 	}
-	if len(entities) >= maxUserCreatedEntities {
+	if len(entities) >= maxUserCreatedEntities && s.env != "training" {
 		err := errors.New("you can only manually create 5 entities at a time")
 		return nil, err
 	}
