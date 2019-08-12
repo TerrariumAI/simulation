@@ -18,10 +18,10 @@ const (
 
 	mockSecret = "MOCK-SECRET"
 
-	minPosition             = 1
-	maxPositionPadding      = 3
+	minPosition             = 0
+	maxPositionCharLength   = 3 // Maximum length a position can be ("10" = 2, "100" = 3, etc.)
 	maxPosition             = 999
-	defaultEntityVisionDist = 10
+	defaultEntityVisionDist = 5
 
 	regionSize            = 10
 	cellsInRegion float64 = 10
@@ -34,7 +34,7 @@ type Datacom struct {
 	// current envirinment
 	env string
 	// entity vision distance
-	entityVisionDist int32
+	EntityVisionDist int32
 	// firebase client
 	firebaseApp *firebase.App
 	// redis client
@@ -70,7 +70,7 @@ func NewDatacom(env string, redisAddr string, pubsub PubsubAccessLayer) (*Dataco
 	dc := &Datacom{
 		env:              env,
 		pubsub:           pubsub,
-		entityVisionDist: defaultEntityVisionDist,
+		EntityVisionDist: defaultEntityVisionDist,
 	}
 
 	// Setup Firebase

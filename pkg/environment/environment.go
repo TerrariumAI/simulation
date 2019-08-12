@@ -23,7 +23,7 @@ import (
 
 const (
 	maxPosition            = 999
-	minPosition            = 1
+	minPosition            = 0
 	maxUserCreatedEntities = 5
 
 	agentLivingEnergyCost = 1

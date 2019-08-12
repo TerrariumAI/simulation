@@ -213,7 +213,7 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 	}
 	// If the entity is out of bounds for some reason, delete it
 	// TODO - remove this, make it so it is impossible to get here in the first place
-	if entity.X < 1 || entity.Y < 1 {
+	if entity.X < minPosition || entity.Y < minPosition {
 		dc.DeleteEntity(entity.Id)
 		err := errors.New("entity was invalid and has been deleted")
 		log.Printf("ERROR: %v\n", err)
@@ -226,10 +226,10 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 		Health:  entity.Health,
 		IsAlive: true,
 	}
-	xMin := int32(entity.X) - dc.entityVisionDist
-	xMax := int32(entity.X) + dc.entityVisionDist
-	yMin := int32(entity.Y) - dc.entityVisionDist
-	yMax := int32(entity.Y) + dc.entityVisionDist
+	xMin := int32(entity.X) - dc.EntityVisionDist
+	xMax := int32(entity.X) + dc.EntityVisionDist
+	yMin := int32(entity.Y) - dc.EntityVisionDist
+	yMax := int32(entity.Y) + dc.EntityVisionDist
 	// Make sure we are only querying valid positions
 	if xMin < minPosition {
 		xMin = minPosition
@@ -262,8 +262,8 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 	}
 	var x int32
 	var y int32
-	for y = int32(entity.Y) + entityVisionDist; y >= int32(entity.Y)-entityVisionDist; y-- {
-		for x = int32(entity.X) - entityVisionDist; x <= int32(entity.X)+entityVisionDist; x++ {
+	for y = int32(entity.Y) + dc.EntityVisionDist; y >= int32(entity.Y)-dc.EntityVisionDist; y-- {
+		for x = int32(entity.X) - dc.EntityVisionDist; x <= int32(entity.X)+dc.EntityVisionDist; x++ {
 			// If position is invalid, set it to untraversable entity (rock)
 			if x < minPosition || x > maxPosition || y < minPosition || y > maxPosition {
 				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: "", ClassID: 3})
