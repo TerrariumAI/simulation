@@ -18,9 +18,10 @@ const (
 
 	mockSecret = "MOCK-SECRET"
 
-	minPosition        = 1
-	maxPositionPadding = 3
-	maxPosition        = 999
+	minPosition             = 1
+	maxPositionPadding      = 3
+	maxPosition             = 999
+	defaultEntityVisionDist = 10
 
 	regionSize            = 10
 	cellsInRegion float64 = 10
@@ -32,6 +33,8 @@ const (
 type Datacom struct {
 	// current envirinment
 	env string
+	// entity vision distance
+	entityVisionDist int32
 	// firebase client
 	firebaseApp *firebase.App
 	// redis client
@@ -65,8 +68,9 @@ type PubsubAccessLayer interface {
 // according to the environment
 func NewDatacom(env string, redisAddr string, pubsub PubsubAccessLayer) (*Datacom, error) {
 	dc := &Datacom{
-		env:    env,
-		pubsub: pubsub,
+		env:              env,
+		pubsub:           pubsub,
+		entityVisionDist: defaultEntityVisionDist,
 	}
 
 	// Setup Firebase

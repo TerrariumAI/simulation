@@ -226,12 +226,25 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 		Health:  entity.Health,
 		IsAlive: true,
 	}
-	xMin := entity.X - 1
-	xMax := entity.X + 1
-	yMin := entity.Y - 1
-	yMax := entity.Y + 1
+	xMin := int32(entity.X) - dc.entityVisionDist
+	xMax := int32(entity.X) + dc.entityVisionDist
+	yMin := int32(entity.Y) - dc.entityVisionDist
+	yMax := int32(entity.Y) + dc.entityVisionDist
+	// Make sure we are only querying valid positions
+	if xMin < minPosition {
+		xMin = minPosition
+	}
+	if yMin < minPosition {
+		yMin = minPosition
+	}
+	if xMax > maxPosition {
+		xMax = maxPosition
+	}
+	if yMax > maxPosition {
+		yMax = maxPosition
+	}
 	// Query for entities near this position
-	closeEntitiesContent, err := dc.getEntitiesInArea(xMin, yMin, xMax, yMax)
+	closeEntitiesContent, err := dc.getEntitiesInArea(uint32(xMin), uint32(yMin), uint32(xMax), uint32(yMax))
 	if err != nil {
 		log.Printf("ERROR: %v\n", err)
 		return nil, err
@@ -249,18 +262,20 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 	}
 	var x int32
 	var y int32
-	for y = int32(entity.Y) + 1; y >= int32(entity.Y)-1; y-- {
-		for x = int32(entity.X) - 1; x <= int32(entity.X)+1; x++ {
-			otherIndex, err := posToRedisIndex(uint32(x), uint32(y))
-			if err != nil {
-				return nil, err
-			}
-			if otherIndex == index {
+	for y = int32(entity.Y) + entityVisionDist; y >= int32(entity.Y)-entityVisionDist; y-- {
+		for x = int32(entity.X) - entityVisionDist; x <= int32(entity.X)+entityVisionDist; x++ {
+			// If position is invalid, set it to untraversable entity (rock)
+			if x < minPosition || x > maxPosition || y < minPosition || y > maxPosition {
+				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: "", ClassID: 3})
 				continue
 			}
-			if x < minPosition || y < minPosition {
-				// If the position is out of bounds, return a rock
-				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: "", ClassID: 2})
+			// Attempt to get redis index from position
+			otherIndex, err := posToRedisIndex(uint32(x), uint32(y))
+			if err != nil { // If it errors here, something went wrong with logic above
+				return nil, err
+			}
+			// If the index is the same as our current entity
+			if otherIndex == index {
 				continue
 			}
 			if otherEntity, ok := indexEntityMap[otherIndex]; ok {
