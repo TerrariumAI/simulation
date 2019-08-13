@@ -211,14 +211,6 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 		log.Printf("ERROR: %v\n", err)
 		return nil, err
 	}
-	// If the entity is out of bounds for some reason, delete it
-	// TODO - remove this, make it so it is impossible to get here in the first place
-	if entity.X < minPosition || entity.Y < minPosition {
-		dc.DeleteEntity(entity.Id)
-		err := errors.New("entity was invalid and has been deleted")
-		log.Printf("ERROR: %v\n", err)
-		return nil, err
-	}
 
 	obsv := collectiveApi.Observation{
 		Id:      entity.Id,
@@ -266,7 +258,7 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 		for x = int32(entity.X) - dc.EntityVisionDist; x <= int32(entity.X)+dc.EntityVisionDist; x++ {
 			// If position is invalid, set it to untraversable entity (rock)
 			if x < minPosition || x > maxPosition || y < minPosition || y > maxPosition {
-				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: "", ClassID: 3})
+				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: "", ClassID: 2})
 				continue
 			}
 			// Attempt to get redis index from position
