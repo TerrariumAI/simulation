@@ -1,8 +1,10 @@
 ## Simulation Service
 
-This is the code that runs the AI environment simulation. You can also use this to train your AI by running the simulation locally and connecting directly to it via Python.
+This repo holds the code for the Terrarium.ai enivronment, collective, and all other utility packages.
 
-NOTE: If you are trying to run the Web-Client and connect to this, you will first need to start up an Envoy-Proxy service and connect to that in order to translate the messages.
+## Running locally (without kubernetes)
+
+If you just want to run the services locally, you first need to install Go and run a local instance of redis on your computer
 
 ## Flags
 

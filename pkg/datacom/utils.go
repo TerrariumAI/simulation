@@ -17,18 +17,18 @@ func posToRedisIndex(x uint32, y uint32) (string, error) {
 	yString := strconv.Itoa(int(y))
 	interlocked := ""
 	// make sure x and y are the correct length when converted to str
-	if len(xString) > maxPositionPadding || len(yString) > maxPositionPadding {
+	if len(xString) > maxPositionCharLength || len(yString) > maxPositionCharLength {
 		return "", errors.New("invalid position")
 	}
 	// add padding
-	for len(xString) < maxPositionPadding {
+	for len(xString) < maxPositionCharLength {
 		xString = "0" + xString
 	}
-	for len(yString) < maxPositionPadding {
+	for len(yString) < maxPositionCharLength {
 		yString = "0" + yString
 	}
 	// interlock
-	for i := 0; i < maxPositionPadding; i++ {
+	for i := 0; i < maxPositionCharLength; i++ {
 		interlocked = interlocked + xString[i:i+1] + yString[i:i+1]
 	}
 

@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/alicebob/miniredis"
 	"github.com/go-redis/redis"
 	"github.com/stretchr/testify/mock"
@@ -467,26 +469,14 @@ func TestGetObservationsForEntity(t *testing.T) {
 	mockPAL := &mocks.PubsubAccessLayer{}
 	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
+	dc.EntityVisionDist = 2
 
 	dc.CreateEntity(envApi.Entity{
-		X: 2, Y: 2, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
+		X: 1, Y: 1, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
 	}, true)
 	dc.CreateEntity(envApi.Entity{
-		X: 2, Y: 3, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "1",
+		X: 0, Y: 0, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-2", Health: 100, Energy: 100, Id: "2",
 	}, true)
-	dc.CreateEntity(envApi.Entity{
-		X: 3, Y: 3, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-2", Health: 100, Energy: 100, Id: "2",
-	}, true)
-	dc.CreateEntity(envApi.Entity{
-		X: 4, Y: 4, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-3", Health: 100, Energy: 100, Id: "3",
-	}, true)
-	dc.CreateEntity(envApi.Entity{
-		X: 66, Y: 66, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-4", Health: 100, Energy: 100, Id: "4",
-	}, true)
-	err := dc.CreateEntity(envApi.Entity{
-		X: 1, Y: 1, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-5", Health: 100, Energy: 100, Id: "5",
-	}, true)
-	println(err)
 
 	type args struct {
 		modelID string
@@ -505,87 +495,14 @@ func TestGetObservationsForEntity(t *testing.T) {
 			&collectiveApi.Observation{
 				Id:      "2",
 				IsAlive: true,
+				Energy:  100,
+				Health:  100,
 				Cells: []*collectiveApi.Entity{
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-					&collectiveApi.Entity{
-						Id:      "1",
-						ClassID: 1,
-					},
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-					&collectiveApi.Entity{
-						Id:      "0",
-						ClassID: 1,
-					},
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-				},
-			},
-			false,
-		},
-		{
-			"Test 1 entity in vision",
-			args{
-				modelID: "MOCK-MODEL-ID-3",
-			},
-			&collectiveApi.Observation{
-				Id:      "3",
-				IsAlive: true,
-				Cells: []*collectiveApi.Entity{
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-					&collectiveApi.Entity{
-						Id:      "2",
-						ClassID: 1,
-					},
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-				},
-			},
-			false,
-		},
-		{
-			"Test 0 entities in vision",
-			args{
-				modelID: "MOCK-MODEL-ID-4",
-			},
-			&collectiveApi.Observation{
-				Id:      "4",
-				IsAlive: true,
-				Cells: []*collectiveApi.Entity{
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-				},
-			},
-			false,
-		},
-		{
-			"Test rocks in invalid positions",
-			args{
-				modelID: "MOCK-MODEL-ID-5",
-			},
-			&collectiveApi.Observation{
-				Id:      "5",
-				IsAlive: true,
-				Cells: []*collectiveApi.Entity{
-					&collectiveApi.Entity{Id: "", ClassID: 2},
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-					&collectiveApi.Entity{Id: "", ClassID: 2},
-					&collectiveApi.Entity{Id: "", ClassID: 0},
-					&collectiveApi.Entity{Id: "", ClassID: 2},
-					&collectiveApi.Entity{Id: "", ClassID: 2},
-					&collectiveApi.Entity{Id: "", ClassID: 2},
+					&collectiveApi.Entity{ClassID: 3}, &collectiveApi.Entity{ClassID: 3}, &collectiveApi.Entity{ClassID: 0}, &collectiveApi.Entity{ClassID: 0}, &collectiveApi.Entity{ClassID: 0},
+					&collectiveApi.Entity{ClassID: 3}, &collectiveApi.Entity{ClassID: 3}, &collectiveApi.Entity{ClassID: 0}, &collectiveApi.Entity{Id: "0", ClassID: 1}, &collectiveApi.Entity{ClassID: 0},
+					&collectiveApi.Entity{ClassID: 3}, &collectiveApi.Entity{ClassID: 3}, &collectiveApi.Entity{ClassID: 0}, &collectiveApi.Entity{ClassID: 0},
+					&collectiveApi.Entity{ClassID: 3}, &collectiveApi.Entity{ClassID: 3}, &collectiveApi.Entity{ClassID: 3}, &collectiveApi.Entity{ClassID: 3}, &collectiveApi.Entity{ClassID: 3},
+					&collectiveApi.Entity{ClassID: 3}, &collectiveApi.Entity{ClassID: 3}, &collectiveApi.Entity{ClassID: 3}, &collectiveApi.Entity{ClassID: 3}, &collectiveApi.Entity{ClassID: 3},
 				},
 			},
 			false,
@@ -611,6 +528,8 @@ func TestGetObservationsForEntity(t *testing.T) {
 				t.Errorf("unexpected error: %v", err)
 				return
 			}
+
+			assert.Equal(t, 24, len(got.Cells), "Number of cells should be dist*dist-1")
 
 			if !reflect.DeepEqual(got, tt.expected) {
 				t.Errorf("got %v, expected %v", got, tt.expected)
