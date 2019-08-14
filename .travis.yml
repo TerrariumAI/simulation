@@ -3,3 +3,9 @@ go:
 - "1.12.7"
 env:
 - GO111MODULE=on
+jobs:
+  include:
+    - stage: test
+      script: go test ./pkg/environment
+    -
+      script: go test ./pkg/datacom
