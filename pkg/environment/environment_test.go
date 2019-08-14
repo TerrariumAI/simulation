@@ -313,7 +313,7 @@ func TestCreateEntity(t *testing.T) {
 				},
 			},
 			want: &envApi.CreateEntityResponse{
-				Id: "0",
+				Id: "1",
 			},
 		},
 	}

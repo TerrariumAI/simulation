@@ -1,7 +1,11 @@
-# all: compileGO compileJS compilePY
-
-help: ## Display this help screen
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+## ----------------------
+## ------ Testing
+## ----------------------
+test: test-datacom test-environment ## test all internal packages
+test-environment:
+	go test ./pkg/environment
+test-datacom:
+	go test ./pkg/datacom
 
 ## ----------------------
 ## ------ Build
@@ -21,11 +25,6 @@ build-training-linux: check-version-env-var
 	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o ./bin/training-linux-$(VERSION).sh ./cmd/training
 
 build-training-releases: build-environment-mac build-environment-windows
-
-# build-mac: ## Build distribution binary for mac
-# 	go build -o ./bin/simulation-osx ./cmd/server
-# build-linux: ## Build distribution binary for linux
-# 	GOOS=linux go build -a -installsuffix cgo -o ./bin/simulation-linux ./cmd/server
 
 ## ----------------------
 ## ------ Run
@@ -63,14 +62,6 @@ run-esp:
 			--service_account_key=/esp/serviceAccountKey_staging.json
 
 ## ----------------------
-## ------ Testing
-## ----------------------
-
-test: test-datacom ## test all internal packages
-test-datacom: ## run tests for the simulation service
-	go test ./pkg/datacom
-
-## ----------------------
 ## ------ Protobuf
 ## ----------------------
 
@@ -106,3 +97,8 @@ dockerize-environment: build-environment docker-build-environment docker-push-en
 dockerize-collective: build-collective docker-build-collective docker-push-collective ## build and push dev proxy
 
 	
+build:
+	echo test
+
+help: ## Display this help screen
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
