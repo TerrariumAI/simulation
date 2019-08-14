@@ -1,6 +1,7 @@
 package datacom_test
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 
@@ -44,10 +45,11 @@ func TestCreateEntity(t *testing.T) {
 		args                 args
 		expectedPublishCount int
 		expected             string
+		expectErr            error
 	}{
 		{
-			"Test succesful creation",
-			args{
+			name: "Test succesful creation",
+			args: args{
 				entity: envApi.Entity{
 					X:        512,
 					Y:        456,
@@ -60,12 +62,12 @@ func TestCreateEntity(t *testing.T) {
 				},
 				shouldPublish: true,
 			},
-			1,
-			"010111101011001010:123:456:1:MOCK-UID:MOCK-MODEL-ID:100:100:0",
+			expectedPublishCount: 1,
+			expectErr:            errors.New("invalid position"),
 		},
 		{
-			"Test no publish",
-			args{
+			name: "Test no publish",
+			args: args{
 				entity: envApi.Entity{
 					X:        123,
 					Y:        456,
@@ -73,17 +75,16 @@ func TestCreateEntity(t *testing.T) {
 					ModelID:  "MOCK-MODEL-ID",
 					Energy:   100,
 					Health:   100,
-					Id:       "0",
+					Id:       "1",
 					ClassID:  1,
 				},
 				shouldPublish: false,
 			},
-			0,
-			"010111101011001010:123:456:1:MOCK-UID:MOCK-MODEL-ID:100:100:0",
+			expected: "010111101011001010:123:456:1:MOCK-UID:MOCK-MODEL-ID:100:100:1",
 		},
 		{
-			"Test no publish",
-			args{
+			name: "Test no publish",
+			args: args{
 				entity: envApi.Entity{
 					X:        123,
 					Y:        456,
@@ -91,26 +92,32 @@ func TestCreateEntity(t *testing.T) {
 					ModelID:  "MOCK-MODEL-ID",
 					Energy:   100,
 					Health:   100,
-					Id:       "0",
+					Id:       "2",
 					ClassID:  1,
 				},
 				shouldPublish: false,
 			},
-			0,
-			"010111101011001010:123:456:1:MOCK-UID:MOCK-MODEL-ID:100:100:0",
+			expected: "010111101011001010:123:456:1:MOCK-UID:MOCK-MODEL-ID:100:100:2",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup pubsub mock
+			redisServer.FlushDB()
 			mockPAL := &mocks.PubsubAccessLayer{}
 			dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 			mockPAL.On("QueuePublishEvent", "createEntity", tt.args.entity).Return(nil)
 
 			err := dc.CreateEntity(tt.args.entity, tt.args.shouldPublish)
-			if err != nil {
-				t.Errorf("got error: %v", err)
+			if err != nil && tt.expectErr != nil {
+				if err.Error() != tt.expectErr.Error() {
+					t.Errorf("expected error: %v, got %v", tt.expectErr, err)
+					return
+				}
+				return
+			} else if err != nil && tt.expectErr == nil {
+				t.Errorf("unexpected error: %v", err)
 				return
 			}
 

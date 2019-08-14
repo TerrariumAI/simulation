@@ -42,6 +42,7 @@ func serializeEntity(e envApi.Entity) (string, error) {
 	index, err := posToRedisIndex(e.X, e.Y)
 	if err != nil {
 		log.Println("ERROR: ", err)
+		return "", err
 	}
 	return fmt.Sprintf("%s:%v:%v:%v:%s:%s:%v:%v:%s", index, e.X, e.Y, e.ClassID, e.OwnerUID, e.ModelID, e.Energy, e.Health, e.Id), nil
 }
