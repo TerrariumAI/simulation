@@ -203,33 +203,6 @@ func TestCreateEntity(t *testing.T) {
 			wantErr: errors.New("invalid position"),
 		},
 		{
-			name: "Invalid position (under min position)",
-			args: args{
-				ctx: ctx,
-				req: &envApi.CreateEntityRequest{
-					Entity: &envApi.Entity{
-						ModelID:  "mock-model-id",
-						OwnerUID: "MOCK-UID",
-						X:        0,
-						Y:        5,
-					},
-				},
-			},
-			DALMockFuncCalls: []mockFuncCall{
-				{ // Get the metadata for the RM
-					name: "GetRemoteModelMetadataByID",
-					args: []interface{}{"mock-model-id"},
-					resp: []interface{}{&datacom.RemoteModel{ID: "mock-model-id", OwnerUID: "MOCK-UID", ConnectCount: 1}, nil},
-				},
-				{ // Get entities for the RM
-					name: "GetEntitiesForModel",
-					args: []interface{}{"mock-model-id"},
-					resp: []interface{}{[]envApi.Entity{}, nil},
-				},
-			},
-			wantErr: errors.New("invalid position"),
-		},
-		{
 			name: "Cannot create entity in occupied cell",
 			args: args{
 				ctx: ctx,
