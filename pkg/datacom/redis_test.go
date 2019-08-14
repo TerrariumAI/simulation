@@ -49,7 +49,7 @@ func TestCreateEntity(t *testing.T) {
 			"Test succesful creation",
 			args{
 				entity: envApi.Entity{
-					X:        123,
+					X:        512,
 					Y:        456,
 					OwnerUID: "MOCK-UID",
 					ModelID:  "MOCK-MODEL-ID",
@@ -61,7 +61,7 @@ func TestCreateEntity(t *testing.T) {
 				shouldPublish: true,
 			},
 			1,
-			"142536:123:456:1:MOCK-UID:MOCK-MODEL-ID:100:100:0",
+			"010111101011001010:123:456:1:MOCK-UID:MOCK-MODEL-ID:100:100:0",
 		},
 		{
 			"Test no publish",
@@ -79,7 +79,25 @@ func TestCreateEntity(t *testing.T) {
 				shouldPublish: false,
 			},
 			0,
-			"142536:123:456:1:MOCK-UID:MOCK-MODEL-ID:100:100:0",
+			"010111101011001010:123:456:1:MOCK-UID:MOCK-MODEL-ID:100:100:0",
+		},
+		{
+			"Test no publish",
+			args{
+				entity: envApi.Entity{
+					X:        123,
+					Y:        456,
+					OwnerUID: "MOCK-UID",
+					ModelID:  "MOCK-MODEL-ID",
+					Energy:   100,
+					Health:   100,
+					Id:       "0",
+					ClassID:  1,
+				},
+				shouldPublish: false,
+			},
+			0,
+			"010111101011001010:123:456:1:MOCK-UID:MOCK-MODEL-ID:100:100:0",
 		},
 	}
 
@@ -236,7 +254,7 @@ func TestUpdateEntity(t *testing.T) {
 					Id:       "0",
 				},
 			},
-			"000011:1:1:2:MOCK-UID-2:MOCK-MODEL-ID-2:90:90:0",
+			"000000000000000011:1:1:2:MOCK-UID-2:MOCK-MODEL-ID-2:90:90:0",
 			false,
 		},
 	}
@@ -302,7 +320,7 @@ func TestGetEntity(t *testing.T) {
 			args{
 				id: "0",
 			},
-			"000000:0:0:1:MOCK-UID:MOCK-MODEL-ID:100:100:0",
+			"000000000000000000:0:0:1:MOCK-UID:MOCK-MODEL-ID:100:100:0",
 			false,
 		},
 		{

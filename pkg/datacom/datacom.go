@@ -19,7 +19,7 @@ const (
 	mockSecret = "MOCK-SECRET"
 
 	minPosition             = 0
-	maxPositionCharLength   = 3 // Maximum length a position can be ("10" = 2, "100" = 3, etc.)
+	maxPositionCharLength   = 9 // Maximum length a position can be ("10" = 2, "100" = 3, etc.)
 	maxPosition             = 999
 	defaultEntityVisionDist = 5
 
