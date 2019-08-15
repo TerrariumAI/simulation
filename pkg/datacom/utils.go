@@ -35,9 +35,7 @@ func posToRedisIndex(x uint32, y uint32) (string, error) {
 	return interlocked, nil
 }
 
-// Takes in all the values for an entity and serializes them
-//  to an entity content
-// Returns error if the position is too large
+// Serializes an entity to a string
 func serializeEntity(e envApi.Entity) (string, error) {
 	index, err := posToRedisIndex(e.X, e.Y)
 	if err != nil {
@@ -47,7 +45,17 @@ func serializeEntity(e envApi.Entity) (string, error) {
 	return fmt.Sprintf("%s:%v:%v:%v:%s:%s:%v:%v:%s", index, e.X, e.Y, e.ClassID, e.OwnerUID, e.ModelID, e.Energy, e.Health, e.Id), nil
 }
 
-// ParseEntityContent takes entity content and parses it out to an entity
+// Serializes a cell to a string
+func serializeCell(c envApi.Cell) (string, error) {
+	index, err := posToRedisIndex(c.X, c.Y)
+	if err != nil {
+		log.Println("ERROR: ", err)
+		return "", err
+	}
+	return fmt.Sprintf("%s:%v:%v:%v", index, c.X, c.Y, c.Pheromone), nil
+}
+
+// parseEntityContent takes entity string and parses it out to an entity
 func parseEntityContent(content string) (entity envApi.Entity, index string) {
 	values := strings.Split(content, ":")
 	x, _ := strconv.Atoi(values[1])
@@ -66,6 +74,19 @@ func parseEntityContent(content string) (entity envApi.Entity, index string) {
 		Energy:   uint32(energy),
 		Health:   uint32(health),
 		Id:       values[8],
+	}, values[0]
+}
+
+// parseCellContent takes  a cell string and converts it to a cell struct
+func parseCellContent(content string) (c envApi.Cell, index string) {
+	values := strings.Split(content, ":")
+	x, _ := strconv.Atoi(values[1])
+	y, _ := strconv.Atoi(values[2])
+	pheromone, _ := strconv.Atoi(values[3])
+	return envApi.Cell{
+		X:         uint32(x),
+		Y:         uint32(y),
+		Pheromone: uint32(pheromone),
 	}, values[0]
 }
 
