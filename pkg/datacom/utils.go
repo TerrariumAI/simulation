@@ -13,8 +13,8 @@ import (
 
 // PosToRedisIndex interlocks an x and y value to use as an index in redis
 func posToRedisIndex(x uint32, y uint32) (string, error) {
-	xString := strconv.Itoa(int(x))
-	yString := strconv.Itoa(int(y))
+	xString := strconv.FormatUint(uint64(x), 2)
+	yString := strconv.FormatUint(uint64(y), 2)
 	interlocked := ""
 	// make sure x and y are the correct length when converted to str
 	if len(xString) > maxPositionCharLength || len(yString) > maxPositionCharLength {
@@ -42,6 +42,7 @@ func serializeEntity(e envApi.Entity) (string, error) {
 	index, err := posToRedisIndex(e.X, e.Y)
 	if err != nil {
 		log.Println("ERROR: ", err)
+		return "", err
 	}
 	return fmt.Sprintf("%s:%v:%v:%v:%s:%s:%v:%v:%s", index, e.X, e.Y, e.ClassID, e.OwnerUID, e.ModelID, e.Energy, e.Health, e.Id), nil
 }
