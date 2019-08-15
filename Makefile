@@ -78,7 +78,7 @@ compile-proto-js:
 ## ----------------------
 
 generate-mocks:
-	mockery -dir=./pkg/datacom -name=PubsubAccessLayer
+	mockery -dir=./pkg/datacom -output=./pkg/datacom/mocks -name=PubsubAccessLayer
 
 ## ----------------------
 ## ------ DOCKER 

@@ -109,7 +109,7 @@ func TestCreateEntity(t *testing.T) {
 			redisServer.FlushDB()
 			mockPAL := &mocks.PubsubAccessLayer{}
 			dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
-			mockPAL.On("QueuePublishEvent", "createEntity", tt.args.entity).Return(nil)
+			mockPAL.On("QueuePublishEvent", "createEntity", &tt.args.entity, tt.args.entity.X, tt.args.entity.Y).Return(nil)
 
 			err := dc.CreateEntity(tt.args.entity, tt.args.shouldPublish)
 			if err != nil && tt.expectErr != nil {
@@ -159,7 +159,7 @@ func TestIsCellOccupied(t *testing.T) {
 	defer teardown(redisServer)
 	// Setup pubsub mock
 	mockPAL := &mocks.PubsubAccessLayer{}
-	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("*endpoints_terrariumai_environment.Entity"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")).Return(nil)
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 	e := envApi.Entity{
 		X: 0, Y: 0, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
@@ -238,7 +238,7 @@ func TestUpdateEntity(t *testing.T) {
 	defer teardown(redisServer)
 	// Setup pubsub mock
 	mockPAL := &mocks.PubsubAccessLayer{}
-	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("*endpoints_terrariumai_environment.Entity"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")).Return(nil)
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 
 	dc.CreateEntity(envApi.Entity{
@@ -277,7 +277,7 @@ func TestUpdateEntity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup mock for publish
-			mockPAL.On("QueuePublishEvent", "updateEntity", tt.args.entity).Return(nil)
+			mockPAL.On("QueuePublishEvent", "updateEntity", &tt.args.entity, mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")).Return(nil)
 
 			// Make sure the entity data is there
 			redisClient := redis.NewClient(&redis.Options{
@@ -314,7 +314,7 @@ func TestGetEntity(t *testing.T) {
 	defer teardown(redisServer)
 	// Setup pubsub mock
 	mockPAL := &mocks.PubsubAccessLayer{}
-	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("*endpoints_terrariumai_environment.Entity"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")).Return(nil)
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 
 	dc.CreateEntity(envApi.Entity{
@@ -386,9 +386,9 @@ func TestDeleteEntity(t *testing.T) {
 		X: 0, Y: 0, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
 	}
 
-	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("*endpoints_terrariumai_environment.Entity"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")).Return(nil)
 	dc.CreateEntity(e, true)
-	mockPAL.On("QueuePublishEvent", "deleteEntity", mock.AnythingOfType("Entity")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "deleteEntity", mock.AnythingOfType("*endpoints_terrariumai_environment.Entity"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")).Return(nil)
 
 	got, _, err := dc.GetEntity(e.Id)
 	if !reflect.DeepEqual(*got, e) {
@@ -427,7 +427,7 @@ func TestGetEntitiesForModel(t *testing.T) {
 	defer teardown(redisServer)
 	// Setup pubsub mock
 	mockPAL := &mocks.PubsubAccessLayer{}
-	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("*endpoints_terrariumai_environment.Entity"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")).Return(nil)
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 
 	dc.CreateEntity(envApi.Entity{
@@ -500,7 +500,7 @@ func TestGetObservationsForEntity(t *testing.T) {
 	defer teardown(redisServer)
 	// Setup pubsub mock
 	mockPAL := &mocks.PubsubAccessLayer{}
-	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("*endpoints_terrariumai_environment.Entity"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")).Return(nil)
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 	dc.EntityVisionDist = 2
 
@@ -530,7 +530,7 @@ func TestGetObservationsForEntity(t *testing.T) {
 				IsAlive: true,
 				Energy:  100,
 				Health:  100,
-				Cells: []*collectiveApi.Entity{
+				Sight: []*collectiveApi.Entity{
 					&collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 0}, &collectiveApi.Entity{ClassID: 0}, &collectiveApi.Entity{ClassID: 0},
 					&collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 0}, &collectiveApi.Entity{Id: "0", ClassID: 1}, &collectiveApi.Entity{ClassID: 0},
 					&collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 0}, &collectiveApi.Entity{ClassID: 0},
@@ -562,7 +562,7 @@ func TestGetObservationsForEntity(t *testing.T) {
 				return
 			}
 
-			assert.Equal(t, 24, len(got.Cells), "Number of cells should be dist*dist-1")
+			assert.Equal(t, 24, len(got.Sight), "Number of cells should be dist*dist-1")
 
 			if !reflect.DeepEqual(got, tt.expected) {
 				t.Errorf("got %v, expected %v", got, tt.expected)
@@ -573,8 +573,8 @@ func TestGetObservationsForEntity(t *testing.T) {
 
 func TestPubnubPAL(t *testing.T) {
 	p := datacom.NewPubnubPAL("testing", "sub-c-b4ba4e28-a647-11e9-ad2c-6ad2737329fc", "pub-c-83ed11c2-81e1-4d7f-8e94-0abff2b85825")
-	p.QueuePublishEvent("updateEntity", envApi.Entity{Id: "test-id", Y: 0})
-	p.QueuePublishEvent("updateEntity", envApi.Entity{Id: "test-id-2", X: 5, Y: 0})
+	p.QueuePublishEvent("updateEntity", &envApi.Entity{Id: "test-id", Y: 0}, 0, 0)
+	p.QueuePublishEvent("updateEntity", &envApi.Entity{Id: "test-id-2", X: 5, Y: 0}, 5, 0)
 	t.Log("Queued publish message, batching...")
 	p.BatchPublish()
 }
