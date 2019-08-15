@@ -46,13 +46,13 @@ func serializeEntity(e envApi.Entity) (string, error) {
 }
 
 // Serializes a cell to a string
-func serializeCell(c envApi.Cell) (string, error) {
-	index, err := posToRedisIndex(c.X, c.Y)
+func serializePheromone(p envApi.Pheromone) (string, error) {
+	index, err := posToRedisIndex(p.X, p.Y)
 	if err != nil {
 		log.Println("ERROR: ", err)
 		return "", err
 	}
-	return fmt.Sprintf("%s:%v:%v:%v", index, c.X, c.Y, c.Pheromone), nil
+	return fmt.Sprintf("%s:%v:%v:%s:%v", index, p.X, p.Y, p.Value, p.Timestamp), nil
 }
 
 // parseEntityContent takes entity string and parses it out to an entity
@@ -78,15 +78,17 @@ func parseEntityContent(content string) (entity envApi.Entity, index string) {
 }
 
 // parseCellContent takes  a cell string and converts it to a cell struct
-func parseCellContent(content string) (c envApi.Cell, index string) {
+func parsePheromoneContent(content string) (p envApi.Pheromone, index string) {
 	values := strings.Split(content, ":")
 	x, _ := strconv.Atoi(values[1])
 	y, _ := strconv.Atoi(values[2])
-	pheromone, _ := strconv.Atoi(values[3])
-	return envApi.Cell{
+	value := values[2]
+	timestamp, _ := strconv.ParseInt(values[3], 10, 64)
+	return envApi.Pheromone{
 		X:         uint32(x),
 		Y:         uint32(y),
-		Pheromone: uint32(pheromone),
+		Value:     value,
+		Timestamp: timestamp,
 	}, values[0]
 }
 

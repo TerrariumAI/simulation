@@ -61,7 +61,7 @@ func (dc *Datacom) CreateEntity(e envApi.Entity, shouldPublish bool) error {
 
 	// Send update
 	if shouldPublish {
-		dc.pubsub.QueuePublishEvent("createEntity", e)
+		dc.pubsub.QueuePublishEvent("createEntity", &e, e.X, e.Y)
 	}
 
 	return nil
@@ -92,7 +92,7 @@ func (dc *Datacom) UpdateEntity(origionalContent string, e envApi.Entity) error 
 	}).Err()
 
 	// Send update
-	dc.pubsub.QueuePublishEvent("updateEntity", e)
+	dc.pubsub.QueuePublishEvent("updateEntity", &e, e.X, e.Y)
 
 	return nil
 }
@@ -141,7 +141,7 @@ func (dc *Datacom) DeleteEntity(id string) (int64, error) {
 	}
 
 	// Send update
-	dc.pubsub.QueuePublishEvent("deleteEntity", entity)
+	dc.pubsub.QueuePublishEvent("deleteEntity", &entity, entity.X, entity.Y)
 
 	return delete.Val(), nil
 }
@@ -257,7 +257,7 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 		for x = int32(entity.X) - dc.EntityVisionDist; x <= int32(entity.X)+dc.EntityVisionDist; x++ {
 			// If position is invalid, set it to untraversable entity (rock)
 			if x < minPosition || x > maxPosition || y < minPosition || y > maxPosition {
-				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: "", ClassID: 2})
+				obsv.Sight = append(obsv.Sight, &collectiveApi.Entity{Id: "", ClassID: 2})
 				continue
 			}
 			// Attempt to get redis index from position
@@ -270,9 +270,9 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 				continue
 			}
 			if otherEntity, ok := indexEntityMap[otherIndex]; ok {
-				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: otherEntity.Id, ClassID: otherEntity.ClassID})
+				obsv.Sight = append(obsv.Sight, &collectiveApi.Entity{Id: otherEntity.Id, ClassID: otherEntity.ClassID})
 			} else {
-				obsv.Cells = append(obsv.Cells, &collectiveApi.Entity{Id: "", ClassID: 0})
+				obsv.Sight = append(obsv.Sight, &collectiveApi.Entity{Id: "", ClassID: 0})
 			}
 		}
 	}
@@ -312,4 +312,33 @@ func (dc *Datacom) GetEntitiesInRegion(x uint32, y uint32) ([]*envApi.Entity, er
 	}
 
 	return entities, nil
+}
+
+// --------------
+// Pheromones
+// --------------
+
+// SetPheromone sets a pheromone at a specific index (position). We don't
+// create/update/delete because pheromones can be updated
+func (dc *Datacom) SetPheromone(origionalContent string, p envApi.Pheromone) error {
+	content, err := serializePheromone(p)
+	index, _ := posToRedisIndex(p.X, p.Y)
+	if err != nil {
+		log.Println("ERROR: ", err)
+		return err
+	}
+	err = dc.redisClient.ZRem("pheromones", index+":*").Err()
+	if err != nil {
+		log.Println("ERROR: ", err)
+		return err
+	}
+	err = dc.redisClient.ZAdd("pheromones", redis.Z{
+		Score:  float64(0),
+		Member: content,
+	}).Err()
+
+	// Send update
+	dc.pubsub.QueuePublishEvent("setPheromone", &p, p.X, p.Y)
+
+	return nil
 }
