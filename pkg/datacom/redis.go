@@ -61,8 +61,7 @@ func (dc *Datacom) CreateEntity(e envApi.Entity, shouldPublish bool) error {
 
 	// Send update
 	if shouldPublish {
-		entity, _ := parseEntityContent(content)
-		dc.pubsub.QueuePublishEvent("createEntity", entity)
+		dc.pubsub.QueuePublishEvent("createEntity", e)
 	}
 
 	return nil

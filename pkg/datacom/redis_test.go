@@ -2,6 +2,7 @@ package datacom_test
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -51,6 +52,24 @@ func TestCreateEntity(t *testing.T) {
 			name: "Test succesful creation",
 			args: args{
 				entity: envApi.Entity{
+					X:        123,
+					Y:        456,
+					OwnerUID: "MOCK-UID",
+					ModelID:  "MOCK-MODEL-ID",
+					Energy:   100,
+					Health:   100,
+					Id:       "1",
+					ClassID:  1,
+				},
+				shouldPublish: true,
+			},
+			expectedPublishCount: 1,
+			expected:             "010111101011001010:123:456:1:MOCK-UID:MOCK-MODEL-ID:100:100:1",
+		},
+		{
+			name: "Test invalid position error",
+			args: args{
+				entity: envApi.Entity{
 					X:        512,
 					Y:        456,
 					OwnerUID: "MOCK-UID",
@@ -81,23 +100,6 @@ func TestCreateEntity(t *testing.T) {
 				shouldPublish: false,
 			},
 			expected: "010111101011001010:123:456:1:MOCK-UID:MOCK-MODEL-ID:100:100:1",
-		},
-		{
-			name: "Test no publish",
-			args: args{
-				entity: envApi.Entity{
-					X:        123,
-					Y:        456,
-					OwnerUID: "MOCK-UID",
-					ModelID:  "MOCK-MODEL-ID",
-					Energy:   100,
-					Health:   100,
-					Id:       "2",
-					ClassID:  1,
-				},
-				shouldPublish: false,
-			},
-			expected: "010111101011001010:123:456:1:MOCK-UID:MOCK-MODEL-ID:100:100:2",
 		},
 	}
 
@@ -130,10 +132,16 @@ func TestCreateEntity(t *testing.T) {
 
 			// Check publish calls
 			mockPAL.AssertNumberOfCalls(t, "QueuePublishEvent", tt.expectedPublishCount)
+			keys, cursor := redisClient.ZScan("entities", 0, "*", 0).Val()
+			fmt.Println(keys, cursor)
 
-			keys, cursor, err := redisClient.ZScan("entities", 0, "*", 0).Result()
+			keys, cursor, err = redisClient.ZScan("entities", 0, "*", 0).Result()
+			if err != nil {
+				t.Errorf("error in scan: %v", err)
+			}
 			if len(keys) != 2 {
-				t.Errorf("expected keys to be larger than 0, got: %v", len(keys))
+				t.Errorf("expected length of keys to be == 2, got: %v", len(keys))
+				return
 			}
 
 			if keys[cursor] != tt.expected {
