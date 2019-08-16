@@ -2,9 +2,9 @@ package datacom_test
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -16,6 +16,17 @@ import (
 	"github.com/terrariumai/simulation/pkg/datacom"
 	"github.com/terrariumai/simulation/pkg/datacom/mocks"
 )
+
+type mockFuncCall struct {
+	name string
+	args []interface{}
+	resp []interface{}
+}
+
+type numOfCallsAssertion struct {
+	name string
+	num  int
+}
 
 func setup() *miniredis.Miniredis {
 	// Redis Setup
@@ -133,7 +144,6 @@ func TestCreateEntity(t *testing.T) {
 			// Check publish calls
 			mockPAL.AssertNumberOfCalls(t, "QueuePublishEvent", tt.expectedPublishCount)
 			keys, cursor := redisClient.ZScan("entities", 0, "*", 0).Val()
-			fmt.Println(keys, cursor)
 
 			keys, cursor, err = redisClient.ZScan("entities", 0, "*", 0).Result()
 			if err != nil {
@@ -566,6 +576,73 @@ func TestGetObservationsForEntity(t *testing.T) {
 
 			if !reflect.DeepEqual(got, tt.expected) {
 				t.Errorf("got %v, expected %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSetPheromone(t *testing.T) {
+	redisServer := setup()
+	defer teardown(redisServer)
+
+	type args struct {
+		p envApi.Pheromone
+	}
+
+	tests := []struct {
+		name             string
+		args             args
+		PALMockFuncCalls []mockFuncCall
+		want             int
+		wantErr          error
+	}{
+		{
+			name: "Succesful set pheromone",
+			args: args{
+				p: envApi.Pheromone{X: 1, Y: 1, Value: "mock-p-value", Timestamp: time.Now().Unix()},
+			},
+			PALMockFuncCalls: []mockFuncCall{
+				{ // Get the metadata for the RM
+					name: "QueuePublishEvent",
+					args: []interface{}{"setPheromone", &envApi.Pheromone{X: uint32(1), Y: uint32(1), Value: "mock-p-value", Timestamp: time.Now().Unix()}, uint32(1), uint32(1)},
+					resp: []interface{}{nil},
+				},
+			},
+			want: 2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup pubsub mock
+			mockPAL := &mocks.PubsubAccessLayer{}
+			dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
+
+			// Setup mock
+			for _, mockFuncCall := range tt.PALMockFuncCalls {
+				mockPAL.On(mockFuncCall.name, mockFuncCall.args...).Return(mockFuncCall.resp...)
+			}
+			// Call function
+			err := dc.SetPheromone(tt.args.p)
+			// Check results
+			if err != nil {
+				if tt.wantErr == nil {
+					t.Errorf("error: %v, wantErr: %v", err, tt.wantErr)
+					return
+				}
+				if err.Error() != tt.wantErr.Error() {
+					t.Errorf("error message: '%v', want error message: '%v'", err, tt.wantErr.Error())
+					return
+				}
+			}
+			// Query to check that it exists in DB
+			redisClient := redis.NewClient(&redis.Options{
+				Addr:     redisServer.Addr(),
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			})
+			keys, _ := redisClient.ZScan("pheromones", 0, "*", 0).Val()
+			if len(keys) != tt.want {
+				t.Errorf("got %v, want %v", len(keys), tt.want)
 			}
 		})
 	}

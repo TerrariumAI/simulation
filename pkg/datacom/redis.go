@@ -10,6 +10,32 @@ import (
 	envApi "github.com/terrariumai/simulation/pkg/api/environment"
 )
 
+// getEntitiesInArea gets the entities directly around a position
+func (dc *Datacom) queryInArea(key string, xMin uint32, yMin uint32, xMax uint32, yMax uint32) ([]string, error) {
+	indexMin, err := posToRedisIndex(xMin, yMin)
+	if err != nil {
+		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
+	}
+	indexMax, err := posToRedisIndex(xMax, yMax)
+	if err != nil {
+		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
+	}
+	// Perform the query
+	rangeQuery := dc.redisClient.ZRangeByLex(key, redis.ZRangeBy{
+		Min: "[" + indexMin,
+		Max: "[" + indexMax,
+	})
+	if err := rangeQuery.Err(); err != nil {
+		return nil, fmt.Errorf("Error in range query: %v", err)
+	}
+	contentArray := rangeQuery.Val()
+	return contentArray, nil
+}
+
+// --------------
+// Entities
+// --------------
+
 // IsCellOccupied checks the env to see if a cell has an entity by converting
 // the cell position to an index then querying redis
 func (dc *Datacom) IsCellOccupied(x uint32, y uint32) (bool, *envApi.Entity, string, error) {
@@ -174,30 +200,6 @@ func (dc *Datacom) GetEntitiesForModel(modelID string) ([]envApi.Entity, error) 
 	return entities, nil
 }
 
-// getEntitiesAroundPosition gets the entities directly around a position
-// TODO - this doesn't work correctly as there isn't enough fine tunement to do this. Use another
-// method
-func (dc *Datacom) getEntitiesInArea(xMin uint32, yMin uint32, xMax uint32, yMax uint32) ([]string, error) {
-	indexMin, err := posToRedisIndex(xMin, yMin)
-	if err != nil {
-		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
-	}
-	indexMax, err := posToRedisIndex(xMax, yMax)
-	if err != nil {
-		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
-	}
-	// Perform the query
-	rangeQuery := dc.redisClient.ZRangeByLex("entities", redis.ZRangeBy{
-		Min: "[" + indexMin,
-		Max: "[" + indexMax,
-	})
-	if err := rangeQuery.Err(); err != nil {
-		return nil, fmt.Errorf("Error in range query: %v", err)
-	}
-	entitiesContent := rangeQuery.Val()
-	return entitiesContent, nil
-}
-
 // GetObservationForEntity returns observations for a specific entity
 func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi.Observation, error) {
 	content, err := serializeEntity(entity)
@@ -235,7 +237,7 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 		yMax = maxPosition
 	}
 	// Query for entities near this position
-	closeEntitiesContent, err := dc.getEntitiesInArea(uint32(xMin), uint32(yMin), uint32(xMax), uint32(yMax))
+	closeEntitiesContent, err := dc.queryInArea("entities", uint32(xMin), uint32(yMin), uint32(xMax), uint32(yMax))
 	if err != nil {
 		log.Printf("ERROR: %v\n", err)
 		return nil, err
@@ -287,26 +289,13 @@ func (dc *Datacom) GetEntitiesInRegion(x uint32, y uint32) ([]*envApi.Entity, er
 	yMin := y * regionSize
 	xMax := xMin + regionSize
 	yMax := yMin + regionSize
-	// Convert positions to index
-	indexMin, err := posToRedisIndex(xMin, yMin)
-	if err != nil {
-		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
-	}
-	indexMax, err := posToRedisIndex(xMax, yMax)
-	if err != nil {
-		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
-	}
 	// Perform the query
-	rangeQuery := dc.redisClient.ZRangeByLex("entities", redis.ZRangeBy{
-		Min: "[" + indexMin,
-		Max: "(" + indexMax,
-	})
-	if err := rangeQuery.Err(); err != nil {
-		return nil, fmt.Errorf("Error in range query: %v", err)
+	contentArray, err := dc.queryInArea("entities", xMin, yMin, xMax, yMax)
+	if err != nil {
+		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
 	}
-	entitiesContent := rangeQuery.Val()
 
-	for _, content := range entitiesContent {
+	for _, content := range contentArray {
 		entitiy, _ := parseEntityContent(content)
 		entities = append(entities, &entitiy)
 	}
@@ -320,7 +309,7 @@ func (dc *Datacom) GetEntitiesInRegion(x uint32, y uint32) ([]*envApi.Entity, er
 
 // SetPheromone sets a pheromone at a specific index (position). We don't
 // create/update/delete because pheromones can be updated
-func (dc *Datacom) SetPheromone(origionalContent string, p envApi.Pheromone) error {
+func (dc *Datacom) SetPheromone(p envApi.Pheromone) error {
 	content, err := serializePheromone(p)
 	index, _ := posToRedisIndex(p.X, p.Y)
 	if err != nil {
@@ -341,4 +330,42 @@ func (dc *Datacom) SetPheromone(origionalContent string, p envApi.Pheromone) err
 	dc.pubsub.QueuePublishEvent("setPheromone", &p, p.X, p.Y)
 
 	return nil
+}
+
+// GetPheromonesInRegion returns the pheromones in a specific region
+func (dc *Datacom) GetPheromonesInRegion(x uint32, y uint32) ([]*envApi.Pheromone, error) {
+	pheromones := []*envApi.Pheromone{}
+
+	xMin := x * regionSize
+	yMin := y * regionSize
+	xMax := xMin + regionSize
+	yMax := yMin + regionSize
+	// Perform the query
+	contentArray, err := dc.queryInArea("pheromones", xMin, yMin, xMax, yMax)
+	if err != nil {
+		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
+	}
+
+	for _, content := range contentArray {
+		p, _ := parsePheromoneContent(content)
+		pheromones = append(pheromones, &p)
+	}
+
+	return pheromones, nil
+}
+
+// DeletePheromone completely removes a pheromone from existence from the environment
+func (dc *Datacom) DeletePheromone(p envApi.Pheromone) (int64, error) {
+	content, _ := serializePheromone(p)
+	// Remove from SS
+	remove := dc.redisClient.ZRem("pheromones", content)
+	if err := remove.Err(); err != nil {
+		log.Printf("ERROR: %v\n", err)
+		return 0, err
+	}
+
+	// Send update
+	dc.pubsub.QueuePublishEvent("deletePheromone", &p, p.X, p.Y)
+
+	return remove.Val(), nil
 }
