@@ -581,12 +581,12 @@ func TestGetObservationsForEntity(t *testing.T) {
 	}
 }
 
-func TestSetPheromone(t *testing.T) {
+func TestAddEffect(t *testing.T) {
 	redisServer := setup()
 	defer teardown(redisServer)
 
 	type args struct {
-		p envApi.Pheromone
+		p envApi.Effect
 	}
 
 	tests := []struct {
@@ -597,14 +597,14 @@ func TestSetPheromone(t *testing.T) {
 		wantErr          error
 	}{
 		{
-			name: "Succesful set pheromone",
+			name: "Succesful add effect",
 			args: args{
-				p: envApi.Pheromone{X: 1, Y: 1, Value: "mock-p-value", Timestamp: time.Now().Unix()},
+				p: envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
 			},
 			PALMockFuncCalls: []mockFuncCall{
 				{ // Get the metadata for the RM
 					name: "QueuePublishEvent",
-					args: []interface{}{"setPheromone", &envApi.Pheromone{X: uint32(1), Y: uint32(1), Value: "mock-p-value", Timestamp: time.Now().Unix()}, uint32(1), uint32(1)},
+					args: []interface{}{"addEffect", &envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1}, uint32(1), uint32(1)},
 					resp: []interface{}{nil},
 				},
 			},
@@ -622,7 +622,7 @@ func TestSetPheromone(t *testing.T) {
 				mockPAL.On(mockFuncCall.name, mockFuncCall.args...).Return(mockFuncCall.resp...)
 			}
 			// Call function
-			err := dc.SetPheromone(tt.args.p)
+			err := dc.AddEffect(tt.args.p)
 			// Check results
 			if err != nil {
 				if tt.wantErr == nil {
@@ -640,7 +640,7 @@ func TestSetPheromone(t *testing.T) {
 				Password: "", // no password set
 				DB:       0,  // use default DB
 			})
-			keys, _ := redisClient.ZScan("pheromones", 0, "*", 0).Val()
+			keys, _ := redisClient.ZScan("effects", 0, "*", 0).Val()
 			if len(keys) != tt.want {
 				t.Errorf("got %v, want %v", len(keys), tt.want)
 			}

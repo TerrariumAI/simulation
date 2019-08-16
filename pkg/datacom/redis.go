@@ -304,68 +304,62 @@ func (dc *Datacom) GetEntitiesInRegion(x uint32, y uint32) ([]*envApi.Entity, er
 }
 
 // --------------
-// Pheromones
+// Effects
 // --------------
 
-// SetPheromone sets a pheromone at a specific index (position). We don't
-// create/update/delete because pheromones can be updated
-func (dc *Datacom) SetPheromone(p envApi.Pheromone) error {
-	content, err := serializePheromone(p)
-	index, _ := posToRedisIndex(p.X, p.Y)
+// AddEffect sets an effect at a specific index (position)
+func (dc *Datacom) AddEffect(effect envApi.Effect) error {
+	content, err := serializeEffect(effect)
+	fmt.Println(content)
 	if err != nil {
 		log.Println("ERROR: ", err)
 		return err
 	}
-	err = dc.redisClient.ZRem("pheromones", index+":*").Err()
-	if err != nil {
-		log.Println("ERROR: ", err)
-		return err
-	}
-	err = dc.redisClient.ZAdd("pheromones", redis.Z{
+	err = dc.redisClient.ZAdd("effects", redis.Z{
 		Score:  float64(0),
 		Member: content,
 	}).Err()
 
 	// Send update
-	dc.pubsub.QueuePublishEvent("setPheromone", &p, p.X, p.Y)
+	dc.pubsub.QueuePublishEvent("addEffect", &effect, effect.X, effect.Y)
 
 	return nil
 }
 
-// GetPheromonesInRegion returns the pheromones in a specific region
-func (dc *Datacom) GetPheromonesInRegion(x uint32, y uint32) ([]*envApi.Pheromone, error) {
-	pheromones := []*envApi.Pheromone{}
+// GetEffectsInRegion returns the effects in a specific region
+func (dc *Datacom) GetEffectsInRegion(x uint32, y uint32) ([]*envApi.Effect, error) {
+	effects := []*envApi.Effect{}
 
 	xMin := x * regionSize
 	yMin := y * regionSize
 	xMax := xMin + regionSize
 	yMax := yMin + regionSize
 	// Perform the query
-	contentArray, err := dc.queryInArea("pheromones", xMin, yMin, xMax, yMax)
+	contentArray, err := dc.queryInArea("effects", xMin, yMin, xMax, yMax)
 	if err != nil {
 		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
 	}
 
 	for _, content := range contentArray {
-		p, _ := parsePheromoneContent(content)
-		pheromones = append(pheromones, &p)
+		effect, _ := parseEffectContent(content)
+		effects = append(effects, &effect)
 	}
 
-	return pheromones, nil
+	return effects, nil
 }
 
 // DeletePheromone completely removes a pheromone from existence from the environment
-func (dc *Datacom) DeletePheromone(p envApi.Pheromone) (int64, error) {
-	content, _ := serializePheromone(p)
+func (dc *Datacom) DeletePheromone(p envApi.Effect) (int64, error) {
+	content, _ := serializeEffect(p)
 	// Remove from SS
-	remove := dc.redisClient.ZRem("pheromones", content)
+	remove := dc.redisClient.ZRem("effects", content)
 	if err := remove.Err(); err != nil {
 		log.Printf("ERROR: %v\n", err)
 		return 0, err
 	}
 
 	// Send update
-	dc.pubsub.QueuePublishEvent("deletePheromone", &p, p.X, p.Y)
+	dc.pubsub.QueuePublishEvent("deleteEffect", &p, p.X, p.Y)
 
 	return remove.Val(), nil
 }
