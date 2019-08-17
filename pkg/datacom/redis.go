@@ -336,8 +336,8 @@ func (dc *Datacom) GetEntitiesInRegion(x uint32, y uint32) ([]*envApi.Entity, er
 
 	xMin := x * regionSize
 	yMin := y * regionSize
-	xMax := xMin + regionSize
-	yMax := yMin + regionSize
+	xMax := xMin + regionSize - 1
+	yMax := yMin + regionSize - 1
 	// Perform the query
 	contentArray, err := dc.spacequery("entities", xMin, yMin, xMax, yMax)
 	if err != nil {
@@ -385,8 +385,8 @@ func (dc *Datacom) GetEffectsInRegion(x uint32, y uint32) ([]*envApi.Effect, err
 
 	xMin := x * regionSize
 	yMin := y * regionSize
-	xMax := xMin + regionSize
-	yMax := yMin + regionSize
+	xMax := xMin + regionSize - 1
+	yMax := yMin + regionSize - 1
 	// Perform the query
 	contentArray, err := dc.spacequery("effects", xMin, yMin, xMax, yMax)
 	if err != nil {
@@ -404,8 +404,8 @@ func (dc *Datacom) GetEffectsInRegion(x uint32, y uint32) ([]*envApi.Effect, err
 	return effects, nil
 }
 
-// DeletePheromone completely removes a pheromone from existence from the environment
-func (dc *Datacom) DeletePheromone(p envApi.Effect) (int64, error) {
+// DeleteEffect removes an effect
+func (dc *Datacom) DeleteEffect(p envApi.Effect) (int64, error) {
 	content, _ := serializeEffect(p)
 	// Remove from SS
 	remove := dc.redisClient.ZRem("effects", content)
