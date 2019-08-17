@@ -4,32 +4,80 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
+	"strconv"
+	"strings"
 
 	"github.com/go-redis/redis"
 	collectiveApi "github.com/terrariumai/simulation/pkg/api/collective"
 	envApi "github.com/terrariumai/simulation/pkg/api/environment"
 )
 
-// getEntitiesInArea gets the entities directly around a position
-func (dc *Datacom) queryInArea(key string, xMin uint32, yMin uint32, xMax uint32, yMax uint32) ([]string, error) {
-	indexMin, err := posToRedisIndex(xMin, yMin)
-	if err != nil {
-		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
+func zipStrings(str1 string, str2 string) string {
+	res := ""
+	for i := 0; i < len(str1); i++ {
+		res = res + str1[i:i+1] + str2[i:i+1]
 	}
-	indexMax, err := posToRedisIndex(xMax, yMax)
-	if err != nil {
-		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
+	return res
+}
+
+func rjust(s string, filler byte, max int) string {
+	if len(s) < max {
+		return rjust(string(filler)+s, filler, max)
 	}
-	// Perform the query
-	rangeQuery := dc.redisClient.ZRangeByLex(key, redis.ZRangeBy{
-		Min: "[" + indexMin,
-		Max: "[" + indexMax,
-	})
-	if err := rangeQuery.Err(); err != nil {
-		return nil, fmt.Errorf("Error in range query: %v", err)
+	return s
+}
+
+// constructSpacequeryCalls constructs zrangeby calls for zrangebylex queries
+func constructSpacequeryCalls(x0 uint32, y0 uint32, x1 uint32, y1 uint32, exp float64) []redis.ZRangeBy {
+	calls := []redis.ZRangeBy{}
+
+	bits := int(exp * 2)
+	xStart := x0 / uint32(math.Pow(2, exp))
+	xEnd := x1 / uint32(math.Pow(2, exp))
+	yStart := y0 / uint32(math.Pow(2, exp))
+	yEnd := y1 / uint32(math.Pow(2, exp))
+	for x := xStart; x <= xEnd; x++ {
+		for y := yStart; y <= yEnd; y++ {
+			xRangeStart := x * uint32(math.Pow(2, exp))
+			yRangeStart := y * uint32(math.Pow(2, exp))
+
+			xBin := strconv.FormatUint(uint64(xRangeStart), 2)
+			xBin = rjust(xBin, '0', 9)
+			yBin := strconv.FormatUint(uint64(yRangeStart), 2)
+			yBin = rjust(yBin, '0', 9)
+
+			s := zipStrings(xBin, yBin)
+			e := s[:len(s)-bits] + strings.Repeat("1", bits)
+			calls = append(calls, redis.ZRangeBy{
+				Min: "[" + s,
+				Max: "[" + e,
+			})
+		}
 	}
-	contentArray := rangeQuery.Val()
-	return contentArray, nil
+
+	return calls
+}
+
+// spacequery will make ain INACCURATE query within a space. It is possible,
+// and very likely that there will be elements included that are outside the
+// space, but will always include all elements within the space.
+func (dc *Datacom) spacequery(key string, x0 uint32, y0 uint32, x1 uint32, y1 uint32) ([]string, error) {
+	calls := constructSpacequeryCalls(x0, y0, x1, y1, maxPositionCharLength)
+
+	// Perform queries to get the content array
+	combinedContentArray := []string{}
+	for _, call := range calls {
+		// Perform the query
+		rangeQuery := dc.redisClient.ZRangeByLex(key, call)
+		if err := rangeQuery.Err(); err != nil {
+			return nil, fmt.Errorf("Error in range query: %v", err)
+		}
+		contentArray := rangeQuery.Val()
+		combinedContentArray = append(combinedContentArray, contentArray...)
+	}
+
+	return combinedContentArray, nil
 }
 
 // --------------
@@ -237,7 +285,8 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 		yMax = maxPosition
 	}
 	// Query for entities near this position
-	closeEntitiesContent, err := dc.queryInArea("entities", uint32(xMin), uint32(yMin), uint32(xMax), uint32(yMax))
+	// Note: we handle grabbing specific entities below, can ignore extras
+	closeEntitiesContent, err := dc.spacequery("entities", uint32(xMin), uint32(yMin), uint32(xMax), uint32(yMax))
 	if err != nil {
 		log.Printf("ERROR: %v\n", err)
 		return nil, err
@@ -290,14 +339,18 @@ func (dc *Datacom) GetEntitiesInRegion(x uint32, y uint32) ([]*envApi.Entity, er
 	xMax := xMin + regionSize
 	yMax := yMin + regionSize
 	// Perform the query
-	contentArray, err := dc.queryInArea("entities", xMin, yMin, xMax, yMax)
+	contentArray, err := dc.spacequery("entities", xMin, yMin, xMax, yMax)
 	if err != nil {
 		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
 	}
 
 	for _, content := range contentArray {
-		entitiy, _ := parseEntityContent(content)
-		entities = append(entities, &entitiy)
+		entity, _ := parseEntityContent(content)
+		// Ignore entities outside space
+		if entity.X < xMin || entity.X > xMax || entity.X < yMin || entity.X > yMax {
+			continue
+		}
+		entities = append(entities, &entity)
 	}
 
 	return entities, nil
@@ -335,13 +388,16 @@ func (dc *Datacom) GetEffectsInRegion(x uint32, y uint32) ([]*envApi.Effect, err
 	xMax := xMin + regionSize
 	yMax := yMin + regionSize
 	// Perform the query
-	contentArray, err := dc.queryInArea("effects", xMin, yMin, xMax, yMax)
+	contentArray, err := dc.spacequery("effects", xMin, yMin, xMax, yMax)
 	if err != nil {
 		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
 	}
 
 	for _, content := range contentArray {
 		effect, _ := parseEffectContent(content)
+		if effect.X < xMin || effect.X > xMax || effect.Y < yMin || effect.Y > yMax {
+			continue
+		}
 		effects = append(effects, &effect)
 	}
 

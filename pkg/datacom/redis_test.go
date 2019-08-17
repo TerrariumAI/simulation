@@ -2,10 +2,13 @@ package datacom_test
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/alicebob/miniredis"
@@ -586,7 +589,7 @@ func TestAddEffect(t *testing.T) {
 	defer teardown(redisServer)
 
 	type args struct {
-		p envApi.Effect
+		effect envApi.Effect
 	}
 
 	tests := []struct {
@@ -599,7 +602,7 @@ func TestAddEffect(t *testing.T) {
 		{
 			name: "Succesful add effect",
 			args: args{
-				p: envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+				effect: envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
 			},
 			PALMockFuncCalls: []mockFuncCall{
 				{ // Get the metadata for the RM
@@ -622,7 +625,7 @@ func TestAddEffect(t *testing.T) {
 				mockPAL.On(mockFuncCall.name, mockFuncCall.args...).Return(mockFuncCall.resp...)
 			}
 			// Call function
-			err := dc.AddEffect(tt.args.p)
+			err := dc.AddEffect(tt.args.effect)
 			// Check results
 			if err != nil {
 				if tt.wantErr == nil {
@@ -640,9 +643,114 @@ func TestAddEffect(t *testing.T) {
 				Password: "", // no password set
 				DB:       0,  // use default DB
 			})
-			keys, _ := redisClient.ZScan("effects", 0, "*", 0).Val()
+			keys, cursor := redisClient.ZScan("effects", 0, "*", 0).Val()
 			if len(keys) != tt.want {
 				t.Errorf("got %v, want %v", len(keys), tt.want)
+			}
+
+			effect := envApi.Effect{}
+			values := strings.Split(keys[cursor], "-")
+			content := strings.ReplaceAll(values[1], "%n", "\n")
+			proto.UnmarshalText(content, &effect)
+			fmt.Println(content)
+
+			if !reflect.DeepEqual(effect, tt.args.effect) {
+				t.Errorf("got %v, expected %v", effect, tt.args.effect)
+			}
+		})
+	}
+}
+
+func TestGetEffectsInRegion(t *testing.T) {
+	redisServer := setup()
+	defer teardown(redisServer)
+
+	type args struct {
+		x uint32
+		y uint32
+	}
+
+	tests := []struct {
+		name             string
+		addEffects       []envApi.Effect
+		args             args
+		PALMockFuncCalls []mockFuncCall
+		want             []*envApi.Effect
+		wantErr          error
+	}{
+		// {
+		// 	name: "Succesful get effects in region 0.0",
+		// 	addEffects: []envApi.Effect{
+		// 		envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+		// 	},
+		// 	args: args{
+		// 		x: 0,
+		// 		y: 0,
+		// 	},
+		// 	PALMockFuncCalls: []mockFuncCall{
+		// 		{ // Get the metadata for the RM
+		// 			name: "QueuePublishEvent",
+		// 			args: []interface{}{"addEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+		// 			resp: []interface{}{nil},
+		// 		},
+		// 	},
+		// 	want: []*envApi.Effect{
+		// 		&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+		// 	},
+		// },
+		{
+			name: "Succesful get effects in region 0.0 with an agent outside region",
+			addEffects: []envApi.Effect{
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+				envApi.Effect{X: 16, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+			},
+			args: args{
+				x: 0,
+				y: 0,
+			},
+			PALMockFuncCalls: []mockFuncCall{
+				{ // Get the metadata for the RM
+					name: "QueuePublishEvent",
+					args: []interface{}{"addEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					resp: []interface{}{nil},
+				},
+			},
+			want: []*envApi.Effect{
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup pubsub mock
+			mockPAL := &mocks.PubsubAccessLayer{}
+			dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
+
+			// Setup mock
+			for _, mockFuncCall := range tt.PALMockFuncCalls {
+				mockPAL.On(mockFuncCall.name, mockFuncCall.args...).Return(mockFuncCall.resp...)
+			}
+			// Setup effects
+			for _, effect := range tt.addEffects {
+				dc.AddEffect(effect)
+			}
+
+			// Call function
+			effects, err := dc.GetEffectsInRegion(tt.args.x, tt.args.y)
+			// Check results
+			if err != nil {
+				if tt.wantErr == nil {
+					t.Errorf("error: %v, wantErr: %v", err, tt.wantErr)
+					return
+				}
+				if err.Error() != tt.wantErr.Error() {
+					t.Errorf("error message: '%v', want error message: '%v'", err, tt.wantErr.Error())
+					return
+				}
+			}
+
+			if !reflect.DeepEqual(effects, tt.want) {
+				t.Errorf("got %v, expected %v", effects, tt.want)
 			}
 		})
 	}

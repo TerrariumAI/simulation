@@ -23,8 +23,7 @@ const (
 	maxPosition             = 999
 	defaultEntityVisionDist = 5
 
-	regionSize            = 10
-	cellsInRegion float64 = 10
+	regionSize = 10
 )
 
 // Datacom is an object that makes it easy to communicate with our
