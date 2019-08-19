@@ -666,8 +666,10 @@ func TestGetEffectsInRegion(t *testing.T) {
 	defer teardown(redisServer)
 
 	type args struct {
-		x uint32
-		y uint32
+		x0 uint32
+		y0 uint32
+		x1 uint32
+		y1 uint32
 	}
 
 	tests := []struct {
@@ -684,8 +686,10 @@ func TestGetEffectsInRegion(t *testing.T) {
 				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
 			},
 			args: args{
-				x: 0,
-				y: 0,
+				x0: 0,
+				y0: 0,
+				x1: 9,
+				y1: 9,
 			},
 			PALMockFuncCalls: []mockFuncCall{
 				{ // Get the metadata for the RM
@@ -706,8 +710,10 @@ func TestGetEffectsInRegion(t *testing.T) {
 				envApi.Effect{X: 1, Y: 10, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
 			},
 			args: args{
-				x: 0,
-				y: 0,
+				x0: 0,
+				y0: 0,
+				x1: 9,
+				y1: 9,
 			},
 			PALMockFuncCalls: []mockFuncCall{
 				{ // Get the metadata for the RM
@@ -727,8 +733,10 @@ func TestGetEffectsInRegion(t *testing.T) {
 				envApi.Effect{X: 1, Y: 2, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
 			},
 			args: args{
-				x: 0,
-				y: 0,
+				x0: 0,
+				y0: 0,
+				x1: 9,
+				y1: 9,
 			},
 			PALMockFuncCalls: []mockFuncCall{
 				{ // Get the metadata for the RM
@@ -749,8 +757,10 @@ func TestGetEffectsInRegion(t *testing.T) {
 				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 2},
 			},
 			args: args{
-				x: 0,
-				y: 0,
+				x0: 0,
+				y0: 0,
+				x1: 9,
+				y1: 9,
 			},
 			PALMockFuncCalls: []mockFuncCall{
 				{ // Get the metadata for the RM
@@ -781,7 +791,7 @@ func TestGetEffectsInRegion(t *testing.T) {
 			}
 
 			// Call function
-			effects, err := dc.GetEffectsInRegion(tt.args.x, tt.args.y)
+			effects, err := dc.GetEffectsInSpace(tt.args.x0, tt.args.y0, tt.args.x1, tt.args.y1)
 			// Check results
 			if err != nil {
 				if tt.wantErr == nil {
@@ -903,7 +913,7 @@ func TestDeleteEffect(t *testing.T) {
 			}
 
 			// Check
-			effects, _ := dc.GetEffectsInRegion(0, 0)
+			effects, _ := dc.GetEffectsInSpace(0, 0, 9, 9)
 
 			if !reflect.DeepEqual(effects, tt.want) {
 				t.Errorf("got %v, expected %v", effects, tt.want)

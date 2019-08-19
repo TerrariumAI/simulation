@@ -7,6 +7,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-redis/redis"
 	collectiveApi "github.com/terrariumai/simulation/pkg/api/collective"
@@ -330,16 +331,12 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 	return &obsv, nil
 }
 
-// GetEntitiesInRegion returns the entities in a specific region
-func (dc *Datacom) GetEntitiesInRegion(x uint32, y uint32) ([]*envApi.Entity, error) {
+// GetEntitiesInSpace returns the entities in a specific region
+func (dc *Datacom) GetEntitiesInSpace(x0 uint32, y0 uint32, x1 uint32, y1 uint32) ([]*envApi.Entity, error) {
 	entities := []*envApi.Entity{}
 
-	xMin := x * regionSize
-	yMin := y * regionSize
-	xMax := xMin + regionSize - 1
-	yMax := yMin + regionSize - 1
 	// Perform the query
-	contentArray, err := dc.spacequery("entities", xMin, yMin, xMax, yMax)
+	contentArray, err := dc.spacequery("entities", x0, y0, x1, y1)
 	if err != nil {
 		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
 	}
@@ -347,7 +344,7 @@ func (dc *Datacom) GetEntitiesInRegion(x uint32, y uint32) ([]*envApi.Entity, er
 	for _, content := range contentArray {
 		entity, _ := parseEntityContent(content)
 		// Ignore entities outside space
-		if entity.X < xMin || entity.X > xMax || entity.X < yMin || entity.X > yMax {
+		if entity.X < x0 || entity.X > x1 || entity.X < y0 || entity.X > y1 {
 			continue
 		}
 		entities = append(entities, &entity)
@@ -379,24 +376,26 @@ func (dc *Datacom) CreateEffect(effect envApi.Effect) error {
 	return nil
 }
 
-// GetEffectsInRegion returns the effects in a specific region
-func (dc *Datacom) GetEffectsInRegion(x uint32, y uint32) ([]*envApi.Effect, error) {
+// GetEffectsInSpace returns the effects in a specific region
+func (dc *Datacom) GetEffectsInSpace(x0 uint32, y0 uint32, x1 uint32, y1 uint32) ([]*envApi.Effect, error) {
 	effects := []*envApi.Effect{}
 
-	xMin := x * regionSize
-	yMin := y * regionSize
-	xMax := xMin + regionSize - 1
-	yMax := yMin + regionSize - 1
 	// Perform the query
-	contentArray, err := dc.spacequery("effects", xMin, yMin, xMax, yMax)
+	contentArray, err := dc.spacequery("effects", x0, y0, x1, y1)
 	if err != nil {
 		return nil, fmt.Errorf("Error converting min/max positions to index: %v", err)
 	}
 
 	for _, content := range contentArray {
 		effect, _ := parseEffectContent(content)
-		if effect.X < xMin || effect.X > xMax || effect.Y < yMin || effect.Y > yMax {
+		// Ignore outside
+		if effect.X < x0 || effect.X > x1 || effect.Y < y0 || effect.Y > y1 {
 			continue
+		}
+		// Calculate strength
+		effect.Strength = uint32(100 / math.Pow(float64(effect.Decay), float64(time.Now().Unix()-effect.Timestamp)))
+		if effect.Strength <= effect.DelThresh {
+			dc.DeleteEffect(effect)
 		}
 		effects = append(effects, &effect)
 	}
@@ -405,8 +404,8 @@ func (dc *Datacom) GetEffectsInRegion(x uint32, y uint32) ([]*envApi.Effect, err
 }
 
 // DeleteEffect removes an effect
-func (dc *Datacom) DeleteEffect(p envApi.Effect) (int64, error) {
-	content, _ := serializeEffect(p)
+func (dc *Datacom) DeleteEffect(effect envApi.Effect) (int64, error) {
+	content, _ := serializeEffect(effect)
 	// Remove from SS
 	remove := dc.redisClient.ZRem("effects", content)
 	if err := remove.Err(); err != nil {
@@ -415,7 +414,7 @@ func (dc *Datacom) DeleteEffect(p envApi.Effect) (int64, error) {
 	}
 
 	// Send update
-	dc.pubsub.QueuePublishEvent("deleteEffect", &p, p.X, p.Y)
+	dc.pubsub.QueuePublishEvent("deleteEffect", &effect, effect.X, effect.Y)
 
 	return remove.Val(), nil
 }
