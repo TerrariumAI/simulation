@@ -360,8 +360,8 @@ func (dc *Datacom) GetEntitiesInRegion(x uint32, y uint32) ([]*envApi.Entity, er
 // Effects
 // --------------
 
-// AddEffect sets an effect at a specific index (position)
-func (dc *Datacom) AddEffect(effect envApi.Effect) error {
+// CreateEffect sets an effect at a specific index (position)
+func (dc *Datacom) CreateEffect(effect envApi.Effect) error {
 	content, err := serializeEffect(effect)
 	fmt.Println(content)
 	if err != nil {
@@ -374,7 +374,7 @@ func (dc *Datacom) AddEffect(effect envApi.Effect) error {
 	}).Err()
 
 	// Send update
-	dc.pubsub.QueuePublishEvent("addEffect", &effect, effect.X, effect.Y)
+	dc.pubsub.QueuePublishEvent("createEffect", &effect, effect.X, effect.Y)
 
 	return nil
 }

@@ -497,3 +497,20 @@ func (s *environmentServer) GetEntitiesInRegion(ctx context.Context, req *envApi
 		Entities: entities,
 	}, nil
 }
+
+// func (s *environmentServer) GetEffectsInRegion(ctx context.Context, req *envApi.GetEntitiesInRegionRequest) (*envApi.GetEntitiesInRegionResponse, error) {
+// 	// Lock the data, defer unlock until end of call
+// 	s.m.Lock()
+// 	defer s.m.Unlock()
+// 	entities := []*envApi.Entity{}
+
+// 	entities, err := s.datacomDAL.GetEntitiesInRegion(req.X, req.Y)
+// 	if err != nil {
+// 		log.Printf("ERROR: %v", err)
+// 		return nil, err
+// 	}
+
+// 	return &envApi.GetEntitiesInRegionResponse{
+// 		Entities: entities,
+// 	}, nil
+// }

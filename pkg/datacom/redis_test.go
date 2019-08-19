@@ -584,7 +584,7 @@ func TestGetObservationsForEntity(t *testing.T) {
 	}
 }
 
-func TestAddEffect(t *testing.T) {
+func TestCreateEffect(t *testing.T) {
 	redisServer := setup()
 	defer teardown(redisServer)
 
@@ -607,7 +607,7 @@ func TestAddEffect(t *testing.T) {
 			PALMockFuncCalls: []mockFuncCall{
 				{ // Get the metadata for the RM
 					name: "QueuePublishEvent",
-					args: []interface{}{"addEffect", &envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1}, uint32(1), uint32(1)},
+					args: []interface{}{"createEffect", &envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1}, uint32(1), uint32(1)},
 					resp: []interface{}{nil},
 				},
 			},
@@ -625,7 +625,7 @@ func TestAddEffect(t *testing.T) {
 				mockPAL.On(mockFuncCall.name, mockFuncCall.args...).Return(mockFuncCall.resp...)
 			}
 			// Call function
-			err := dc.AddEffect(tt.args.effect)
+			err := dc.CreateEffect(tt.args.effect)
 			// Check results
 			if err != nil {
 				if tt.wantErr == nil {
@@ -672,7 +672,7 @@ func TestGetEffectsInRegion(t *testing.T) {
 
 	tests := []struct {
 		name             string
-		addEffects       []envApi.Effect
+		preCallEffects   []envApi.Effect
 		args             args
 		PALMockFuncCalls []mockFuncCall
 		want             []*envApi.Effect
@@ -680,7 +680,7 @@ func TestGetEffectsInRegion(t *testing.T) {
 	}{
 		{
 			name: "Get single effect in region 0.0",
-			addEffects: []envApi.Effect{
+			preCallEffects: []envApi.Effect{
 				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
 			},
 			args: args{
@@ -690,7 +690,7 @@ func TestGetEffectsInRegion(t *testing.T) {
 			PALMockFuncCalls: []mockFuncCall{
 				{ // Get the metadata for the RM
 					name: "QueuePublishEvent",
-					args: []interface{}{"addEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					args: []interface{}{"createEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
 					resp: []interface{}{nil},
 				},
 			},
@@ -700,7 +700,7 @@ func TestGetEffectsInRegion(t *testing.T) {
 		},
 		{
 			name: "Get single effect in region 0.0 with effects just outside region",
-			addEffects: []envApi.Effect{
+			preCallEffects: []envApi.Effect{
 				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
 				envApi.Effect{X: 10, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
 				envApi.Effect{X: 1, Y: 10, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
@@ -712,7 +712,7 @@ func TestGetEffectsInRegion(t *testing.T) {
 			PALMockFuncCalls: []mockFuncCall{
 				{ // Get the metadata for the RM
 					name: "QueuePublishEvent",
-					args: []interface{}{"addEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					args: []interface{}{"createEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
 					resp: []interface{}{nil},
 				},
 			},
@@ -722,7 +722,7 @@ func TestGetEffectsInRegion(t *testing.T) {
 		},
 		{
 			name: "Get multiple effects, diff pos, same region",
-			addEffects: []envApi.Effect{
+			preCallEffects: []envApi.Effect{
 				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
 				envApi.Effect{X: 1, Y: 2, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
 			},
@@ -733,7 +733,7 @@ func TestGetEffectsInRegion(t *testing.T) {
 			PALMockFuncCalls: []mockFuncCall{
 				{ // Get the metadata for the RM
 					name: "QueuePublishEvent",
-					args: []interface{}{"addEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					args: []interface{}{"createEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
 					resp: []interface{}{nil},
 				},
 			},
@@ -744,7 +744,7 @@ func TestGetEffectsInRegion(t *testing.T) {
 		},
 		{
 			name: "Get multiple effects, same pos, same region",
-			addEffects: []envApi.Effect{
+			preCallEffects: []envApi.Effect{
 				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
 				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 2},
 			},
@@ -755,7 +755,7 @@ func TestGetEffectsInRegion(t *testing.T) {
 			PALMockFuncCalls: []mockFuncCall{
 				{ // Get the metadata for the RM
 					name: "QueuePublishEvent",
-					args: []interface{}{"addEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					args: []interface{}{"createEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
 					resp: []interface{}{nil},
 				},
 			},
@@ -776,8 +776,8 @@ func TestGetEffectsInRegion(t *testing.T) {
 				mockPAL.On(mockFuncCall.name, mockFuncCall.args...).Return(mockFuncCall.resp...)
 			}
 			// Setup effects
-			for _, effect := range tt.addEffects {
-				dc.AddEffect(effect)
+			for _, effect := range tt.preCallEffects {
+				dc.CreateEffect(effect)
 			}
 
 			// Call function
@@ -819,7 +819,7 @@ func TestDeleteEffect(t *testing.T) {
 
 	tests := []struct {
 		name             string
-		addEffects       []envApi.Effect
+		preCallEffects   []envApi.Effect
 		args             args
 		PALMockFuncCalls []mockFuncCall
 		want             []*envApi.Effect
@@ -827,7 +827,7 @@ func TestDeleteEffect(t *testing.T) {
 	}{
 		{
 			name: "Delete single effect",
-			addEffects: []envApi.Effect{
+			preCallEffects: []envApi.Effect{
 				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
 			},
 			args: args{
@@ -836,7 +836,7 @@ func TestDeleteEffect(t *testing.T) {
 			PALMockFuncCalls: []mockFuncCall{
 				{ // Get the metadata for the RM
 					name: "QueuePublishEvent",
-					args: []interface{}{"addEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					args: []interface{}{"createEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
 					resp: []interface{}{nil},
 				},
 				{ // Get the metadata for the RM
@@ -849,7 +849,7 @@ func TestDeleteEffect(t *testing.T) {
 		},
 		{
 			name: "Multiple effects in same position (same index), delete only removes 1",
-			addEffects: []envApi.Effect{
+			preCallEffects: []envApi.Effect{
 				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
 				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 2},
 			},
@@ -859,7 +859,7 @@ func TestDeleteEffect(t *testing.T) {
 			PALMockFuncCalls: []mockFuncCall{
 				{ // Get the metadata for the RM
 					name: "QueuePublishEvent",
-					args: []interface{}{"addEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					args: []interface{}{"createEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
 					resp: []interface{}{nil},
 				},
 				{ // Get the metadata for the RM
@@ -884,8 +884,8 @@ func TestDeleteEffect(t *testing.T) {
 				mockPAL.On(mockFuncCall.name, mockFuncCall.args...).Return(mockFuncCall.resp...)
 			}
 			// Setup effects
-			for _, effect := range tt.addEffects {
-				dc.AddEffect(effect)
+			for _, effect := range tt.preCallEffects {
+				dc.CreateEffect(effect)
 			}
 
 			// Call function
