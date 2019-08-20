@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"strconv"
 	"sync"
 	"time"
 
@@ -317,12 +318,24 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 				}, nil
 			}
 		}
-		// Create the pheromone effect
+
+		// Calculate scent
+		// Note: This is temporary and should probably be replaced
+		var scentString string
+		for i := 0; i < 5; i++ {
+			i, err := strconv.ParseInt(string(entity.ModelID[i]), 0, 32)
+			if err == nil {
+				scentString += string(i)
+			}
+		}
+		scentNum, err := strconv.ParseInt(scentString, 0, 32)
+
+		// Create pheromone effect
 		s.datacomDAL.CreateEffect(envApi.Effect{
 			X:         entity.X,
 			Y:         entity.Y,
 			ClassID:   envApi.Effect_Class(0),
-			Value:     1,
+			Value:     uint32(scentNum),
 			Decay:     1.2,
 			DelThresh: 5,
 			Timestamp: time.Now().Unix(),
