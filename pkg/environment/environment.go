@@ -322,14 +322,19 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		// Calculate scent
 		// TODO: This is temporary and should probably be replaced with a generated number
 		// on model creation
-		var scentString string
-		for i := 0; i < 5; i++ {
-			i, err := strconv.ParseInt(string(entity.ModelID[i]), 0, 32)
+		scentString := ""
+		added := 0 // limit on how many numbers to add
+		for i := 0; i < len(entity.ModelID); i++ {
+			if added == 5 {
+				break
+			}
+			i, err := strconv.ParseInt("0x"+string(entity.ModelID[i]), 0, 32)
 			if err == nil {
-				scentString += string(i)
+				scentString += strconv.Itoa(int(i))
+				added++
 			}
 		}
-		scentNum, err := strconv.ParseInt(scentString, 0, 32)
+		scentNum, _ := strconv.ParseInt(scentString, 0, 32)
 
 		// Create pheromone effect
 		s.datacomDAL.CreateEffect(envApi.Effect{

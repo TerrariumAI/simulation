@@ -77,8 +77,11 @@ compile-proto-js:
 ## ------ Mocks
 ## ----------------------
 
-generate-mocks:
+gen-env-mock:
+	mockery -dir=./pkg/environment -output=./pkg/environment/mocks -name=DataAccessLayer
+gen-datacom-mock:
 	mockery -dir=./pkg/datacom -output=./pkg/datacom/mocks -name=PubsubAccessLayer
+gen-mocks: gen-env-mock gen-datacom-mock
 
 ## ----------------------
 ## ------ DOCKER 
