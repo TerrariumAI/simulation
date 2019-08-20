@@ -320,7 +320,8 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		}
 
 		// Calculate scent
-		// Note: This is temporary and should probably be replaced
+		// TODO: This is temporary and should probably be replaced with a generated number
+		// on model creation
 		var scentString string
 		for i := 0; i < 5; i++ {
 			i, err := strconv.ParseInt(string(entity.ModelID[i]), 0, 32)
