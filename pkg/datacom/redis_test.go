@@ -683,7 +683,7 @@ func TestGetEffectsInSpace(t *testing.T) {
 		{
 			name: "Get single effect in region 0.0",
 			preCallEffects: []envApi.Effect{
-				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1, Strength: 100},
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
 			},
 			args: args{
 				x0: 0,
@@ -699,7 +699,7 @@ func TestGetEffectsInSpace(t *testing.T) {
 				},
 			},
 			want: []*envApi.Effect{
-				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1, Strength: 100},
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
 			},
 		},
 		{
@@ -723,7 +723,7 @@ func TestGetEffectsInSpace(t *testing.T) {
 				},
 			},
 			want: []*envApi.Effect{
-				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1, Strength: 100},
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
 			},
 		},
 		{
@@ -746,8 +746,8 @@ func TestGetEffectsInSpace(t *testing.T) {
 				},
 			},
 			want: []*envApi.Effect{
-				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1, Strength: 100},
-				&envApi.Effect{X: 1, Y: 2, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1, Strength: 100},
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+				&envApi.Effect{X: 1, Y: 2, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
 			},
 		},
 		{
@@ -770,8 +770,8 @@ func TestGetEffectsInSpace(t *testing.T) {
 				},
 			},
 			want: []*envApi.Effect{
-				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 2, Strength: 100},
-				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1, Strength: 100},
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 2},
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
 			},
 		},
 		{
@@ -793,7 +793,7 @@ func TestGetEffectsInSpace(t *testing.T) {
 				},
 			},
 			want: []*envApi.Effect{
-				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix() - 1, ClassID: envApi.Effect_Class(0), Decay: 1.1, Value: 1, Strength: 90},
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix() - 1, ClassID: envApi.Effect_Class(0), Decay: 1.1, Value: 1},
 			},
 		},
 		{

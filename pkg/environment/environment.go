@@ -66,6 +66,7 @@ type DataAccessLayer interface {
 	GetEntitiesForModel(modelID string) ([]envApi.Entity, error)
 	GetObservationForEntity(entity envApi.Entity) (*collectiveApi.Observation, error)
 	GetEntitiesInSpace(x0 uint32, y0 uint32, x1 uint32, y1 uint32) ([]*envApi.Entity, error)
+	GetEffectsInSpace(x0 uint32, y0 uint32, x1 uint32, y1 uint32) ([]*envApi.Effect, error)
 	// Firebase
 	GetRemoteModelMetadataBySecret(modelSecret string) (*datacom.RemoteModel, error)
 	GetRemoteModelMetadataByID(modelID string) (*datacom.RemoteModel, error)
@@ -320,6 +321,10 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		s.datacomDAL.CreateEffect(envApi.Effect{
 			X:         entity.X,
 			Y:         entity.Y,
+			ClassID:   envApi.Effect_Class(0),
+			Value:     1,
+			Decay:     1.2,
+			DelThresh: 5,
 			Timestamp: time.Now().Unix(),
 		})
 		// Finally, adjust the position
@@ -513,19 +518,24 @@ func (s *environmentServer) GetEntitiesInRegion(ctx context.Context, req *envApi
 	}, nil
 }
 
-// func (s *environmentServer) GetEffectsInRegion(ctx context.Context, req *envApi.GetEntitiesInRegionRequest) (*envApi.GetEntitiesInRegionResponse, error) {
-// 	// Lock the data, defer unlock until end of call
-// 	s.m.Lock()
-// 	defer s.m.Unlock()
-// 	entities := []*envApi.Entity{}
+func (s *environmentServer) GetEffectsInRegion(ctx context.Context, req *envApi.GetEffectsInRegionRequest) (*envApi.GetEffectsInRegionResponse, error) {
+	// Lock the data, defer unlock until end of call
+	s.m.Lock()
+	defer s.m.Unlock()
+	effects := []*envApi.Effect{}
 
-// 	entities, err := s.datacomDAL.GetEntitiesInRegion(req.X, req.Y)
-// 	if err != nil {
-// 		log.Printf("ERROR: %v", err)
-// 		return nil, err
-// 	}
+	x0 := req.X * regionSize
+	y0 := req.Y * regionSize
+	x1 := x0 + regionSize - 1
+	y1 := y0 + regionSize - 1
 
-// 	return &envApi.GetEntitiesInRegionResponse{
-// 		Entities: entities,
-// 	}, nil
-// }
+	effects, err := s.datacomDAL.GetEffectsInSpace(x0, y0, x1, y1)
+	if err != nil {
+		log.Printf("ERROR: %v", err)
+		return nil, err
+	}
+
+	return &envApi.GetEffectsInRegionResponse{
+		Effects: effects,
+	}, nil
+}
