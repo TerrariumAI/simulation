@@ -396,6 +396,7 @@ func (dc *Datacom) GetEffectsInSpace(x0 uint32, y0 uint32, x1 uint32, y1 uint32)
 		effect.Strength = uint32(100 / math.Pow(float64(effect.Decay), float64(time.Now().Unix()-effect.Timestamp)))
 		if effect.Strength <= effect.DelThresh {
 			dc.DeleteEffect(effect)
+			continue
 		}
 		effects = append(effects, &effect)
 	}

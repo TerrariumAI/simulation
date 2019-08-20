@@ -661,7 +661,7 @@ func TestCreateEffect(t *testing.T) {
 	}
 }
 
-func TestGetEffectsInRegion(t *testing.T) {
+func TestGetEffectsInSpace(t *testing.T) {
 	redisServer := setup()
 	defer teardown(redisServer)
 
@@ -683,7 +683,7 @@ func TestGetEffectsInRegion(t *testing.T) {
 		{
 			name: "Get single effect in region 0.0",
 			preCallEffects: []envApi.Effect{
-				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1, Strength: 100},
 			},
 			args: args{
 				x0: 0,
@@ -699,7 +699,7 @@ func TestGetEffectsInRegion(t *testing.T) {
 				},
 			},
 			want: []*envApi.Effect{
-				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1, Strength: 100},
 			},
 		},
 		{
@@ -723,7 +723,7 @@ func TestGetEffectsInRegion(t *testing.T) {
 				},
 			},
 			want: []*envApi.Effect{
-				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1, Strength: 100},
 			},
 		},
 		{
@@ -746,8 +746,8 @@ func TestGetEffectsInRegion(t *testing.T) {
 				},
 			},
 			want: []*envApi.Effect{
-				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
-				&envApi.Effect{X: 1, Y: 2, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1, Strength: 100},
+				&envApi.Effect{X: 1, Y: 2, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1, Strength: 100},
 			},
 		},
 		{
@@ -770,9 +770,56 @@ func TestGetEffectsInRegion(t *testing.T) {
 				},
 			},
 			want: []*envApi.Effect{
-				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 2},
-				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 2, Strength: 100},
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1, Strength: 100},
 			},
+		},
+		{
+			name: "Created a second ago gives lowered energy",
+			preCallEffects: []envApi.Effect{
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix() - 1, ClassID: envApi.Effect_Class(0), Decay: 1.1, Value: 1},
+			},
+			args: args{
+				x0: 0,
+				y0: 0,
+				x1: 9,
+				y1: 9,
+			},
+			PALMockFuncCalls: []mockFuncCall{
+				{ // Get the metadata for the RM
+					name: "QueuePublishEvent",
+					args: []interface{}{"createEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					resp: []interface{}{nil},
+				},
+			},
+			want: []*envApi.Effect{
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix() - 1, ClassID: envApi.Effect_Class(0), Decay: 1.1, Value: 1, Strength: 90},
+			},
+		},
+		{
+			name: "Effect that is too old gets removed",
+			preCallEffects: []envApi.Effect{
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix() - 9, ClassID: envApi.Effect_Class(0), Decay: 1.5, DelThresh: 2, Value: 1},
+			},
+			args: args{
+				x0: 0,
+				y0: 0,
+				x1: 9,
+				y1: 9,
+			},
+			PALMockFuncCalls: []mockFuncCall{
+				{ // Get the metadata for the RM
+					name: "QueuePublishEvent",
+					args: []interface{}{"createEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					resp: []interface{}{nil},
+				},
+				{ // Get the metadata for the RM
+					name: "QueuePublishEvent",
+					args: []interface{}{"deleteEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					resp: []interface{}{nil},
+				},
+			},
+			want: []*envApi.Effect{},
 		},
 	}
 	for _, tt := range tests {
