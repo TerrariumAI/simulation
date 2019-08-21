@@ -88,18 +88,6 @@ func parseEffectContent(content string) (p envApi.Effect, index string) {
 	effect := envApi.Effect{}
 	proto.UnmarshalText(effectString, &effect)
 	return effect, values[0]
-	// x, _ := strconv.ParseUint(values[1], 10, 32)
-	// y, _ := strconv.ParseUint(values[2], 10, 32)
-	// timestamp, _ := strconv.ParseInt(values[3], 10, 64)
-	// classID := values[4]
-	// value, _ := strconv.ParseUint(values[5], 10, 32)
-	// return envApi.Effect{
-	// 	X:         uint32(x),
-	// 	Y:         uint32(y),
-	// 	Timestamp: timestamp,
-	// 	ClassID:   envApi.Effect_Class(envApi.Effect_Class_value[classID]),
-	// 	Value:     uint32(value),
-	// }, values[0]
 }
 
 func getRegionForPos(x uint32, y uint32) (uint32, uint32) {
@@ -107,4 +95,25 @@ func getRegionForPos(x uint32, y uint32) (uint32, uint32) {
 	regionY := uint32(math.Floor(float64(y) / regionSize))
 
 	return regionX, regionY
+}
+
+func calcSpaceAroundPoint(x int32, y int32, dist int32) (int32, int32, int32, int32) {
+	x0 := int32(x) - dist
+	x1 := int32(x) + dist
+	y0 := int32(y) - dist
+	y1 := int32(y) + dist
+	if x0 < minPosition {
+		x0 = minPosition
+	}
+	if y0 < minPosition {
+		y0 = minPosition
+	}
+	if x1 > maxPosition {
+		x1 = maxPosition
+	}
+	if y1 > maxPosition {
+		y1 = maxPosition
+	}
+
+	return x0, y0, x1, y1
 }

@@ -514,6 +514,8 @@ func TestGetObservationsForEntity(t *testing.T) {
 	// Setup pubsub mock
 	mockPAL := &mocks.PubsubAccessLayer{}
 	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("*endpoints_terrariumai_environment.Entity"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "createEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")).Return(nil)
+
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 	dc.EntityVisionDist = 2
 
@@ -523,6 +525,12 @@ func TestGetObservationsForEntity(t *testing.T) {
 	dc.CreateEntity(envApi.Entity{
 		X: 0, Y: 0, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-2", Health: 100, Energy: 100, Id: "2",
 	}, true)
+	dc.CreateEffect(envApi.Effect{
+		X: 0, Y: 0, ClassID: 1,
+	})
+	dc.CreateEffect(envApi.Effect{
+		X: 1, Y: 1, ClassID: 1,
+	})
 
 	type args struct {
 		modelID string
@@ -549,6 +557,13 @@ func TestGetObservationsForEntity(t *testing.T) {
 					&collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 0}, &collectiveApi.Entity{ClassID: 0},
 					&collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2},
 					&collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2},
+				},
+				Smell: []*collectiveApi.Effect{
+					&collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0},
+					&collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 1, Strength: 100}, &collectiveApi.Effect{ClassID: 0},
+					&collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 1, Strength: 100}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0},
+					&collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0},
+					&collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0},
 				},
 			},
 			false,
@@ -602,12 +617,12 @@ func TestCreateEffect(t *testing.T) {
 		{
 			name: "Succesful add effect",
 			args: args{
-				effect: envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+				effect: envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
 			},
 			PALMockFuncCalls: []mockFuncCall{
 				{ // Get the metadata for the RM
 					name: "QueuePublishEvent",
-					args: []interface{}{"createEffect", &envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1}, uint32(1), uint32(1)},
+					args: []interface{}{"createEffect", &envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1}, uint32(1), uint32(1)},
 					resp: []interface{}{nil},
 				},
 			},
@@ -683,7 +698,7 @@ func TestGetEffectsInSpace(t *testing.T) {
 		{
 			name: "Get single effect in region 0.0",
 			preCallEffects: []envApi.Effect{
-				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
 			},
 			args: args{
 				x0: 0,
@@ -699,15 +714,15 @@ func TestGetEffectsInSpace(t *testing.T) {
 				},
 			},
 			want: []*envApi.Effect{
-				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
 			},
 		},
 		{
 			name: "Get single effect in region 0.0 with effects just outside region",
 			preCallEffects: []envApi.Effect{
-				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
-				envApi.Effect{X: 10, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
-				envApi.Effect{X: 1, Y: 10, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
+				envApi.Effect{X: 10, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
+				envApi.Effect{X: 1, Y: 10, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
 			},
 			args: args{
 				x0: 0,
@@ -723,14 +738,14 @@ func TestGetEffectsInSpace(t *testing.T) {
 				},
 			},
 			want: []*envApi.Effect{
-				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
 			},
 		},
 		{
 			name: "Get multiple effects, diff pos, same region",
 			preCallEffects: []envApi.Effect{
-				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
-				envApi.Effect{X: 1, Y: 2, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
+				envApi.Effect{X: 1, Y: 2, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
 			},
 			args: args{
 				x0: 0,
@@ -746,14 +761,14 @@ func TestGetEffectsInSpace(t *testing.T) {
 				},
 			},
 			want: []*envApi.Effect{
-				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
-				&envApi.Effect{X: 1, Y: 2, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
+				&envApi.Effect{X: 1, Y: 2, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
 			},
 		},
 		{
 			name: "Get multiple effects, same pos, same region",
 			preCallEffects: []envApi.Effect{
-				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
 				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 2},
 			},
 			args: args{
@@ -770,14 +785,14 @@ func TestGetEffectsInSpace(t *testing.T) {
 				},
 			},
 			want: []*envApi.Effect{
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
 				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 2},
-				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
 			},
 		},
 		{
 			name: "Created a second ago gives lowered energy",
 			preCallEffects: []envApi.Effect{
-				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix() - 1, ClassID: envApi.Effect_Class(0), Decay: 1.1, Value: 1},
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix() - 1, ClassID: envApi.Effect_Class(1), Decay: 1.1, Value: 1},
 			},
 			args: args{
 				x0: 0,
@@ -793,13 +808,13 @@ func TestGetEffectsInSpace(t *testing.T) {
 				},
 			},
 			want: []*envApi.Effect{
-				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix() - 1, ClassID: envApi.Effect_Class(0), Decay: 1.1, Value: 1},
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix() - 1, ClassID: envApi.Effect_Class(1), Decay: 1.1, Value: 1},
 			},
 		},
 		{
 			name: "Effect that is too old gets removed",
 			preCallEffects: []envApi.Effect{
-				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix() - 9, ClassID: envApi.Effect_Class(0), Decay: 1.5, DelThresh: 2, Value: 1},
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix() - 9, ClassID: envApi.Effect_Class(1), Decay: 1.5, DelThresh: 2, Value: 1},
 			},
 			args: args{
 				x0: 0,
@@ -885,10 +900,10 @@ func TestDeleteEffect(t *testing.T) {
 		{
 			name: "Delete single effect",
 			preCallEffects: []envApi.Effect{
-				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
 			},
 			args: args{
-				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
 			},
 			PALMockFuncCalls: []mockFuncCall{
 				{ // Get the metadata for the RM
@@ -907,11 +922,11 @@ func TestDeleteEffect(t *testing.T) {
 		{
 			name: "Multiple effects in same position (same index), delete only removes 1",
 			preCallEffects: []envApi.Effect{
-				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
-				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 2},
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 2},
 			},
 			args: args{
-				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 1},
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
 			},
 			PALMockFuncCalls: []mockFuncCall{
 				{ // Get the metadata for the RM
@@ -926,7 +941,7 @@ func TestDeleteEffect(t *testing.T) {
 				},
 			},
 			want: []*envApi.Effect{
-				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(0), Value: 2},
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 2},
 			},
 		},
 	}

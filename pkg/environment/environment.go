@@ -340,7 +340,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		s.datacomDAL.CreateEffect(envApi.Effect{
 			X:         entity.X,
 			Y:         entity.Y,
-			ClassID:   envApi.Effect_Class(0),
+			ClassID:   envApi.Effect_Class(1),
 			Value:     uint32(scentNum),
 			Decay:     1.2,
 			DelThresh: 5,

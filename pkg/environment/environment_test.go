@@ -598,7 +598,7 @@ func TestExecuteAgentAction(t *testing.T) {
 				},
 				{
 					name: "CreateEffect",
-					args: []interface{}{envApi.Effect{X: 1, Y: 1, ClassID: envApi.Effect_Class(0), Value: 12131413, Decay: 1.2, DelThresh: 5, Timestamp: time.Now().Unix()}},
+					args: []interface{}{envApi.Effect{X: 1, Y: 1, ClassID: envApi.Effect_Class(1), Value: 12131413, Decay: 1.2, DelThresh: 5, Timestamp: time.Now().Unix()}},
 					resp: []interface{}{nil},
 				},
 			},

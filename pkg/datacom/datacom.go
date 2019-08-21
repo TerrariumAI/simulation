@@ -22,6 +22,7 @@ const (
 	maxPositionCharLength   = 9 // Maximum length a position can be ("10" = 2, "100" = 3, etc.)
 	maxPosition             = 999
 	defaultEntityVisionDist = 5
+	defaultEntitySmellDist  = 2
 
 	regionSize = 10
 )
@@ -34,6 +35,7 @@ type Datacom struct {
 	env string
 	// entity vision distance
 	EntityVisionDist int32
+	EntitySmellDist  int32
 	// firebase client
 	firebaseApp *firebase.App
 	// redis client
@@ -70,6 +72,7 @@ func NewDatacom(env string, redisAddr string, pubsub PubsubAccessLayer) (*Dataco
 		env:              env,
 		pubsub:           pubsub,
 		EntityVisionDist: defaultEntityVisionDist,
+		EntitySmellDist:  defaultEntitySmellDist,
 	}
 
 	// Setup Firebase

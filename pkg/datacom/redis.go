@@ -251,11 +251,6 @@ func (dc *Datacom) GetEntitiesForModel(modelID string) ([]envApi.Entity, error) 
 
 // GetObservationForEntity returns observations for a specific entity
 func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi.Observation, error) {
-	content, err := serializeEntity(entity)
-	if err != nil {
-		log.Printf("ERROR: %v\n", err)
-		return nil, err
-	}
 	index, err := posToRedisIndex(entity.X, entity.Y)
 	if err != nil {
 		log.Printf("ERROR: %v\n", err)
@@ -268,40 +263,30 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 		Health:  entity.Health,
 		IsAlive: true,
 	}
-	xMin := int32(entity.X) - dc.EntityVisionDist
-	xMax := int32(entity.X) + dc.EntityVisionDist
-	yMin := int32(entity.Y) - dc.EntityVisionDist
-	yMax := int32(entity.Y) + dc.EntityVisionDist
-	// Make sure we are only querying valid positions
-	if xMin < minPosition {
-		xMin = minPosition
-	}
-	if yMin < minPosition {
-		yMin = minPosition
-	}
-	if xMax > maxPosition {
-		xMax = maxPosition
-	}
-	if yMax > maxPosition {
-		yMax = maxPosition
-	}
+
 	// Query for entities near this position
 	// Note: we handle grabbing specific entities below, can ignore extras
-	closeEntitiesContent, err := dc.spacequery("entities", uint32(xMin), uint32(yMin), uint32(xMax), uint32(yMax))
+	x0, y0, x1, y1 := calcSpaceAroundPoint(int32(entity.X), int32(entity.Y), dc.EntityVisionDist)
+	closeEntities, err := dc.GetEntitiesInSpace(uint32(x0), uint32(y0), uint32(x1), uint32(y1))
 	if err != nil {
 		log.Printf("ERROR: %v\n", err)
 		return nil, err
 	}
+	// Query for effects near this position
+	// Note: we handle grabbing specific entities below, can ignore extras
+	x0, y0, x1, y1 = calcSpaceAroundPoint(int32(entity.X), int32(entity.Y), dc.EntityVisionDist)
+	closeEffects, err := dc.GetEffectsInSpace(uint32(x0), uint32(y0), uint32(x1), uint32(y1))
+	if err != nil {
+		log.Printf("ERROR: %v\n", err)
+		return nil, err
+	}
+
 	// Add all the other entities to the indexEntityMap
 	// Match them up with the correct positions
 	indexEntityMap := make(map[string]envApi.Entity)
-	for _, otherContent := range closeEntitiesContent {
-		// Don't count the same entity
-		if content == otherContent {
-			continue
-		}
-		otherEntity, index := parseEntityContent(otherContent)
-		indexEntityMap[index] = otherEntity
+	for _, otherEntity := range closeEntities {
+		index, _ := posToRedisIndex(otherEntity.X, otherEntity.Y)
+		indexEntityMap[index] = *otherEntity
 	}
 	var x int32
 	var y int32
@@ -325,6 +310,35 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 				obsv.Sight = append(obsv.Sight, &collectiveApi.Entity{Id: otherEntity.Id, ClassID: otherEntity.ClassID})
 			} else {
 				obsv.Sight = append(obsv.Sight, &collectiveApi.Entity{Id: "", ClassID: 0})
+			}
+		}
+	}
+
+	// Add all the other entities to the indexEntityMap
+	// Match them up with the correct positions
+	indexEffectMap := make(map[string]envApi.Effect)
+	for _, effect := range closeEffects {
+		index, _ := posToRedisIndex(effect.X, effect.Y)
+		indexEffectMap[index] = *effect
+	}
+	for y = int32(entity.Y) + dc.EntitySmellDist; y >= int32(entity.Y)-dc.EntitySmellDist; y-- {
+		for x = int32(entity.X) - dc.EntitySmellDist; x <= int32(entity.X)+dc.EntitySmellDist; x++ {
+			println("asdfasdf", x, y)
+			// If position is invalid, set it to untraversable entity (rock)
+			if x < minPosition || x > maxPosition || y < minPosition || y > maxPosition {
+				obsv.Smell = append(obsv.Smell, &collectiveApi.Effect{ClassID: collectiveApi.Effect_Class(0)})
+				continue
+			}
+			// Attempt to get redis index from position
+			otherIndex, err := posToRedisIndex(uint32(x), uint32(y))
+			if err != nil { // If it errors here, something went wrong with logic above
+				return nil, err
+			}
+			if effect, ok := indexEffectMap[otherIndex]; ok {
+				strength := uint32(100 / math.Pow(float64(effect.Decay), float64(time.Now().Unix()-effect.Timestamp)))
+				obsv.Smell = append(obsv.Smell, &collectiveApi.Effect{ClassID: collectiveApi.Effect_Class(effect.ClassID), Value: effect.Value, Strength: strength})
+			} else {
+				obsv.Smell = append(obsv.Smell, &collectiveApi.Effect{ClassID: collectiveApi.Effect_Class(0)})
 			}
 		}
 	}
@@ -359,6 +373,9 @@ func (dc *Datacom) GetEntitiesInSpace(x0 uint32, y0 uint32, x1 uint32, y1 uint32
 
 // CreateEffect sets an effect at a specific index (position)
 func (dc *Datacom) CreateEffect(effect envApi.Effect) error {
+	if effect.Timestamp == 0 {
+		effect.Timestamp = time.Now().Unix()
+	}
 	content, err := serializeEffect(effect)
 	fmt.Println(content)
 	if err != nil {
