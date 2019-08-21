@@ -74,6 +74,16 @@ compile-proto-js:
 	./third_party/protoc-gen-js.sh
 
 ## ----------------------
+## ------ Mocks
+## ----------------------
+
+gen-env-mock:
+	mockery -dir=./pkg/environment -output=./pkg/environment/mocks -name=DataAccessLayer
+gen-datacom-mock:
+	mockery -dir=./pkg/datacom -output=./pkg/datacom/mocks -name=PubsubAccessLayer
+gen-mocks: gen-env-mock gen-datacom-mock
+
+## ----------------------
 ## ------ DOCKER 
 ## ----------------------
 

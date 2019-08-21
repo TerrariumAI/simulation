@@ -8,7 +8,7 @@ import (
 	firebase "firebase.google.com/go"
 
 	"github.com/go-redis/redis"
-	envApi "github.com/terrariumai/simulation/pkg/api/environment"
+	"github.com/golang/protobuf/proto"
 	"google.golang.org/api/option"
 )
 
@@ -22,9 +22,9 @@ const (
 	maxPositionCharLength   = 9 // Maximum length a position can be ("10" = 2, "100" = 3, etc.)
 	maxPosition             = 999
 	defaultEntityVisionDist = 5
+	defaultEntitySmellDist  = 2
 
-	regionSize            = 10
-	cellsInRegion float64 = 10
+	regionSize = 10
 )
 
 // Datacom is an object that makes it easy to communicate with our
@@ -35,6 +35,7 @@ type Datacom struct {
 	env string
 	// entity vision distance
 	EntityVisionDist int32
+	EntitySmellDist  int32
 	// firebase client
 	firebaseApp *firebase.App
 	// redis client
@@ -60,7 +61,7 @@ type RemoteModel struct {
 // PubsubAccessLayer generic interface for pubsub services.
 type PubsubAccessLayer interface {
 	PublishMessage(channel string, message interface{}) error
-	QueuePublishEvent(eventName string, entity envApi.Entity) error
+	QueuePublishEvent(eventName string, entity proto.Message, x uint32, y uint32) error
 	BatchPublish()
 }
 
@@ -71,6 +72,7 @@ func NewDatacom(env string, redisAddr string, pubsub PubsubAccessLayer) (*Dataco
 		env:              env,
 		pubsub:           pubsub,
 		EntityVisionDist: defaultEntityVisionDist,
+		EntitySmellDist:  defaultEntitySmellDist,
 	}
 
 	// Setup Firebase

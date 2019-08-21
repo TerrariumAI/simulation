@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"strconv"
 	"sync"
+	"time"
 
 	"google.golang.org/grpc/metadata"
 
@@ -24,6 +26,7 @@ import (
 const (
 	maxPosition            = 999
 	minPosition            = 0
+	regionSize             = 10
 	maxUserCreatedEntities = 5
 
 	agentLivingEnergyCost = 1
@@ -57,12 +60,14 @@ type DataAccessLayer interface {
 	// Redis
 	IsCellOccupied(x uint32, y uint32) (bool, *envApi.Entity, string, error)
 	CreateEntity(e envApi.Entity, shouldPublish bool) error
+	CreateEffect(envApi.Effect) error
 	DeleteEntity(id string) (int64, error)
 	UpdateEntity(origionalContent string, e envApi.Entity) error
 	GetEntity(id string) (*envApi.Entity, string, error)
 	GetEntitiesForModel(modelID string) ([]envApi.Entity, error)
 	GetObservationForEntity(entity envApi.Entity) (*collectiveApi.Observation, error)
-	GetEntitiesInRegion(x uint32, y uint32) ([]*envApi.Entity, error)
+	GetEntitiesInSpace(x0 uint32, y0 uint32, x1 uint32, y1 uint32) ([]*envApi.Entity, error)
+	GetEffectsInSpace(x0 uint32, y0 uint32, x1 uint32, y1 uint32) ([]*envApi.Effect, error)
 	// Firebase
 	GetRemoteModelMetadataBySecret(modelSecret string) (*datacom.RemoteModel, error)
 	GetRemoteModelMetadataByID(modelID string) (*datacom.RemoteModel, error)
@@ -297,8 +302,6 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 				IsAlive:       true,
 			}, nil
 		}
-		entity.X = targetX
-		entity.Y = targetY
 		// Adjust energy
 		if entity.Energy >= agentMoveEnergyCost {
 			entity.Energy -= agentMoveEnergyCost
@@ -315,6 +318,37 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 				}, nil
 			}
 		}
+
+		// Calculate scent
+		// TODO: This is temporary and should probably be replaced with a generated number
+		// on model creation
+		scentString := ""
+		added := 0 // limit on how many numbers to add
+		for i := 0; i < len(entity.ModelID); i++ {
+			if added == 5 {
+				break
+			}
+			i, err := strconv.ParseInt("0x"+string(entity.ModelID[i]), 0, 32)
+			if err == nil {
+				scentString += strconv.Itoa(int(i))
+				added++
+			}
+		}
+		scentNum, _ := strconv.ParseInt(scentString, 0, 32)
+
+		// Create pheromone effect
+		s.datacomDAL.CreateEffect(envApi.Effect{
+			X:         entity.X,
+			Y:         entity.Y,
+			ClassID:   envApi.Effect_Class(1),
+			Value:     uint32(scentNum),
+			Decay:     1.2,
+			DelThresh: 5,
+			Timestamp: time.Now().Unix(),
+		})
+		// Finally, adjust the position
+		entity.X = targetX
+		entity.Y = targetY
 	case 2: // EAT
 		// Check if cell is occupied
 		isCellOccupied, other, _, err := s.datacomDAL.IsCellOccupied(targetX, targetY)
@@ -487,7 +521,12 @@ func (s *environmentServer) GetEntitiesInRegion(ctx context.Context, req *envApi
 	defer s.m.Unlock()
 	entities := []*envApi.Entity{}
 
-	entities, err := s.datacomDAL.GetEntitiesInRegion(req.X, req.Y)
+	x0 := req.X * regionSize
+	y0 := req.Y * regionSize
+	x1 := x0 + regionSize - 1
+	y1 := y0 + regionSize - 1
+
+	entities, err := s.datacomDAL.GetEntitiesInSpace(x0, y0, x1, y1)
 	if err != nil {
 		log.Printf("ERROR: %v", err)
 		return nil, err
@@ -495,5 +534,27 @@ func (s *environmentServer) GetEntitiesInRegion(ctx context.Context, req *envApi
 
 	return &envApi.GetEntitiesInRegionResponse{
 		Entities: entities,
+	}, nil
+}
+
+func (s *environmentServer) GetEffectsInRegion(ctx context.Context, req *envApi.GetEffectsInRegionRequest) (*envApi.GetEffectsInRegionResponse, error) {
+	// Lock the data, defer unlock until end of call
+	s.m.Lock()
+	defer s.m.Unlock()
+	effects := []*envApi.Effect{}
+
+	x0 := req.X * regionSize
+	y0 := req.Y * regionSize
+	x1 := x0 + regionSize - 1
+	y1 := y0 + regionSize - 1
+
+	effects, err := s.datacomDAL.GetEffectsInSpace(x0, y0, x1, y1)
+	if err != nil {
+		log.Printf("ERROR: %v", err)
+		return nil, err
+	}
+
+	return &envApi.GetEffectsInRegionResponse{
+		Effects: effects,
 	}, nil
 }

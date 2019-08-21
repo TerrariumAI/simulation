@@ -2,9 +2,13 @@ package datacom_test
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/alicebob/miniredis"
@@ -15,6 +19,17 @@ import (
 	"github.com/terrariumai/simulation/pkg/datacom"
 	"github.com/terrariumai/simulation/pkg/datacom/mocks"
 )
+
+type mockFuncCall struct {
+	name string
+	args []interface{}
+	resp []interface{}
+}
+
+type numOfCallsAssertion struct {
+	name string
+	num  int
+}
 
 func setup() *miniredis.Miniredis {
 	// Redis Setup
@@ -51,6 +66,24 @@ func TestCreateEntity(t *testing.T) {
 			name: "Test succesful creation",
 			args: args{
 				entity: envApi.Entity{
+					X:        123,
+					Y:        456,
+					OwnerUID: "MOCK-UID",
+					ModelID:  "MOCK-MODEL-ID",
+					Energy:   100,
+					Health:   100,
+					Id:       "1",
+					ClassID:  1,
+				},
+				shouldPublish: true,
+			},
+			expectedPublishCount: 1,
+			expected:             "010111101011001010:123:456:1:MOCK-UID:MOCK-MODEL-ID:100:100:1",
+		},
+		{
+			name: "Test invalid position error",
+			args: args{
+				entity: envApi.Entity{
 					X:        512,
 					Y:        456,
 					OwnerUID: "MOCK-UID",
@@ -82,23 +115,6 @@ func TestCreateEntity(t *testing.T) {
 			},
 			expected: "010111101011001010:123:456:1:MOCK-UID:MOCK-MODEL-ID:100:100:1",
 		},
-		{
-			name: "Test no publish",
-			args: args{
-				entity: envApi.Entity{
-					X:        123,
-					Y:        456,
-					OwnerUID: "MOCK-UID",
-					ModelID:  "MOCK-MODEL-ID",
-					Energy:   100,
-					Health:   100,
-					Id:       "2",
-					ClassID:  1,
-				},
-				shouldPublish: false,
-			},
-			expected: "010111101011001010:123:456:1:MOCK-UID:MOCK-MODEL-ID:100:100:2",
-		},
 	}
 
 	for _, tt := range tests {
@@ -107,7 +123,7 @@ func TestCreateEntity(t *testing.T) {
 			redisServer.FlushDB()
 			mockPAL := &mocks.PubsubAccessLayer{}
 			dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
-			mockPAL.On("QueuePublishEvent", "createEntity", tt.args.entity).Return(nil)
+			mockPAL.On("QueuePublishEvent", "createEntity", &tt.args.entity, tt.args.entity.X, tt.args.entity.Y).Return(nil)
 
 			err := dc.CreateEntity(tt.args.entity, tt.args.shouldPublish)
 			if err != nil && tt.expectErr != nil {
@@ -130,10 +146,15 @@ func TestCreateEntity(t *testing.T) {
 
 			// Check publish calls
 			mockPAL.AssertNumberOfCalls(t, "QueuePublishEvent", tt.expectedPublishCount)
+			keys, cursor := redisClient.ZScan("entities", 0, "*", 0).Val()
 
-			keys, cursor, err := redisClient.ZScan("entities", 0, "*", 0).Result()
+			keys, cursor, err = redisClient.ZScan("entities", 0, "*", 0).Result()
+			if err != nil {
+				t.Errorf("error in scan: %v", err)
+			}
 			if len(keys) != 2 {
-				t.Errorf("expected keys to be larger than 0, got: %v", len(keys))
+				t.Errorf("expected length of keys to be == 2, got: %v", len(keys))
+				return
 			}
 
 			if keys[cursor] != tt.expected {
@@ -151,7 +172,7 @@ func TestIsCellOccupied(t *testing.T) {
 	defer teardown(redisServer)
 	// Setup pubsub mock
 	mockPAL := &mocks.PubsubAccessLayer{}
-	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("*endpoints_terrariumai_environment.Entity"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")).Return(nil)
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 	e := envApi.Entity{
 		X: 0, Y: 0, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
@@ -230,7 +251,7 @@ func TestUpdateEntity(t *testing.T) {
 	defer teardown(redisServer)
 	// Setup pubsub mock
 	mockPAL := &mocks.PubsubAccessLayer{}
-	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("*endpoints_terrariumai_environment.Entity"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")).Return(nil)
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 
 	dc.CreateEntity(envApi.Entity{
@@ -269,7 +290,7 @@ func TestUpdateEntity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup mock for publish
-			mockPAL.On("QueuePublishEvent", "updateEntity", tt.args.entity).Return(nil)
+			mockPAL.On("QueuePublishEvent", "updateEntity", &tt.args.entity, mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")).Return(nil)
 
 			// Make sure the entity data is there
 			redisClient := redis.NewClient(&redis.Options{
@@ -306,7 +327,7 @@ func TestGetEntity(t *testing.T) {
 	defer teardown(redisServer)
 	// Setup pubsub mock
 	mockPAL := &mocks.PubsubAccessLayer{}
-	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("*endpoints_terrariumai_environment.Entity"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")).Return(nil)
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 
 	dc.CreateEntity(envApi.Entity{
@@ -378,9 +399,9 @@ func TestDeleteEntity(t *testing.T) {
 		X: 0, Y: 0, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
 	}
 
-	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("*endpoints_terrariumai_environment.Entity"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")).Return(nil)
 	dc.CreateEntity(e, true)
-	mockPAL.On("QueuePublishEvent", "deleteEntity", mock.AnythingOfType("Entity")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "deleteEntity", mock.AnythingOfType("*endpoints_terrariumai_environment.Entity"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")).Return(nil)
 
 	got, _, err := dc.GetEntity(e.Id)
 	if !reflect.DeepEqual(*got, e) {
@@ -419,7 +440,7 @@ func TestGetEntitiesForModel(t *testing.T) {
 	defer teardown(redisServer)
 	// Setup pubsub mock
 	mockPAL := &mocks.PubsubAccessLayer{}
-	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("*endpoints_terrariumai_environment.Entity"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")).Return(nil)
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 
 	dc.CreateEntity(envApi.Entity{
@@ -492,7 +513,9 @@ func TestGetObservationsForEntity(t *testing.T) {
 	defer teardown(redisServer)
 	// Setup pubsub mock
 	mockPAL := &mocks.PubsubAccessLayer{}
-	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("Entity")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("*endpoints_terrariumai_environment.Entity"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")).Return(nil)
+	mockPAL.On("QueuePublishEvent", "createEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")).Return(nil)
+
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
 	dc.EntityVisionDist = 2
 
@@ -502,6 +525,12 @@ func TestGetObservationsForEntity(t *testing.T) {
 	dc.CreateEntity(envApi.Entity{
 		X: 0, Y: 0, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID-2", Health: 100, Energy: 100, Id: "2",
 	}, true)
+	dc.CreateEffect(envApi.Effect{
+		X: 0, Y: 0, ClassID: 1,
+	})
+	dc.CreateEffect(envApi.Effect{
+		X: 1, Y: 1, ClassID: 1,
+	})
 
 	type args struct {
 		modelID string
@@ -522,12 +551,19 @@ func TestGetObservationsForEntity(t *testing.T) {
 				IsAlive: true,
 				Energy:  100,
 				Health:  100,
-				Cells: []*collectiveApi.Entity{
+				Sight: []*collectiveApi.Entity{
 					&collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 0}, &collectiveApi.Entity{ClassID: 0}, &collectiveApi.Entity{ClassID: 0},
 					&collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 0}, &collectiveApi.Entity{Id: "0", ClassID: 1}, &collectiveApi.Entity{ClassID: 0},
 					&collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 0}, &collectiveApi.Entity{ClassID: 0},
 					&collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2},
 					&collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2}, &collectiveApi.Entity{ClassID: 2},
+				},
+				Smell: []*collectiveApi.Effect{
+					&collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0},
+					&collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 1, Strength: 100}, &collectiveApi.Effect{ClassID: 0},
+					&collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 1, Strength: 100}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0},
+					&collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0},
+					&collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0}, &collectiveApi.Effect{ClassID: 0},
 				},
 			},
 			false,
@@ -554,7 +590,7 @@ func TestGetObservationsForEntity(t *testing.T) {
 				return
 			}
 
-			assert.Equal(t, 24, len(got.Cells), "Number of cells should be dist*dist-1")
+			assert.Equal(t, 24, len(got.Sight), "Number of cells should be dist*dist-1")
 
 			if !reflect.DeepEqual(got, tt.expected) {
 				t.Errorf("got %v, expected %v", got, tt.expected)
@@ -563,10 +599,402 @@ func TestGetObservationsForEntity(t *testing.T) {
 	}
 }
 
+func TestCreateEffect(t *testing.T) {
+	redisServer := setup()
+	defer teardown(redisServer)
+
+	type args struct {
+		effect envApi.Effect
+	}
+
+	tests := []struct {
+		name             string
+		args             args
+		PALMockFuncCalls []mockFuncCall
+		want             int
+		wantErr          error
+	}{
+		{
+			name: "Succesful add effect",
+			args: args{
+				effect: envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
+			},
+			PALMockFuncCalls: []mockFuncCall{
+				{ // Get the metadata for the RM
+					name: "QueuePublishEvent",
+					args: []interface{}{"createEffect", &envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1}, uint32(1), uint32(1)},
+					resp: []interface{}{nil},
+				},
+			},
+			want: 2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup pubsub mock
+			mockPAL := &mocks.PubsubAccessLayer{}
+			dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
+
+			// Setup mock
+			for _, mockFuncCall := range tt.PALMockFuncCalls {
+				mockPAL.On(mockFuncCall.name, mockFuncCall.args...).Return(mockFuncCall.resp...)
+			}
+			// Call function
+			err := dc.CreateEffect(tt.args.effect)
+			// Check results
+			if err != nil {
+				if tt.wantErr == nil {
+					t.Errorf("error: %v, wantErr: %v", err, tt.wantErr)
+					return
+				}
+				if err.Error() != tt.wantErr.Error() {
+					t.Errorf("error message: '%v', want error message: '%v'", err, tt.wantErr.Error())
+					return
+				}
+			}
+			// Query to check that it exists in DB
+			redisClient := redis.NewClient(&redis.Options{
+				Addr:     redisServer.Addr(),
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			})
+			keys, cursor := redisClient.ZScan("effects", 0, "*", 0).Val()
+			if len(keys) != tt.want {
+				t.Errorf("got %v, want %v", len(keys), tt.want)
+			}
+
+			effect := envApi.Effect{}
+			values := strings.Split(keys[cursor], "-")
+			content := strings.ReplaceAll(values[1], "%n", "\n")
+			proto.UnmarshalText(content, &effect)
+			fmt.Println(content)
+
+			if !reflect.DeepEqual(effect, tt.args.effect) {
+				t.Errorf("got %v, expected %v", effect, tt.args.effect)
+			}
+		})
+	}
+}
+
+func TestGetEffectsInSpace(t *testing.T) {
+	redisServer := setup()
+	defer teardown(redisServer)
+
+	type args struct {
+		x0 uint32
+		y0 uint32
+		x1 uint32
+		y1 uint32
+	}
+
+	tests := []struct {
+		name             string
+		preCallEffects   []envApi.Effect
+		args             args
+		PALMockFuncCalls []mockFuncCall
+		want             []*envApi.Effect
+		wantErr          error
+	}{
+		{
+			name: "Get single effect in region 0.0",
+			preCallEffects: []envApi.Effect{
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
+			},
+			args: args{
+				x0: 0,
+				y0: 0,
+				x1: 9,
+				y1: 9,
+			},
+			PALMockFuncCalls: []mockFuncCall{
+				{ // Get the metadata for the RM
+					name: "QueuePublishEvent",
+					args: []interface{}{"createEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					resp: []interface{}{nil},
+				},
+			},
+			want: []*envApi.Effect{
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
+			},
+		},
+		{
+			name: "Get single effect in region 0.0 with effects just outside region",
+			preCallEffects: []envApi.Effect{
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
+				envApi.Effect{X: 10, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
+				envApi.Effect{X: 1, Y: 10, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
+			},
+			args: args{
+				x0: 0,
+				y0: 0,
+				x1: 9,
+				y1: 9,
+			},
+			PALMockFuncCalls: []mockFuncCall{
+				{ // Get the metadata for the RM
+					name: "QueuePublishEvent",
+					args: []interface{}{"createEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					resp: []interface{}{nil},
+				},
+			},
+			want: []*envApi.Effect{
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
+			},
+		},
+		{
+			name: "Get multiple effects, diff pos, same region",
+			preCallEffects: []envApi.Effect{
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
+				envApi.Effect{X: 1, Y: 2, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
+			},
+			args: args{
+				x0: 0,
+				y0: 0,
+				x1: 9,
+				y1: 9,
+			},
+			PALMockFuncCalls: []mockFuncCall{
+				{ // Get the metadata for the RM
+					name: "QueuePublishEvent",
+					args: []interface{}{"createEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					resp: []interface{}{nil},
+				},
+			},
+			want: []*envApi.Effect{
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
+				&envApi.Effect{X: 1, Y: 2, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
+			},
+		},
+		{
+			name: "Get multiple effects, same pos, same region",
+			preCallEffects: []envApi.Effect{
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 2},
+			},
+			args: args{
+				x0: 0,
+				y0: 0,
+				x1: 9,
+				y1: 9,
+			},
+			PALMockFuncCalls: []mockFuncCall{
+				{ // Get the metadata for the RM
+					name: "QueuePublishEvent",
+					args: []interface{}{"createEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					resp: []interface{}{nil},
+				},
+			},
+			want: []*envApi.Effect{
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 2},
+			},
+		},
+		{
+			name: "Created a second ago gives lowered energy",
+			preCallEffects: []envApi.Effect{
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix() - 1, ClassID: envApi.Effect_Class(1), Decay: 1.1, Value: 1},
+			},
+			args: args{
+				x0: 0,
+				y0: 0,
+				x1: 9,
+				y1: 9,
+			},
+			PALMockFuncCalls: []mockFuncCall{
+				{ // Get the metadata for the RM
+					name: "QueuePublishEvent",
+					args: []interface{}{"createEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					resp: []interface{}{nil},
+				},
+			},
+			want: []*envApi.Effect{
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix() - 1, ClassID: envApi.Effect_Class(1), Decay: 1.1, Value: 1},
+			},
+		},
+		{
+			name: "Effect that is too old gets removed",
+			preCallEffects: []envApi.Effect{
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix() - 9, ClassID: envApi.Effect_Class(1), Decay: 1.5, DelThresh: 2, Value: 1},
+			},
+			args: args{
+				x0: 0,
+				y0: 0,
+				x1: 9,
+				y1: 9,
+			},
+			PALMockFuncCalls: []mockFuncCall{
+				{ // Get the metadata for the RM
+					name: "QueuePublishEvent",
+					args: []interface{}{"createEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					resp: []interface{}{nil},
+				},
+				{ // Get the metadata for the RM
+					name: "QueuePublishEvent",
+					args: []interface{}{"deleteEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					resp: []interface{}{nil},
+				},
+			},
+			want: []*envApi.Effect{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup pubsub mock
+			mockPAL := &mocks.PubsubAccessLayer{}
+			dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
+
+			// Setup mock
+			for _, mockFuncCall := range tt.PALMockFuncCalls {
+				mockPAL.On(mockFuncCall.name, mockFuncCall.args...).Return(mockFuncCall.resp...)
+			}
+			// Setup effects
+			for _, effect := range tt.preCallEffects {
+				dc.CreateEffect(effect)
+			}
+
+			// Call function
+			effects, err := dc.GetEffectsInSpace(tt.args.x0, tt.args.y0, tt.args.x1, tt.args.y1)
+			// Check results
+			if err != nil {
+				if tt.wantErr == nil {
+					t.Errorf("error: %v, wantErr: %v", err, tt.wantErr)
+					return
+				}
+				if err.Error() != tt.wantErr.Error() {
+					t.Errorf("error message: '%v', want error message: '%v'", err, tt.wantErr.Error())
+					return
+				}
+			}
+
+			if !reflect.DeepEqual(effects, tt.want) {
+				t.Errorf("got %v, expected %v", effects, tt.want)
+			}
+
+			// Clear db
+			redisClient := redis.NewClient(&redis.Options{
+				Addr:     redisServer.Addr(),
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			})
+			redisClient.FlushDB()
+		})
+	}
+}
+
+func TestDeleteEffect(t *testing.T) {
+	redisServer := setup()
+	defer teardown(redisServer)
+
+	type args struct {
+		effect envApi.Effect
+	}
+
+	tests := []struct {
+		name             string
+		preCallEffects   []envApi.Effect
+		args             args
+		PALMockFuncCalls []mockFuncCall
+		want             []*envApi.Effect
+		wantErr          error
+	}{
+		{
+			name: "Delete single effect",
+			preCallEffects: []envApi.Effect{
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
+			},
+			args: args{
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
+			},
+			PALMockFuncCalls: []mockFuncCall{
+				{ // Get the metadata for the RM
+					name: "QueuePublishEvent",
+					args: []interface{}{"createEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					resp: []interface{}{nil},
+				},
+				{ // Get the metadata for the RM
+					name: "QueuePublishEvent",
+					args: []interface{}{"deleteEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					resp: []interface{}{nil},
+				},
+			},
+			want: []*envApi.Effect{},
+		},
+		{
+			name: "Multiple effects in same position (same index), delete only removes 1",
+			preCallEffects: []envApi.Effect{
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 2},
+			},
+			args: args{
+				envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 1},
+			},
+			PALMockFuncCalls: []mockFuncCall{
+				{ // Get the metadata for the RM
+					name: "QueuePublishEvent",
+					args: []interface{}{"createEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					resp: []interface{}{nil},
+				},
+				{ // Get the metadata for the RM
+					name: "QueuePublishEvent",
+					args: []interface{}{"deleteEffect", mock.AnythingOfType("*endpoints_terrariumai_environment.Effect"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					resp: []interface{}{nil},
+				},
+			},
+			want: []*envApi.Effect{
+				&envApi.Effect{X: 1, Y: 1, Timestamp: time.Now().Unix(), ClassID: envApi.Effect_Class(1), Value: 2},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup pubsub mock
+			mockPAL := &mocks.PubsubAccessLayer{}
+			dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
+
+			// Setup mock
+			for _, mockFuncCall := range tt.PALMockFuncCalls {
+				mockPAL.On(mockFuncCall.name, mockFuncCall.args...).Return(mockFuncCall.resp...)
+			}
+			// Setup effects
+			for _, effect := range tt.preCallEffects {
+				dc.CreateEffect(effect)
+			}
+
+			// Call function
+			_, err := dc.DeleteEffect(tt.args.effect)
+			// Check results
+			if err != nil {
+				if tt.wantErr == nil {
+					t.Errorf("error: %v, wantErr: %v", err, tt.wantErr)
+					return
+				}
+				if err.Error() != tt.wantErr.Error() {
+					t.Errorf("error message: '%v', want error message: '%v'", err, tt.wantErr.Error())
+					return
+				}
+			}
+
+			// Check
+			effects, _ := dc.GetEffectsInSpace(0, 0, 9, 9)
+
+			if !reflect.DeepEqual(effects, tt.want) {
+				t.Errorf("got %v, expected %v", effects, tt.want)
+			}
+
+			// Clear db
+			redisClient := redis.NewClient(&redis.Options{
+				Addr:     redisServer.Addr(),
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			})
+			redisClient.FlushDB()
+		})
+	}
+}
 func TestPubnubPAL(t *testing.T) {
 	p := datacom.NewPubnubPAL("testing", "sub-c-b4ba4e28-a647-11e9-ad2c-6ad2737329fc", "pub-c-83ed11c2-81e1-4d7f-8e94-0abff2b85825")
-	p.QueuePublishEvent("updateEntity", envApi.Entity{Id: "test-id", Y: 0})
-	p.QueuePublishEvent("updateEntity", envApi.Entity{Id: "test-id-2", X: 5, Y: 0})
+	p.QueuePublishEvent("updateEntity", &envApi.Entity{Id: "test-id", Y: 0}, 0, 0)
+	p.QueuePublishEvent("updateEntity", &envApi.Entity{Id: "test-id-2", X: 5, Y: 0}, 5, 0)
 	t.Log("Queued publish message, batching...")
 	p.BatchPublish()
 }

@@ -13,6 +13,20 @@ type DataAccessLayer struct {
 	mock.Mock
 }
 
+// CreateEffect provides a mock function with given fields: _a0
+func (_m *DataAccessLayer) CreateEffect(_a0 endpoints_terrariumai_environment.Effect) error {
+	ret := _m.Called(_a0)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(endpoints_terrariumai_environment.Effect) error); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // CreateEntity provides a mock function with given fields: e, shouldPublish
 func (_m *DataAccessLayer) CreateEntity(e endpoints_terrariumai_environment.Entity, shouldPublish bool) error {
 	ret := _m.Called(e, shouldPublish)
@@ -48,6 +62,29 @@ func (_m *DataAccessLayer) DeleteEntity(id string) (int64, error) {
 	return r0, r1
 }
 
+// GetEffectsInSpace provides a mock function with given fields: x0, y0, x1, y1
+func (_m *DataAccessLayer) GetEffectsInSpace(x0 uint32, y0 uint32, x1 uint32, y1 uint32) ([]*endpoints_terrariumai_environment.Effect, error) {
+	ret := _m.Called(x0, y0, x1, y1)
+
+	var r0 []*endpoints_terrariumai_environment.Effect
+	if rf, ok := ret.Get(0).(func(uint32, uint32, uint32, uint32) []*endpoints_terrariumai_environment.Effect); ok {
+		r0 = rf(x0, y0, x1, y1)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*endpoints_terrariumai_environment.Effect)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(uint32, uint32, uint32, uint32) error); ok {
+		r1 = rf(x0, y0, x1, y1)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetEntitiesForModel provides a mock function with given fields: modelID
 func (_m *DataAccessLayer) GetEntitiesForModel(modelID string) ([]endpoints_terrariumai_environment.Entity, error) {
 	ret := _m.Called(modelID)
@@ -71,13 +108,13 @@ func (_m *DataAccessLayer) GetEntitiesForModel(modelID string) ([]endpoints_terr
 	return r0, r1
 }
 
-// GetEntitiesInRegion provides a mock function with given fields: x, y
-func (_m *DataAccessLayer) GetEntitiesInRegion(x uint32, y uint32) ([]*endpoints_terrariumai_environment.Entity, error) {
-	ret := _m.Called(x, y)
+// GetEntitiesInSpace provides a mock function with given fields: x0, y0, x1, y1
+func (_m *DataAccessLayer) GetEntitiesInSpace(x0 uint32, y0 uint32, x1 uint32, y1 uint32) ([]*endpoints_terrariumai_environment.Entity, error) {
+	ret := _m.Called(x0, y0, x1, y1)
 
 	var r0 []*endpoints_terrariumai_environment.Entity
-	if rf, ok := ret.Get(0).(func(uint32, uint32) []*endpoints_terrariumai_environment.Entity); ok {
-		r0 = rf(x, y)
+	if rf, ok := ret.Get(0).(func(uint32, uint32, uint32, uint32) []*endpoints_terrariumai_environment.Entity); ok {
+		r0 = rf(x0, y0, x1, y1)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*endpoints_terrariumai_environment.Entity)
@@ -85,8 +122,8 @@ func (_m *DataAccessLayer) GetEntitiesInRegion(x uint32, y uint32) ([]*endpoints
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(uint32, uint32) error); ok {
-		r1 = rf(x, y)
+	if rf, ok := ret.Get(1).(func(uint32, uint32, uint32, uint32) error); ok {
+		r1 = rf(x0, y0, x1, y1)
 	} else {
 		r1 = ret.Error(1)
 	}

@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	pubnub "github.com/pubnub/go"
-	envApi "github.com/terrariumai/simulation/pkg/api/environment"
 )
 
 const (
@@ -50,15 +50,15 @@ func NewPubnubPAL(env string, subkey string, pubkey string) PubsubAccessLayer {
 	return &p
 }
 
-// PublishEvent queues an event to be published as a batch later in Publisher
-func (p *PubnubPAL) QueuePublishEvent(eventName string, entity envApi.Entity) error {
+// QueuePublishEvent queues an event to be published as a batch later in Publisher
+func (p *PubnubPAL) QueuePublishEvent(eventName string, protoMsg proto.Message, x uint32, y uint32) error {
 	// Do nothing if we are training
 	if p.env == "training" {
 		return nil
 	}
 
 	// marshal
-	b, err := json.Marshal(entity)
+	b, err := json.Marshal(protoMsg)
 	if err != nil {
 		log.Printf("PublishEvent(): error: %v\n", err)
 		return err
@@ -69,8 +69,8 @@ func (p *PubnubPAL) QueuePublishEvent(eventName string, entity envApi.Entity) er
 		"entityData": string(b),
 	}
 
-	x, y := getRegionForPos(entity.X, entity.Y)
-	channel := fmt.Sprintf("%v.%v", x, y)
+	regionX, regionY := getRegionForPos(x, y)
+	channel := fmt.Sprintf("%v.%v", regionX, regionY)
 
 	p.pubChan <- pubMsg{
 		channel,
