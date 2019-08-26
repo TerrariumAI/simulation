@@ -96,7 +96,7 @@ func (dc *Datacom) IsCellOccupied(x uint32, y uint32) (bool, *envApi.Entity, str
 
 	// Now we can assume positions are correct sizes
 	// (would have thrown an error above if not)
-	keys, _, err := dc.redisClient.ZScan("entities", 0, index+":*", 0).Result()
+	keys, _, err := dc.redisClient.ZScan("entities", 0, index+"-*", 0).Result()
 	if len(keys) > 0 {
 		e, _ := parseEntityContent(keys[0])
 		return true, &e, keys[0], nil
@@ -307,7 +307,7 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 				continue
 			}
 			if otherEntity, ok := indexEntityMap[otherIndex]; ok {
-				obsv.Sight = append(obsv.Sight, &collectiveApi.Entity{Id: otherEntity.Id, ClassID: otherEntity.ClassID})
+				obsv.Sight = append(obsv.Sight, &collectiveApi.Entity{Id: otherEntity.Id, ClassID: collectiveApi.Entity_Class(otherEntity.ClassID)})
 			} else {
 				obsv.Sight = append(obsv.Sight, &collectiveApi.Entity{Id: "", ClassID: 0})
 			}

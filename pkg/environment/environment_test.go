@@ -539,8 +539,7 @@ func TestExecuteAgentAction(t *testing.T) {
 				},
 			},
 			want: &envApi.ExecuteAgentActionResponse{
-				WasSuccessful: true,
-				IsAlive:       true,
+				Value: envApi.ExecuteAgentActionResponse_OK,
 			},
 		},
 		{
@@ -566,8 +565,7 @@ func TestExecuteAgentAction(t *testing.T) {
 				},
 			},
 			want: &envApi.ExecuteAgentActionResponse{
-				WasSuccessful: false,
-				IsAlive:       true,
+				Value: envApi.ExecuteAgentActionResponse_ERR_INVALID_TARGET,
 			},
 		},
 		{
@@ -603,12 +601,11 @@ func TestExecuteAgentAction(t *testing.T) {
 				},
 			},
 			want: &envApi.ExecuteAgentActionResponse{
-				WasSuccessful: true,
-				IsAlive:       true,
+				Value: envApi.ExecuteAgentActionResponse_OK,
 			},
 		},
 		{
-			name: "moving with too little energy kills",
+			name: "moving with too little energy and health kills",
 			args: args{
 				ctx: ctx,
 				req: &envApi.ExecuteAgentActionRequest{
@@ -635,8 +632,7 @@ func TestExecuteAgentAction(t *testing.T) {
 				},
 			},
 			want: &envApi.ExecuteAgentActionResponse{
-				WasSuccessful: false,
-				IsAlive:       false,
+				Value: envApi.ExecuteAgentActionResponse_ERR_DIED,
 			},
 		},
 		{
@@ -677,8 +673,7 @@ func TestExecuteAgentAction(t *testing.T) {
 				},
 			},
 			want: &envApi.ExecuteAgentActionResponse{
-				WasSuccessful: true,
-				IsAlive:       true,
+				Value: envApi.ExecuteAgentActionResponse_OK,
 			},
 		},
 		{
@@ -704,8 +699,7 @@ func TestExecuteAgentAction(t *testing.T) {
 				},
 			},
 			want: &envApi.ExecuteAgentActionResponse{
-				WasSuccessful: false,
-				IsAlive:       true,
+				Value: envApi.ExecuteAgentActionResponse_ERR_INVALID_TARGET,
 			},
 		},
 		// // ATTACK
@@ -732,8 +726,7 @@ func TestExecuteAgentAction(t *testing.T) {
 				},
 			},
 			want: &envApi.ExecuteAgentActionResponse{
-				WasSuccessful: false,
-				IsAlive:       true,
+				Value: envApi.ExecuteAgentActionResponse_ERR_INVALID_TARGET,
 			},
 		},
 		{
@@ -759,8 +752,7 @@ func TestExecuteAgentAction(t *testing.T) {
 				},
 			},
 			want: &envApi.ExecuteAgentActionResponse{
-				WasSuccessful: false,
-				IsAlive:       true,
+				Value: envApi.ExecuteAgentActionResponse_ERR_INVALID_TARGET,
 			},
 		},
 		{
@@ -806,8 +798,7 @@ func TestExecuteAgentAction(t *testing.T) {
 				},
 			},
 			want: &envApi.ExecuteAgentActionResponse{
-				WasSuccessful: true,
-				IsAlive:       true,
+				Value: envApi.ExecuteAgentActionResponse_OK,
 			},
 		},
 		{
@@ -852,8 +843,7 @@ func TestExecuteAgentAction(t *testing.T) {
 				{"UpdateEntity", 1},
 			},
 			want: &envApi.ExecuteAgentActionResponse{
-				WasSuccessful: true,
-				IsAlive:       true,
+				Value: envApi.ExecuteAgentActionResponse_OK,
 			},
 		},
 	}

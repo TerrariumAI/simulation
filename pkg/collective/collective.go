@@ -170,8 +170,8 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 			for _, action := range actions {
 				req := envApi.ExecuteAgentActionRequest{
 					Id:        action.Id,
-					Action:    action.Action,
-					Direction: action.Direction,
+					Action:    envApi.ExecuteAgentActionRequest_Action(action.Action),
+					Direction: envApi.ExecuteAgentActionRequest_Direction(action.Direction),
 				}
 				resp, err := s.envClient.ExecuteAgentAction(ctx, &req)
 				if err != nil { // Note: Most often due to a message sent to a dead agent
@@ -179,7 +179,7 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 					continue
 				}
 				// Check if the agent died during this action
-				if !resp.IsAlive {
+				if resp.Value == envApi.ExecuteAgentActionResponse_ERR_DIED {
 					fmt.Printf("Appending death observation from response: %v\n", *resp)
 					// Add this observaion to the death obsvs slice to be used in the next loop
 					entityDeathObsvs = append(entityDeathObsvs, api.Observation{

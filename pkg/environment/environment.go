@@ -278,8 +278,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 			// KILL
 			s.datacomDAL.DeleteEntity(entity.Id)
 			return &envApi.ExecuteAgentActionResponse{
-				WasSuccessful: false,
-				IsAlive:       false,
+				Value: envApi.ExecuteAgentActionResponse_ERR_DIED,
 			}, nil
 		}
 	}
@@ -289,8 +288,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 	case 1: // MOVE
 		if targetX < minPosition || targetY < minPosition {
 			return &envApi.ExecuteAgentActionResponse{
-				WasSuccessful: false,
-				IsAlive:       true,
+				Value: envApi.ExecuteAgentActionResponse_ERR_INVALID_TARGET,
 			}, nil
 		}
 		// Check if cell is occupied
@@ -298,8 +296,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		if isCellOccupied || err != nil {
 			// Return unsuccessful
 			return &envApi.ExecuteAgentActionResponse{
-				WasSuccessful: false,
-				IsAlive:       true,
+				Value: envApi.ExecuteAgentActionResponse_ERR_INVALID_TARGET,
 			}, nil
 		}
 		// Adjust energy
@@ -313,8 +310,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 				// KILL
 				s.datacomDAL.DeleteEntity(entity.Id)
 				return &envApi.ExecuteAgentActionResponse{
-					WasSuccessful: false,
-					IsAlive:       false,
+					Value: envApi.ExecuteAgentActionResponse_ERR_DIED,
 				}, nil
 			}
 		}
@@ -355,14 +351,12 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		if !isCellOccupied || err != nil {
 			// Return unsuccessful
 			return &envApi.ExecuteAgentActionResponse{
-				WasSuccessful: false,
-				IsAlive:       true,
+				Value: envApi.ExecuteAgentActionResponse_ERR_INVALID_TARGET,
 			}, nil
 		}
 		if other.ClassID != 3 { // FOOD
 			return &envApi.ExecuteAgentActionResponse{
-				WasSuccessful: false,
-				IsAlive:       true,
+				Value: envApi.ExecuteAgentActionResponse_ERR_INVALID_TARGET,
 			}, nil
 		}
 		// Update entity
@@ -399,15 +393,13 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		if !isCellOccupied || err != nil {
 			// Return unsuccessful
 			return &envApi.ExecuteAgentActionResponse{
-				WasSuccessful: false,
-				IsAlive:       true,
+				Value: envApi.ExecuteAgentActionResponse_ERR_INVALID_TARGET,
 			}, nil
 		}
 		// Make sure the other entity is an agent
 		if other.ClassID != 1 { // AGENT
 			return &envApi.ExecuteAgentActionResponse{
-				WasSuccessful: false,
-				IsAlive:       true,
+				Value: envApi.ExecuteAgentActionResponse_ERR_INVALID_TARGET,
 			}, nil
 		}
 		// Update this entity's energy
@@ -421,8 +413,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 				// KILL
 				s.datacomDAL.DeleteEntity(entity.Id)
 				return &envApi.ExecuteAgentActionResponse{
-					WasSuccessful: false,
-					IsAlive:       false,
+					Value: envApi.ExecuteAgentActionResponse_ERR_DIED,
 				}, nil
 			}
 		}
@@ -441,8 +432,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 
 	default: // INVALID
 		return &envApi.ExecuteAgentActionResponse{
-			WasSuccessful: false,
-			IsAlive:       true,
+			Value: envApi.ExecuteAgentActionResponse_ERR_INVALID_TARGET,
 		}, nil
 	}
 
@@ -454,8 +444,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 
 	// Return the data for the agent
 	return &envApi.ExecuteAgentActionResponse{
-		WasSuccessful: true,
-		IsAlive:       true,
+		Value: envApi.ExecuteAgentActionResponse_OK,
 	}, nil
 }
 

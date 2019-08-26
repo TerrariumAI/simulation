@@ -43,7 +43,9 @@ func serializeEntity(e envApi.Entity) (string, error) {
 		log.Println("ERROR: ", err)
 		return "", err
 	}
-	return fmt.Sprintf("%s:%v:%v:%v:%s:%s:%v:%v:%s", index, e.X, e.Y, e.ClassID, e.OwnerUID, e.ModelID, e.Energy, e.Health, e.Id), nil
+	entityStr := proto.MarshalTextString(&e)
+	entityStr = strings.ReplaceAll(entityStr, "\n", "%n")
+	return fmt.Sprintf("%s-%s", index, entityStr), nil
 }
 
 // Serializes a cell to a string
@@ -59,30 +61,18 @@ func serializeEffect(p envApi.Effect) (string, error) {
 }
 
 // parseEntityContent takes entity string and parses it out to an entity
-func parseEntityContent(content string) (entity envApi.Entity, index string) {
-	values := strings.Split(content, ":")
-	x, _ := strconv.Atoi(values[1])
-	y, _ := strconv.Atoi(values[2])
-	classID, _ := strconv.Atoi(values[3])
-	ownerUID := values[4]
-	modelID := values[5]
-	energy, _ := strconv.Atoi(values[6])
-	health, _ := strconv.Atoi(values[7])
-	return envApi.Entity{
-		X:        uint32(x),
-		Y:        uint32(y),
-		ClassID:  uint32(classID),
-		OwnerUID: ownerUID,
-		ModelID:  modelID,
-		Energy:   uint32(energy),
-		Health:   uint32(health),
-		Id:       values[8],
-	}, values[0]
+func parseEntityContent(content string) (envApi.Entity, string) {
+	values := strings.SplitN(content, "-", 2)
+	entityStr := values[1]
+	entityStr = strings.ReplaceAll(entityStr, "%n", "\n")
+	entity := envApi.Entity{}
+	proto.UnmarshalText(entityStr, &entity)
+	return entity, values[0]
 }
 
 // parseCellContent takes  a cell string and converts it to a cell struct
 func parseEffectContent(content string) (p envApi.Effect, index string) {
-	values := strings.Split(content, "-")
+	values := strings.SplitN(content, "-", 2)
 	effectString := values[1]
 	effectString = strings.ReplaceAll(effectString, "%n", "\n")
 	effect := envApi.Effect{}

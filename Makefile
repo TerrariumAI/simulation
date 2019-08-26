@@ -24,7 +24,7 @@ build-training-windows: check-version-env-var
 build-training-linux: check-version-env-var
 	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o ./bin/training-linux-$(VERSION).sh ./cmd/training
 
-build-training-releases: build-environment-mac build-environment-windows
+build-training-releases: build-training-mac build-training-windows build-training-linux
 
 ## ----------------------
 ## ------ Run
@@ -34,8 +34,6 @@ run-e-testing: ## run the server locally with env set to testing
 	go run -race ./cmd/environment/main.go -grpc-port=9091 -redis-addr=localhost:6379 -log-level=-1 -env=testing
 run-e-staging: ## run the server locally with env set to testing
 	go run -race ./cmd/environment/main.go -grpc-port=9091 -redis-addr=localhost:6379 -log-level=-1 -env=staging
-run-e-training: ## run the server locally with env set to training
-	go run -race ./cmd/environment/main.go
 run-e-prod: ## run the server locally with env set to prod
 	go run -race ./cmd/environment/main.go -grpc-port=9091 -log-level=-1 -env=prod
 
@@ -43,11 +41,12 @@ run-c-testing: ## run the server locally with env set to testing
 	go run -race ./cmd/collective/main.go -grpc-port=9090 -redis-addr=localhost:6379 -environment-addr=localhost:9091 -log-level=-1 -env=testing
 run-c-staging: ## run the server locally with env set to testing
 	go run -race ./cmd/collective/main.go -grpc-port=9090 -redis-addr=localhost:6379 -environment-addr=localhost:9091 -log-level=-1 -env=staging
-run-c-training: ## run the server locally with env set to training
-	go run -race ./cmd/collective/main.go
 run-c-prod: ## run the server locally with env set to prod
 	go run -race ./cmd/collective/main.go -grpc-port=9090 -environment-addr=localhost:9091 -redis-addr=localhost:6379 -log-level=-1 -env=prod
 
+run-training:
+	go run -race ./cmd/training/main.go
+	
 run-esp:
 	sudo docker run \
 			--rm \
