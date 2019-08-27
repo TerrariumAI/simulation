@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/mock"
 
-	"github.com/alicebob/miniredis"
+	"github.com/alicebob/miniredis/v2"
 	"github.com/golang/protobuf/ptypes/empty"
 	envApi "github.com/terrariumai/simulation/pkg/api/environment"
 	datacom "github.com/terrariumai/simulation/pkg/datacom"

@@ -323,7 +323,6 @@ func (dc *Datacom) GetObservationForEntity(entity envApi.Entity) (*collectiveApi
 	}
 	for y = int32(entity.Y) + dc.EntitySmellDist; y >= int32(entity.Y)-dc.EntitySmellDist; y-- {
 		for x = int32(entity.X) - dc.EntitySmellDist; x <= int32(entity.X)+dc.EntitySmellDist; x++ {
-			println("asdfasdf", x, y)
 			// If position is invalid, set it to untraversable entity (rock)
 			if x < minPosition || x > maxPosition || y < minPosition || y > maxPosition {
 				obsv.Smell = append(obsv.Smell, &collectiveApi.Effect{ClassID: collectiveApi.Effect_Class(0)})

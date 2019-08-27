@@ -106,6 +106,8 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 
 	// Dead entity observation array
 	entityDeathObsvs := []api.Observation{}
+	// Store memory of previous action
+	entityActionResponseMemory := make(map[string]envApi.ExecuteAgentActionResponse)
 
 	// Start the loop
 	for {
@@ -128,12 +130,19 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 		// Generate an observation for each entity
 		for _, e := range entities {
 			obsv, err := s.datacom.GetObservationForEntity(e)
+			// Check for memory
+			if resp, ok := entityActionResponseMemory[obsv.Id]; ok {
+				obsv.ActionMemory = api.Observation_ResponseValue(resp.Value)
+				println("SET ACTION MEM")
+			}
 			// fmt.Println(obsv)
 			if err != nil {
 				log.Printf("ERROR: %v\n", err)
 			}
 			obsvPacket.Observations = append(obsvPacket.Observations, obsv)
 		}
+		// Clear memory to ensure no memory leaks (naming, confusing, not sure where i am anymore, send help)
+		entityActionResponseMemory = make(map[string]envApi.ExecuteAgentActionResponse)
 		// Append death observations
 		if len(entityDeathObsvs) > 0 {
 			for _, obsv := range entityDeathObsvs {
@@ -178,6 +187,8 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 					log.Printf("ERROR: %v\n", err)
 					continue
 				}
+				// Store the response in memory
+				entityActionResponseMemory[action.Id] = *resp
 				// Check if the agent died during this action
 				if resp.Value == envApi.ExecuteAgentActionResponse_ERR_DIED {
 					fmt.Printf("Appending death observation from response: %v\n", *resp)

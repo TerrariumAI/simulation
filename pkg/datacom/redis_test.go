@@ -11,7 +11,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/alicebob/miniredis"
+	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis"
 	"github.com/stretchr/testify/mock"
 	collectiveApi "github.com/terrariumai/simulation/pkg/api/collective"

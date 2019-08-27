@@ -6,7 +6,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/alicebob/miniredis"
+	"github.com/alicebob/miniredis/v2"
 	collectiveApi "github.com/terrariumai/simulation/pkg/api/collective"
 	envApi "github.com/terrariumai/simulation/pkg/api/environment"
 	"github.com/terrariumai/simulation/pkg/collective"
