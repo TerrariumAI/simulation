@@ -11,7 +11,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/alicebob/miniredis"
+	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis"
 	"github.com/stretchr/testify/mock"
 	collectiveApi "github.com/terrariumai/simulation/pkg/api/collective"
@@ -78,7 +78,7 @@ func TestCreateEntity(t *testing.T) {
 				shouldPublish: true,
 			},
 			expectedPublishCount: 1,
-			expected:             "010111101011001010:123:456:1:MOCK-UID:MOCK-MODEL-ID:100:100:1",
+			expected:             `010111101011001010-id: "1"%nclassID: AGENT%nx: 123%ny: 456%nenergy: 100%nhealth: 100%nownerUID: "MOCK-UID"%nmodelID: "MOCK-MODEL-ID"%n`,
 		},
 		{
 			name: "Test invalid position error",
@@ -113,7 +113,7 @@ func TestCreateEntity(t *testing.T) {
 				},
 				shouldPublish: false,
 			},
-			expected: "010111101011001010:123:456:1:MOCK-UID:MOCK-MODEL-ID:100:100:1",
+			expected: `010111101011001010-id: "1"%nclassID: AGENT%nx: 123%ny: 456%nenergy: 100%nhealth: 100%nownerUID: "MOCK-UID"%nmodelID: "MOCK-MODEL-ID"%n`,
 		},
 	}
 
@@ -174,10 +174,17 @@ func TestIsCellOccupied(t *testing.T) {
 	mockPAL := &mocks.PubsubAccessLayer{}
 	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("*endpoints_terrariumai_environment.Entity"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")).Return(nil)
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
-	e := envApi.Entity{
-		X: 0, Y: 0, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
+	entities := []envApi.Entity{
+		envApi.Entity{
+			X: 0, Y: 0, ClassID: envApi.Entity_AGENT, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
+		},
+		envApi.Entity{
+			X: 1, Y: 1, ClassID: envApi.Entity_FOOD, Id: "1",
+		},
 	}
-	dc.CreateEntity(e, true)
+	for _, e := range entities {
+		dc.CreateEntity(e, true)
+	}
 
 	type args struct {
 		x uint32
@@ -191,13 +198,23 @@ func TestIsCellOccupied(t *testing.T) {
 		expectErr      bool
 	}{
 		{
-			"Test cell is occupied",
+			"Test cell is occupied with entity",
 			args{
 				x: 0,
 				y: 0,
 			},
 			true,
-			&e,
+			&entities[0],
+			false,
+		},
+		{
+			"Test cell is occupied with food",
+			args{
+				x: 1,
+				y: 1,
+			},
+			true,
+			&entities[1],
 			false,
 		},
 		{
@@ -233,7 +250,7 @@ func TestIsCellOccupied(t *testing.T) {
 			}
 
 			if isOccupied != tt.expected {
-				t.Errorf("expected %v, \n\t got: %v", tt.expected, isOccupied)
+				t.Errorf("expected %v, \t got: %v", tt.expected, isOccupied)
 			}
 
 			if !reflect.DeepEqual(got, tt.expectedEntity) {
@@ -282,7 +299,7 @@ func TestUpdateEntity(t *testing.T) {
 					Id:       "0",
 				},
 			},
-			"000000000000000011:1:1:2:MOCK-UID-2:MOCK-MODEL-ID-2:90:90:0",
+			`000000000000000011-id: "0"%nclassID: ROCK%nx: 1%ny: 1%nenergy: 90%nhealth: 90%nownerUID: "MOCK-UID-2"%nmodelID: "MOCK-MODEL-ID-2"%n`,
 			false,
 		},
 	}
@@ -348,7 +365,7 @@ func TestGetEntity(t *testing.T) {
 			args{
 				id: "0",
 			},
-			"000000000000000000:0:0:1:MOCK-UID:MOCK-MODEL-ID:100:100:0",
+			`000000000000000000-id: "0"%nclassID: AGENT%nenergy: 100%nhealth: 100%nownerUID: "MOCK-UID"%nmodelID: "MOCK-MODEL-ID"%n`,
 			false,
 		},
 		{
@@ -405,7 +422,7 @@ func TestDeleteEntity(t *testing.T) {
 
 	got, _, err := dc.GetEntity(e.Id)
 	if !reflect.DeepEqual(*got, e) {
-		t.Errorf("got %v, expected %v", got, e)
+		t.Errorf("got %v, expected %v", *got, e)
 	}
 	if err != nil {
 		t.Errorf("unexpected err: %v", e)
