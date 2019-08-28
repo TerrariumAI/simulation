@@ -174,10 +174,17 @@ func TestIsCellOccupied(t *testing.T) {
 	mockPAL := &mocks.PubsubAccessLayer{}
 	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("*endpoints_terrariumai_environment.Entity"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")).Return(nil)
 	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
-	e := envApi.Entity{
-		X: 0, Y: 0, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
+	entities := []envApi.Entity{
+		envApi.Entity{
+			X: 0, Y: 0, ClassID: envApi.Entity_AGENT, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
+		},
+		envApi.Entity{
+			X: 1, Y: 1, ClassID: envApi.Entity_FOOD, Id: "1",
+		},
 	}
-	dc.CreateEntity(e, true)
+	for _, e := range entities {
+		dc.CreateEntity(e, true)
+	}
 
 	type args struct {
 		x uint32
@@ -191,13 +198,23 @@ func TestIsCellOccupied(t *testing.T) {
 		expectErr      bool
 	}{
 		{
-			"Test cell is occupied",
+			"Test cell is occupied with entity",
 			args{
 				x: 0,
 				y: 0,
 			},
 			true,
-			&e,
+			&entities[0],
+			false,
+		},
+		{
+			"Test cell is occupied with food",
+			args{
+				x: 1,
+				y: 1,
+			},
+			true,
+			&entities[1],
 			false,
 		},
 		{

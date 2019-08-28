@@ -256,13 +256,13 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 
 	var targetX, targetY = entity.X, entity.Y
 	switch req.Direction {
-	case 0: // UP
+	case envApi.ExecuteAgentActionRequest_UP: // UP
 		targetY++
-	case 1: // DOWN
+	case envApi.ExecuteAgentActionRequest_DOWN: // DOWN
 		targetY--
-	case 2: // LEFT
+	case envApi.ExecuteAgentActionRequest_LEFT: // LEFT
 		targetX--
-	case 3: // RIGHT
+	case envApi.ExecuteAgentActionRequest_RIGHT: // RIGHT
 		targetX++
 	}
 
@@ -354,7 +354,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 				Value: envApi.ExecuteAgentActionResponse_ERR_INVALID_TARGET,
 			}, nil
 		}
-		if other.ClassID != 3 { // FOOD
+		if other.ClassID != envApi.Entity_FOOD { // FOOD
 			return &envApi.ExecuteAgentActionResponse{
 				Value: envApi.ExecuteAgentActionResponse_ERR_INVALID_TARGET,
 			}, nil
