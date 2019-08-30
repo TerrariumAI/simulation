@@ -7,6 +7,7 @@ import (
 	"log"
 
 	"cloud.google.com/go/firestore"
+	envApi "github.com/terrariumai/simulation/pkg/api/environment"
 )
 
 // GetRemoteModelMetadataBySecret checks the database to see if a remote model exists,
@@ -111,4 +112,40 @@ func (dc *Datacom) UpdateRemoteModelMetadata(remoteModelMD *RemoteModel, connect
 	}
 
 	return nil
+}
+
+// AddEntityMetadataToFireabse adds an entity's metadata to firebase
+func (dc *Datacom) AddEntityMetadataToFireabse(e envApi.Entity) error {
+	// Init client
+	ctx := context.Background()
+	client, err := dc.firebaseApp.Firestore(ctx)
+	defer client.Close()
+	if err != nil {
+		return err
+	}
+
+	_, err = client.Collection("remoteModels").Doc(e.Id).Set(ctx, map[string]interface{}{
+		"Id":       e.Id,
+		"OwnerUID": e.OwnerUID,
+		"ModelID":  e.ModelID,
+		"ClassID":  e.ClassID,
+	}, firestore.MergeAll)
+	if err != nil {
+		fmt.Printf("ERROR: %v", err)
+	}
+
+	return err
+}
+
+// RemoveEntityMetadataFromFirebase remove entity metadata
+func (dc *Datacom) RemoveEntityMetadataFromFirebase(id string) error {
+	// Init client
+	ctx := context.Background()
+	client, err := dc.firebaseApp.Firestore(ctx)
+	defer client.Close()
+	if err != nil {
+		return err
+	}
+	_, err = client.Collection("remoteModels").Doc(id).Delete(ctx)
+	return err
 }

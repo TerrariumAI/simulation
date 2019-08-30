@@ -72,6 +72,8 @@ type DataAccessLayer interface {
 	GetRemoteModelMetadataBySecret(modelSecret string) (*datacom.RemoteModel, error)
 	GetRemoteModelMetadataByID(modelID string) (*datacom.RemoteModel, error)
 	UpdateRemoteModelMetadata(remoteModelMD *datacom.RemoteModel, connectCount int) error
+	AddEntityMetadataToFireabse(envApi.Entity) error
+	RemoveEntityMetadataFromFirebase(id string) error
 }
 
 // NewEnvironmentServer creates simulation service
@@ -195,6 +197,8 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *envApi.Create
 
 	// Add the entity to the environment
 	err = s.datacomDAL.CreateEntity(*req.Entity, true)
+	// Add metadata to firebase
+	err = s.datacomDAL.AddEntityMetadataToFireabse(*req.Entity)
 
 	// Return the data for the agent
 	return &envApi.CreateEntityResponse{
@@ -230,6 +234,13 @@ func (s *environmentServer) DeleteEntity(ctx context.Context, req *envApi.Delete
 	// Remove the entity from the environment
 	deleted, err := s.datacomDAL.DeleteEntity(req.Id)
 	if err != nil {
+		log.Printf("ERROR: %v", err)
+		return nil, err
+	}
+	// Remove entity from firebase
+	err = s.datacomDAL.RemoveEntityMetadataFromFirebase(req.Id)
+	if err != nil {
+		log.Printf("ERROR: %v", err)
 		return nil, err
 	}
 
