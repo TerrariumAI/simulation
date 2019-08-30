@@ -18,6 +18,7 @@ import (
 
 const (
 	defaultMinStepTimeMilliseconds int64 = 250 // 50
+	entitiesPollWaitTime           int64 = 250
 )
 
 type collectiveServer struct {
@@ -124,6 +125,12 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 			log.Printf("ERROR querying entities: %v\n", err)
 			return err
 		}
+
+		// If there are no entities, wait the default poll time and then restart the loop
+		if len(entities) == 0 {
+			time.Sleep(time.Duration(entitiesPollWaitTime) * time.Millisecond)
+		}
+
 		// Create a new observation packet to send
 		var obsvPacket api.ObservationPacket
 
@@ -133,20 +140,19 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 			// Check for memory
 			if resp, ok := entityActionResponseMemory[obsv.Id]; ok {
 				obsv.ActionMemory = api.Observation_ResponseValue(resp.Value)
-				println("SET ACTION MEM")
 			}
-			// fmt.Println(obsv)
 			if err != nil {
 				log.Printf("ERROR: %v\n", err)
 			}
 			obsvPacket.Observations = append(obsvPacket.Observations, obsv)
 		}
+
 		// Clear memory to ensure no memory leaks (naming, confusing, not sure where i am anymore, send help)
 		entityActionResponseMemory = make(map[string]envApi.ExecuteAgentActionResponse)
+
 		// Append death observations
 		if len(entityDeathObsvs) > 0 {
 			for _, obsv := range entityDeathObsvs {
-				fmt.Println("Adding death obsv: ", obsv)
 				obsvPacket.Observations = append(obsvPacket.Observations, &obsv)
 			}
 			// Reset the slice
@@ -191,7 +197,6 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 				entityActionResponseMemory[action.Id] = *resp
 				// Check if the agent died during this action
 				if resp.Value == envApi.ExecuteAgentActionResponse_ERR_DIED {
-					fmt.Printf("Appending death observation from response: %v\n", *resp)
 					// Add this observaion to the death obsvs slice to be used in the next loop
 					entityDeathObsvs = append(entityDeathObsvs, api.Observation{
 						Id:      action.Id,
@@ -204,9 +209,10 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 		// Wait if we got a response too quickly
 		t2 := time.Now().UnixNano() / 1000000
 		delta := t2 - t1
+
 		if delta < s.minStepTimeMilliseconds {
-			// println("waiting for ", minFrameTimeMilliseconds-delta)
-			time.Sleep(time.Duration((s.minStepTimeMilliseconds - delta)) * time.Millisecond)
+			sleepTime := time.Duration((s.minStepTimeMilliseconds - delta)) * time.Millisecond
+			time.Sleep(sleepTime)
 		}
 	}
 }
