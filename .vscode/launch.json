@@ -5,14 +5,14 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Launch Environment Testing",
+      "name": "Launch Training Server",
       "type": "go",
       "request": "launch",
       "mode": "auto",
-      "program": "${workspaceRoot}/cmd/environment/main.go",
+      "program": "${workspaceRoot}/cmd/training/main.go",
       "cwd": "${workspaceRoot}",
       "env": {},
-      "args": ["-grpc-port=9090", "-log-level=-1", "-env=testing"]
+      "args": []
     },
     {
       "name": "Launch Collective Testing",
