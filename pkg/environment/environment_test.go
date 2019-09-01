@@ -271,6 +271,11 @@ func TestCreateEntity(t *testing.T) {
 					args: []interface{}{envApi.Entity{Id: "0", ClassID: 1, X: uint32(25), Y: uint32(25), Energy: uint32(100), Health: uint32(100), OwnerUID: "MOCK-UID", ModelID: "mock-model-id"}, true},
 					resp: []interface{}{nil},
 				},
+				{ // Add entity to firebase
+					name: "AddEntityMetadataToFireabse",
+					args: []interface{}{envApi.Entity{Id: "0", ClassID: 1, X: uint32(25), Y: uint32(25), Energy: uint32(100), Health: uint32(100), OwnerUID: "MOCK-UID", ModelID: "mock-model-id"}},
+					resp: []interface{}{nil},
+				},
 			},
 			want: &envApi.CreateEntityResponse{
 				Id: "0",
@@ -310,6 +315,11 @@ func TestCreateEntity(t *testing.T) {
 				{ // Create the entity
 					name: "CreateEntity",
 					args: []interface{}{envApi.Entity{Id: "0", ClassID: 1, X: uint32(1), Y: uint32(1), Energy: uint32(100), Health: uint32(100), OwnerUID: "MOCK-UID", ModelID: "mock-model-id"}, true},
+					resp: []interface{}{nil},
+				},
+				{ // Add entity to firebase
+					name: "AddEntityMetadataToFireabse",
+					args: []interface{}{envApi.Entity{Id: "0", ClassID: 1, X: uint32(1), Y: uint32(1), Energy: uint32(100), Health: uint32(100), OwnerUID: "MOCK-UID", ModelID: "mock-model-id"}},
 					resp: []interface{}{nil},
 				},
 			},
@@ -427,13 +437,11 @@ func TestDeleteEntity(t *testing.T) {
 		req *envApi.DeleteEntityRequest
 	}
 	tests := []struct {
-		name                     string
-		args                     args
-		mockDeleteEntityResponse int64
-		mockDeleteEntityErr      error
-		want                     *envApi.DeleteEntityResponse
-		wantErr                  bool
-		wantErrMessage           string
+		name             string
+		args             args
+		DALMockFuncCalls []mockFuncCall
+		want             *envApi.DeleteEntityResponse
+		wantErr          error
 	}{
 		{
 			name: "Does not exist",
@@ -441,9 +449,14 @@ func TestDeleteEntity(t *testing.T) {
 				ctx: ctx,
 				req: &envApi.DeleteEntityRequest{},
 			},
-			wantErr:             true,
-			mockDeleteEntityErr: errors.New("entity does not exist"),
-			wantErrMessage:      "entity does not exist",
+			DALMockFuncCalls: []mockFuncCall{
+				{
+					name: "DeleteEntity",
+					args: []interface{}{""},
+					resp: []interface{}{int64(0), errors.New("entity does not exist")},
+				},
+			},
+			wantErr: errors.New("entity does not exist"),
 		},
 		{
 			name: "Success",
@@ -451,7 +464,18 @@ func TestDeleteEntity(t *testing.T) {
 				ctx: ctx,
 				req: &envApi.DeleteEntityRequest{},
 			},
-			mockDeleteEntityResponse: 1,
+			DALMockFuncCalls: []mockFuncCall{
+				{
+					name: "DeleteEntity",
+					args: []interface{}{""},
+					resp: []interface{}{int64(1), nil},
+				},
+				{
+					name: "RemoveEntityMetadataFromFirebase",
+					args: []interface{}{""},
+					resp: []interface{}{nil},
+				},
+			},
 			want: &envApi.DeleteEntityResponse{
 				Deleted: 1,
 			},
@@ -464,16 +488,18 @@ func TestDeleteEntity(t *testing.T) {
 			mockDAL := &mocks.DataAccessLayer{}
 			s := NewEnvironmentServer("testing", mockDAL)
 
-			mockDAL.On("DeleteEntity", tt.args.req.Id).Return(tt.mockDeleteEntityResponse, tt.mockDeleteEntityErr)
+			for _, mockFunc := range tt.DALMockFuncCalls {
+				mockDAL.On(mockFunc.name, mockFunc.args...).Return(mockFunc.resp...)
+			}
 
 			got, err := s.DeleteEntity(tt.args.ctx, tt.args.req)
 			if err != nil {
-				if !tt.wantErr {
+				if tt.wantErr == nil {
 					t.Errorf("error: %v, wantErr: %v", err, tt.wantErr)
 					return
 				}
-				if err.Error() != tt.wantErrMessage {
-					t.Errorf("error message: '%v', want error message: '%v'", err, tt.wantErrMessage)
+				if err.Error() != tt.wantErr.Error() {
+					t.Errorf("error message: '%v', want error message: '%v'", err, tt.wantErr)
 					return
 				}
 			}
