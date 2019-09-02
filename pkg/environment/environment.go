@@ -72,7 +72,7 @@ type DataAccessLayer interface {
 	GetRemoteModelMetadataBySecret(modelSecret string) (*datacom.RemoteModel, error)
 	GetRemoteModelMetadataByID(modelID string) (*datacom.RemoteModel, error)
 	UpdateRemoteModelMetadata(remoteModelMD *datacom.RemoteModel, connectCount int) error
-	AddEntityMetadataToFireabse(envApi.Entity) error
+	AddEntityMetadataToFireabase(envApi.Entity) error
 	RemoveEntityMetadataFromFirebase(id string) error
 }
 
@@ -198,7 +198,7 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *envApi.Create
 	// Add the entity to the environment
 	err = s.datacomDAL.CreateEntity(*req.Entity, true)
 	// Add metadata to firebase
-	err = s.datacomDAL.AddEntityMetadataToFireabse(*req.Entity)
+	err = s.datacomDAL.AddEntityMetadataToFireabase(*req.Entity)
 
 	// Return the data for the agent
 	return &envApi.CreateEntityResponse{
@@ -288,6 +288,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		} else {
 			// KILL
 			s.datacomDAL.DeleteEntity(entity.Id)
+			s.datacomDAL.RemoveEntityMetadataFromFirebase(entity.Id)
 			return &envApi.ExecuteAgentActionResponse{
 				Value: envApi.ExecuteAgentActionResponse_ERR_DIED,
 			}, nil
@@ -320,6 +321,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 			} else {
 				// KILL
 				s.datacomDAL.DeleteEntity(entity.Id)
+				s.datacomDAL.RemoveEntityMetadataFromFirebase(entity.Id)
 				return &envApi.ExecuteAgentActionResponse{
 					Value: envApi.ExecuteAgentActionResponse_ERR_DIED,
 				}, nil
@@ -423,6 +425,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 			} else {
 				// KILL
 				s.datacomDAL.DeleteEntity(entity.Id)
+				s.datacomDAL.RemoveEntityMetadataFromFirebase(entity.Id)
 				return &envApi.ExecuteAgentActionResponse{
 					Value: envApi.ExecuteAgentActionResponse_ERR_DIED,
 				}, nil
@@ -439,6 +442,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		} else {
 			// KILL
 			s.datacomDAL.DeleteEntity(other.Id)
+			s.datacomDAL.RemoveEntityMetadataFromFirebase(other.Id)
 		}
 
 	default: // INVALID

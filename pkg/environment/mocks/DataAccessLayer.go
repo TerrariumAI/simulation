@@ -13,8 +13,8 @@ type DataAccessLayer struct {
 	mock.Mock
 }
 
-// AddEntityMetadataToFireabse provides a mock function with given fields: _a0
-func (_m *DataAccessLayer) AddEntityMetadataToFireabse(_a0 endpoints_terrariumai_environment.Entity) error {
+// AddEntityMetadataToFireabase provides a mock function with given fields: _a0
+func (_m *DataAccessLayer) AddEntityMetadataToFireabase(_a0 endpoints_terrariumai_environment.Entity) error {
 	ret := _m.Called(_a0)
 
 	var r0 error

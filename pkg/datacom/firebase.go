@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	"cloud.google.com/go/firestore"
 	envApi "github.com/terrariumai/simulation/pkg/api/environment"
@@ -114,8 +115,8 @@ func (dc *Datacom) UpdateRemoteModelMetadata(remoteModelMD *RemoteModel, connect
 	return nil
 }
 
-// AddEntityMetadataToFireabse adds an entity's metadata to firebase
-func (dc *Datacom) AddEntityMetadataToFireabse(e envApi.Entity) error {
+// AddEntityMetadataToFireabase adds an entity's metadata to firebase
+func (dc *Datacom) AddEntityMetadataToFireabase(e envApi.Entity) error {
 	// Init client
 	ctx := context.Background()
 	client, err := dc.firebaseApp.Firestore(ctx)
@@ -124,16 +125,13 @@ func (dc *Datacom) AddEntityMetadataToFireabse(e envApi.Entity) error {
 		return err
 	}
 
-	_, err = client.Collection("remoteModels").Doc(e.Id).Set(ctx, map[string]interface{}{
+	_, err = client.Collection("entities").Doc(e.Id).Set(ctx, map[string]interface{}{
 		"Id":       e.Id,
 		"OwnerUID": e.OwnerUID,
 		"ModelID":  e.ModelID,
 		"ClassID":  e.ClassID,
+		"CreatedAt": time.Now(),
 	}, firestore.MergeAll)
-	if err != nil {
-		fmt.Printf("ERROR: %v", err)
-	}
-
 	return err
 }
 
@@ -146,6 +144,6 @@ func (dc *Datacom) RemoveEntityMetadataFromFirebase(id string) error {
 	if err != nil {
 		return err
 	}
-	_, err = client.Collection("remoteModels").Doc(id).Delete(ctx)
+	_, err = client.Collection("entities").Doc(id).Delete(ctx)
 	return err
 }

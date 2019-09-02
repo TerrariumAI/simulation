@@ -272,7 +272,7 @@ func TestCreateEntity(t *testing.T) {
 					resp: []interface{}{nil},
 				},
 				{ // Add entity to firebase
-					name: "AddEntityMetadataToFireabse",
+					name: "AddEntityMetadataToFireabase",
 					args: []interface{}{envApi.Entity{Id: "0", ClassID: 1, X: uint32(25), Y: uint32(25), Energy: uint32(100), Health: uint32(100), OwnerUID: "MOCK-UID", ModelID: "mock-model-id"}},
 					resp: []interface{}{nil},
 				},
@@ -318,7 +318,7 @@ func TestCreateEntity(t *testing.T) {
 					resp: []interface{}{nil},
 				},
 				{ // Add entity to firebase
-					name: "AddEntityMetadataToFireabse",
+					name: "AddEntityMetadataToFireabase",
 					args: []interface{}{envApi.Entity{Id: "0", ClassID: 1, X: uint32(1), Y: uint32(1), Energy: uint32(100), Health: uint32(100), OwnerUID: "MOCK-UID", ModelID: "mock-model-id"}},
 					resp: []interface{}{nil},
 				},
@@ -470,7 +470,7 @@ func TestDeleteEntity(t *testing.T) {
 					args: []interface{}{""},
 					resp: []interface{}{int64(1), nil},
 				},
-				{
+				{ // Remove agents MD
 					name: "RemoveEntityMetadataFromFirebase",
 					args: []interface{}{""},
 					resp: []interface{}{nil},
@@ -656,6 +656,11 @@ func TestExecuteAgentAction(t *testing.T) {
 					args: []interface{}{"mock-entity-id"},
 					resp: []interface{}{int64(1), nil},
 				},
+				{ // Create a new food entity somewhere
+					name: "RemoveEntityMetadataFromFirebase",
+					args: []interface{}{"mock-entity-id"},
+					resp: []interface{}{nil},
+				},
 			},
 			want: &envApi.ExecuteAgentActionResponse{
 				Value: envApi.ExecuteAgentActionResponse_ERR_DIED,
@@ -694,6 +699,11 @@ func TestExecuteAgentAction(t *testing.T) {
 				},
 				{ // Create a new food entity somewhere
 					name: "CreateEntity",
+					args: []interface{}{mock.AnythingOfType("Entity"), true},
+					resp: []interface{}{nil},
+				},
+				{ // Create a new food entity somewhere
+					name: "AddEntityMetadataToFirebase",
 					args: []interface{}{mock.AnythingOfType("Entity"), true},
 					resp: []interface{}{nil},
 				},
@@ -828,7 +838,7 @@ func TestExecuteAgentAction(t *testing.T) {
 			},
 		},
 		{
-			name: "Succesful attack kills other, energy of this",
+			name: "Succesful attack kills other, adjusts energy of this",
 			args: args{
 				ctx: ctx,
 				req: &envApi.ExecuteAgentActionRequest{
@@ -852,6 +862,11 @@ func TestExecuteAgentAction(t *testing.T) {
 					name: "DeleteEntity",
 					args: []interface{}{"mock-agent-id-2"},
 					resp: []interface{}{int64(1), nil},
+				},
+				{ // Remove other agents MD
+					name: "RemoveEntityMetadataFromFirebase",
+					args: []interface{}{"mock-agent-id-2"},
+					resp: []interface{}{nil},
 				},
 				{ // Update this agent
 					name: "UpdateEntity",
