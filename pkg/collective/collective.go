@@ -19,6 +19,7 @@ import (
 const (
 	defaultMinStepTimeMilliseconds int64 = 250 // 50
 	entitiesPollWaitTime           int64 = 250
+	newGenerationPenaltyWaitTime   int64 = 1000
 )
 
 type collectiveServer struct {
@@ -128,7 +129,9 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 
 		// If there are no entities, wait the default poll time and then restart the loop
 		if len(entities) == 0 {
-			time.Sleep(time.Duration(entitiesPollWaitTime) * time.Millisecond)
+			// Wait the penalty
+			time.Sleep(time.Duration(newGenerationPenaltyWaitTime) * time.Millisecond)
+			s.envClient.CreateEntity(ctx, &envApi.CreateEntityRequest{Entity: &envApi.Entity{ModelID: remoteModelMD.ID}})
 		}
 
 		// Create a new observation packet to send

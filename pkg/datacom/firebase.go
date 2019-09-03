@@ -126,11 +126,11 @@ func (dc *Datacom) AddEntityMetadataToFireabase(e envApi.Entity) error {
 	}
 
 	_, err = client.Collection("entities").Doc(e.Id).Set(ctx, map[string]interface{}{
-		"Id":       e.Id,
-		"OwnerUID": e.OwnerUID,
-		"ModelID":  e.ModelID,
-		"ClassID":  e.ClassID,
-		"CreatedAt": time.Now(),
+		"id":        e.Id,
+		"owner":     e.OwnerUID,
+		"model":     e.ModelID,
+		"classId":   e.ClassID,
+		"createdAt": time.Now(),
 	}, firestore.MergeAll)
 	return err
 }
