@@ -117,6 +117,10 @@ func (dc *Datacom) UpdateRemoteModelMetadata(remoteModelMD *RemoteModel, connect
 
 // AddEntityMetadataToFireabase adds an entity's metadata to firebase
 func (dc *Datacom) AddEntityMetadataToFireabase(e envApi.Entity) error {
+	// Training case
+	if dc.env == "training" {
+		return nil
+	}
 	// Init client
 	ctx := context.Background()
 	client, err := dc.firebaseApp.Firestore(ctx)
@@ -137,6 +141,10 @@ func (dc *Datacom) AddEntityMetadataToFireabase(e envApi.Entity) error {
 
 // RemoveEntityMetadataFromFirebase remove entity metadata
 func (dc *Datacom) RemoveEntityMetadataFromFirebase(id string) error {
+	// Training case
+	if dc.env == "training" {
+		return nil
+	}
 	// Init client
 	ctx := context.Background()
 	client, err := dc.firebaseApp.Firestore(ctx)

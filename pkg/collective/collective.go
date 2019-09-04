@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	b64 "encoding/base64"
+
 	datacom "github.com/terrariumai/simulation/pkg/datacom"
 
 	api "github.com/terrariumai/simulation/pkg/api/collective"
@@ -132,7 +134,12 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 			// Wait the penalty
 			time.Sleep(time.Duration(newGenerationPenaltyWaitTime) * time.Millisecond)
 			// Spawn entity with invalid x to force random placement
-			s.envClient.CreateEntity(ctx, &envApi.CreateEntityRequest{Entity: &envApi.Entity{X: 999999999, ModelID: remoteModelMD.ID, ClassID: envApi.Entity_AGENT}})
+			// Get owner uid from the remote model, generate auth context and make request
+			userinfoJSONString := fmt.Sprintf("{\"id\":\"%s\"}", remoteModelMD.OwnerUID)
+			userinfoEnc := b64.StdEncoding.EncodeToString([]byte(userinfoJSONString))
+			md := metadata.Pairs("x-endpoint-api-userinfo", userinfoEnc)
+			envCtx := metadata.NewOutgoingContext(context.Background(), md)
+			s.envClient.CreateEntity(envCtx, &envApi.CreateEntityRequest{Entity: &envApi.Entity{X: 999999999, ModelID: remoteModelMD.ID, OwnerUID: remoteModelMD.OwnerUID, ClassID: envApi.Entity_AGENT}})
 		}
 
 		// Create a new observation packet to send

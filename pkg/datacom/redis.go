@@ -376,7 +376,6 @@ func (dc *Datacom) CreateEffect(effect envApi.Effect) error {
 		effect.Timestamp = time.Now().Unix()
 	}
 	content, err := serializeEffect(effect)
-	fmt.Println(content)
 	if err != nil {
 		log.Println("ERROR: ", err)
 		return err
