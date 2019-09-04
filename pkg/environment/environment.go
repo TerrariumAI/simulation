@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	maxPosition            = 999
+	maxPosition            = 100
 	minPosition            = 0
 	regionSize             = 10
 	maxUserCreatedEntities = 5
@@ -85,6 +85,10 @@ func NewEnvironmentServer(env string, d DataAccessLayer) envApi.EnvironmentServe
 	}
 
 	return s
+}
+
+func randomPosition() (uint32, uint32) {
+	return uint32(rand.Intn(maxPosition)), uint32(rand.Intn(maxPosition))
 }
 
 // Get data for an entity
@@ -152,16 +156,11 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *envApi.Create
 		return nil, err
 	}
 
-	// Validate position
-	if req.Entity.X < minPosition || req.Entity.Y < minPosition {
-		err := errors.New("invalid position")
-		log.Printf("ERROR: %v\n", err)
-		return nil, err
-	}
-	if req.Entity.X > maxPosition || req.Entity.Y > maxPosition {
-		err := errors.New("invalid position")
-		log.Printf("ERROR: %v\n", err)
-		return nil, err
+	// If invalid posiiton, create new random position in the range
+	if req.Entity.X < minPosition || req.Entity.Y < minPosition || req.Entity.X > maxPosition || req.Entity.Y > maxPosition {
+		x, y := randomPosition()
+		req.Entity.X = x
+		req.Entity.Y = y
 	}
 
 	// Make sure the cell is not occupied
@@ -388,11 +387,12 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 			}
 			entityID := newUUID.String()
 			// Create entity
+			x, y := randomPosition()
 			e := envApi.Entity{
 				Id:      entityID,
 				ClassID: 3,
-				X:       uint32(rand.Intn(100)),
-				Y:       uint32(rand.Intn(100)),
+				X:       x,
+				Y:       y,
 			}
 			// Create entity silently (no publish)
 			err = s.datacomDAL.CreateEntity(e, true)

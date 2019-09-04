@@ -131,7 +131,8 @@ func (s *collectiveServer) ConnectRemoteModel(stream api.Collective_ConnectRemot
 		if len(entities) == 0 {
 			// Wait the penalty
 			time.Sleep(time.Duration(newGenerationPenaltyWaitTime) * time.Millisecond)
-			s.envClient.CreateEntity(ctx, &envApi.CreateEntityRequest{Entity: &envApi.Entity{ModelID: remoteModelMD.ID}})
+			// Spawn entity with invalid x to force random placement
+			s.envClient.CreateEntity(ctx, &envApi.CreateEntityRequest{Entity: &envApi.Entity{X: 999999999, ModelID: remoteModelMD.ID, ClassID: envApi.Entity_AGENT}})
 		}
 
 		// Create a new observation packet to send

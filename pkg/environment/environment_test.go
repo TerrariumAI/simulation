@@ -177,15 +177,15 @@ func TestCreateEntity(t *testing.T) {
 			wantErr: errors.New("you can only manually create 5 entities at a time"),
 		},
 		{
-			name: "Invalid position (over max position)",
+			name: "Invalid position places in random valid position",
 			args: args{
 				ctx: ctx,
 				req: &envApi.CreateEntityRequest{
 					Entity: &envApi.Entity{
 						ModelID:  "mock-model-id",
 						OwnerUID: "MOCK-UID",
-						X:        1000,
-						Y:        50,
+						X:        101,
+						Y:        0,
 					},
 				},
 			},
@@ -200,8 +200,13 @@ func TestCreateEntity(t *testing.T) {
 					args: []interface{}{"mock-model-id"},
 					resp: []interface{}{[]envApi.Entity{}, nil},
 				},
+				{ // Get entities for the RM
+					name: "IsCellOccupied",
+					args: []interface{}{mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					resp: []interface{}{true, nil, "", nil},
+				},
 			},
-			wantErr: errors.New("invalid position"),
+			wantErr: errors.New("cell is already occupied"),
 		},
 		{
 			name: "Cannot create entity in occupied cell",
