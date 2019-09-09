@@ -523,6 +523,87 @@ func TestGetEntitiesForModel(t *testing.T) {
 }
 
 // -------------------------------------
+// Get entities in space
+// -------------------------------------
+func TestGetEntitiesInSpace(t *testing.T) {
+	redisServer := setup()
+	defer teardown(redisServer)
+	// Setup pubsub mock
+	mockPAL := &mocks.PubsubAccessLayer{}
+	mockPAL.On("QueuePublishEvent", "createEntity", mock.AnythingOfType("*endpoints_terrariumai_environment.Entity"), mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")).Return(nil)
+
+	dc, _ := datacom.NewDatacom("testing", redisServer.Addr(), mockPAL)
+
+	dc.CreateEntity(envApi.Entity{
+		X: 0, Y: 0, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
+	}, true)
+
+	dc.CreateEntity(envApi.Entity{
+		X: 11, Y: 5, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "1",
+	}, true)
+
+	type args struct {
+		x0 uint32
+		y0 uint32
+		x1 uint32
+		y1 uint32
+	}
+	tests := []struct {
+		name      string
+		args      args
+		expected  []*envApi.Entity
+		expectErr bool
+	}{
+		{
+			"Region 0,0",
+			args{
+				x0: 0,
+				y0: 0,
+				x1: 9,
+				y1: 9,
+			},
+			[]*envApi.Entity{
+				&envApi.Entity{
+					X: 0, Y: 0, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "0",
+				},
+			},
+			false,
+		},
+		{
+			"Region 0,1",
+			args{
+				x0: 9,
+				y0: 0,
+				x1: 18,
+				y1: 9,
+			},
+			[]*envApi.Entity{
+				&envApi.Entity{
+					X: 11, Y: 5, ClassID: 1, OwnerUID: "MOCK-UID", ModelID: "MOCK-MODEL-ID", Health: 100, Energy: 100, Id: "1",
+				},
+			},
+			false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entities, err := dc.GetEntitiesInSpace(tt.args.x0, tt.args.y0, tt.args.x1, tt.args.y1)
+			if err != nil && tt.expectErr {
+				return
+			} else if err != nil && !tt.expectErr {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			if !reflect.DeepEqual(entities, tt.expected) {
+				t.Errorf("expected %v, \n\t got: %v", tt.expected, entities)
+			}
+		})
+	}
+}
+
+// -------------------------------------
 // Get Observations For Entity
 // -------------------------------------
 func TestGetObservationsForEntity(t *testing.T) {
