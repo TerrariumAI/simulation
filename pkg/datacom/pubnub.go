@@ -70,7 +70,7 @@ func (p *PubnubPAL) QueuePublishEvent(eventName string, protoMsg proto.Message, 
 	}
 
 	regionX, regionY := getRegionForPos(x, y)
-	channel := fmt.Sprintf("%v.%v", regionX, regionY)
+	channel := fmt.Sprintf("%v-%v", regionX, regionY)
 
 	p.pubChan <- pubMsg{
 		channel,
