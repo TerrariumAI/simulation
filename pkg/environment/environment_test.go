@@ -177,15 +177,15 @@ func TestCreateEntity(t *testing.T) {
 			wantErr: errors.New("you can only manually create 5 entities at a time"),
 		},
 		{
-			name: "Invalid position (over max position)",
+			name: "Invalid position places in random valid position",
 			args: args{
 				ctx: ctx,
 				req: &envApi.CreateEntityRequest{
 					Entity: &envApi.Entity{
 						ModelID:  "mock-model-id",
 						OwnerUID: "MOCK-UID",
-						X:        1000,
-						Y:        50,
+						X:        101,
+						Y:        0,
 					},
 				},
 			},
@@ -200,8 +200,13 @@ func TestCreateEntity(t *testing.T) {
 					args: []interface{}{"mock-model-id"},
 					resp: []interface{}{[]envApi.Entity{}, nil},
 				},
+				{ // Get entities for the RM
+					name: "IsCellOccupied",
+					args: []interface{}{mock.AnythingOfType("uint32"), mock.AnythingOfType("uint32")},
+					resp: []interface{}{true, nil, "", nil},
+				},
 			},
-			wantErr: errors.New("invalid position"),
+			wantErr: errors.New("cell is already occupied"),
 		},
 		{
 			name: "Cannot create entity in occupied cell",
@@ -271,6 +276,11 @@ func TestCreateEntity(t *testing.T) {
 					args: []interface{}{envApi.Entity{Id: "0", ClassID: 1, X: uint32(25), Y: uint32(25), Energy: uint32(100), Health: uint32(100), OwnerUID: "MOCK-UID", ModelID: "mock-model-id"}, true},
 					resp: []interface{}{nil},
 				},
+				{ // Add entity to firebase
+					name: "AddEntityMetadataToFireabase",
+					args: []interface{}{envApi.Entity{Id: "0", ClassID: 1, X: uint32(25), Y: uint32(25), Energy: uint32(100), Health: uint32(100), OwnerUID: "MOCK-UID", ModelID: "mock-model-id"}},
+					resp: []interface{}{nil},
+				},
 			},
 			want: &envApi.CreateEntityResponse{
 				Id: "0",
@@ -310,6 +320,11 @@ func TestCreateEntity(t *testing.T) {
 				{ // Create the entity
 					name: "CreateEntity",
 					args: []interface{}{envApi.Entity{Id: "0", ClassID: 1, X: uint32(1), Y: uint32(1), Energy: uint32(100), Health: uint32(100), OwnerUID: "MOCK-UID", ModelID: "mock-model-id"}, true},
+					resp: []interface{}{nil},
+				},
+				{ // Add entity to firebase
+					name: "AddEntityMetadataToFireabase",
+					args: []interface{}{envApi.Entity{Id: "0", ClassID: 1, X: uint32(1), Y: uint32(1), Energy: uint32(100), Health: uint32(100), OwnerUID: "MOCK-UID", ModelID: "mock-model-id"}},
 					resp: []interface{}{nil},
 				},
 			},
@@ -427,13 +442,11 @@ func TestDeleteEntity(t *testing.T) {
 		req *envApi.DeleteEntityRequest
 	}
 	tests := []struct {
-		name                     string
-		args                     args
-		mockDeleteEntityResponse int64
-		mockDeleteEntityErr      error
-		want                     *envApi.DeleteEntityResponse
-		wantErr                  bool
-		wantErrMessage           string
+		name             string
+		args             args
+		DALMockFuncCalls []mockFuncCall
+		want             *envApi.DeleteEntityResponse
+		wantErr          error
 	}{
 		{
 			name: "Does not exist",
@@ -441,9 +454,14 @@ func TestDeleteEntity(t *testing.T) {
 				ctx: ctx,
 				req: &envApi.DeleteEntityRequest{},
 			},
-			wantErr:             true,
-			mockDeleteEntityErr: errors.New("entity does not exist"),
-			wantErrMessage:      "entity does not exist",
+			DALMockFuncCalls: []mockFuncCall{
+				{
+					name: "DeleteEntity",
+					args: []interface{}{""},
+					resp: []interface{}{int64(0), errors.New("entity does not exist")},
+				},
+			},
+			wantErr: errors.New("entity does not exist"),
 		},
 		{
 			name: "Success",
@@ -451,7 +469,18 @@ func TestDeleteEntity(t *testing.T) {
 				ctx: ctx,
 				req: &envApi.DeleteEntityRequest{},
 			},
-			mockDeleteEntityResponse: 1,
+			DALMockFuncCalls: []mockFuncCall{
+				{
+					name: "DeleteEntity",
+					args: []interface{}{""},
+					resp: []interface{}{int64(1), nil},
+				},
+				{ // Remove agents MD
+					name: "RemoveEntityMetadataFromFirebase",
+					args: []interface{}{""},
+					resp: []interface{}{nil},
+				},
+			},
 			want: &envApi.DeleteEntityResponse{
 				Deleted: 1,
 			},
@@ -464,16 +493,18 @@ func TestDeleteEntity(t *testing.T) {
 			mockDAL := &mocks.DataAccessLayer{}
 			s := NewEnvironmentServer("testing", mockDAL)
 
-			mockDAL.On("DeleteEntity", tt.args.req.Id).Return(tt.mockDeleteEntityResponse, tt.mockDeleteEntityErr)
+			for _, mockFunc := range tt.DALMockFuncCalls {
+				mockDAL.On(mockFunc.name, mockFunc.args...).Return(mockFunc.resp...)
+			}
 
 			got, err := s.DeleteEntity(tt.args.ctx, tt.args.req)
 			if err != nil {
-				if !tt.wantErr {
+				if tt.wantErr == nil {
 					t.Errorf("error: %v, wantErr: %v", err, tt.wantErr)
 					return
 				}
-				if err.Error() != tt.wantErrMessage {
-					t.Errorf("error message: '%v', want error message: '%v'", err, tt.wantErrMessage)
+				if err.Error() != tt.wantErr.Error() {
+					t.Errorf("error message: '%v', want error message: '%v'", err, tt.wantErr)
 					return
 				}
 			}
@@ -630,6 +661,11 @@ func TestExecuteAgentAction(t *testing.T) {
 					args: []interface{}{"mock-entity-id"},
 					resp: []interface{}{int64(1), nil},
 				},
+				{ // Create a new food entity somewhere
+					name: "RemoveEntityMetadataFromFirebase",
+					args: []interface{}{"mock-entity-id"},
+					resp: []interface{}{nil},
+				},
 			},
 			want: &envApi.ExecuteAgentActionResponse{
 				Value: envApi.ExecuteAgentActionResponse_ERR_DIED,
@@ -668,6 +704,11 @@ func TestExecuteAgentAction(t *testing.T) {
 				},
 				{ // Create a new food entity somewhere
 					name: "CreateEntity",
+					args: []interface{}{mock.AnythingOfType("Entity"), true},
+					resp: []interface{}{nil},
+				},
+				{ // Create a new food entity somewhere
+					name: "AddEntityMetadataToFirebase",
 					args: []interface{}{mock.AnythingOfType("Entity"), true},
 					resp: []interface{}{nil},
 				},
@@ -802,7 +843,7 @@ func TestExecuteAgentAction(t *testing.T) {
 			},
 		},
 		{
-			name: "Succesful attack kills other, energy of this",
+			name: "Succesful attack kills other, adjusts energy of this",
 			args: args{
 				ctx: ctx,
 				req: &envApi.ExecuteAgentActionRequest{
@@ -826,6 +867,11 @@ func TestExecuteAgentAction(t *testing.T) {
 					name: "DeleteEntity",
 					args: []interface{}{"mock-agent-id-2"},
 					resp: []interface{}{int64(1), nil},
+				},
+				{ // Remove other agents MD
+					name: "RemoveEntityMetadataFromFirebase",
+					args: []interface{}{"mock-agent-id-2"},
+					resp: []interface{}{nil},
 				},
 				{ // Update this agent
 					name: "UpdateEntity",

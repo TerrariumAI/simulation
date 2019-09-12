@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	maxPosition            = 999
+	maxPosition            = 100
 	minPosition            = 0
 	regionSize             = 10
 	maxUserCreatedEntities = 5
@@ -72,6 +72,8 @@ type DataAccessLayer interface {
 	GetRemoteModelMetadataBySecret(modelSecret string) (*datacom.RemoteModel, error)
 	GetRemoteModelMetadataByID(modelID string) (*datacom.RemoteModel, error)
 	UpdateRemoteModelMetadata(remoteModelMD *datacom.RemoteModel, connectCount int) error
+	AddEntityMetadataToFireabase(envApi.Entity) error
+	RemoveEntityMetadataFromFirebase(id string) error
 }
 
 // NewEnvironmentServer creates simulation service
@@ -83,6 +85,10 @@ func NewEnvironmentServer(env string, d DataAccessLayer) envApi.EnvironmentServe
 	}
 
 	return s
+}
+
+func randomPosition() (uint32, uint32) {
+	return uint32(rand.Intn(maxPosition)), uint32(rand.Intn(maxPosition))
 }
 
 // Get data for an entity
@@ -150,16 +156,11 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *envApi.Create
 		return nil, err
 	}
 
-	// Validate position
-	if req.Entity.X < minPosition || req.Entity.Y < minPosition {
-		err := errors.New("invalid position")
-		log.Printf("ERROR: %v\n", err)
-		return nil, err
-	}
-	if req.Entity.X > maxPosition || req.Entity.Y > maxPosition {
-		err := errors.New("invalid position")
-		log.Printf("ERROR: %v\n", err)
-		return nil, err
+	// If invalid posiiton, create new random position in the range
+	if req.Entity.X < minPosition || req.Entity.Y < minPosition || req.Entity.X > maxPosition || req.Entity.Y > maxPosition {
+		x, y := randomPosition()
+		req.Entity.X = x
+		req.Entity.Y = y
 	}
 
 	// Make sure the cell is not occupied
@@ -195,6 +196,8 @@ func (s *environmentServer) CreateEntity(ctx context.Context, req *envApi.Create
 
 	// Add the entity to the environment
 	err = s.datacomDAL.CreateEntity(*req.Entity, true)
+	// Add metadata to firebase
+	err = s.datacomDAL.AddEntityMetadataToFireabase(*req.Entity)
 
 	// Return the data for the agent
 	return &envApi.CreateEntityResponse{
@@ -230,6 +233,13 @@ func (s *environmentServer) DeleteEntity(ctx context.Context, req *envApi.Delete
 	// Remove the entity from the environment
 	deleted, err := s.datacomDAL.DeleteEntity(req.Id)
 	if err != nil {
+		log.Printf("ERROR: %v", err)
+		return nil, err
+	}
+	// Remove entity from firebase
+	err = s.datacomDAL.RemoveEntityMetadataFromFirebase(req.Id)
+	if err != nil {
+		log.Printf("ERROR: %v", err)
 		return nil, err
 	}
 
@@ -277,6 +287,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		} else {
 			// KILL
 			s.datacomDAL.DeleteEntity(entity.Id)
+			s.datacomDAL.RemoveEntityMetadataFromFirebase(entity.Id)
 			return &envApi.ExecuteAgentActionResponse{
 				Value: envApi.ExecuteAgentActionResponse_ERR_DIED,
 			}, nil
@@ -309,6 +320,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 			} else {
 				// KILL
 				s.datacomDAL.DeleteEntity(entity.Id)
+				s.datacomDAL.RemoveEntityMetadataFromFirebase(entity.Id)
 				return &envApi.ExecuteAgentActionResponse{
 					Value: envApi.ExecuteAgentActionResponse_ERR_DIED,
 				}, nil
@@ -375,11 +387,12 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 			}
 			entityID := newUUID.String()
 			// Create entity
+			x, y := randomPosition()
 			e := envApi.Entity{
 				Id:      entityID,
 				ClassID: 3,
-				X:       uint32(rand.Intn(100)),
-				Y:       uint32(rand.Intn(100)),
+				X:       x,
+				Y:       y,
 			}
 			// Create entity silently (no publish)
 			err = s.datacomDAL.CreateEntity(e, true)
@@ -412,6 +425,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 			} else {
 				// KILL
 				s.datacomDAL.DeleteEntity(entity.Id)
+				s.datacomDAL.RemoveEntityMetadataFromFirebase(entity.Id)
 				return &envApi.ExecuteAgentActionResponse{
 					Value: envApi.ExecuteAgentActionResponse_ERR_DIED,
 				}, nil
@@ -428,6 +442,7 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		} else {
 			// KILL
 			s.datacomDAL.DeleteEntity(other.Id)
+			s.datacomDAL.RemoveEntityMetadataFromFirebase(other.Id)
 		}
 
 	default: // INVALID

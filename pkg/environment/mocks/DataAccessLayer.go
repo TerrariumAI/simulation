@@ -13,6 +13,20 @@ type DataAccessLayer struct {
 	mock.Mock
 }
 
+// AddEntityMetadataToFireabase provides a mock function with given fields: _a0
+func (_m *DataAccessLayer) AddEntityMetadataToFireabase(_a0 endpoints_terrariumai_environment.Entity) error {
+	ret := _m.Called(_a0)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(endpoints_terrariumai_environment.Entity) error); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // CreateEffect provides a mock function with given fields: _a0
 func (_m *DataAccessLayer) CreateEffect(_a0 endpoints_terrariumai_environment.Effect) error {
 	ret := _m.Called(_a0)
@@ -265,6 +279,20 @@ func (_m *DataAccessLayer) IsCellOccupied(x uint32, y uint32) (bool, *endpoints_
 	}
 
 	return r0, r1, r2, r3
+}
+
+// RemoveEntityMetadataFromFirebase provides a mock function with given fields: id
+func (_m *DataAccessLayer) RemoveEntityMetadataFromFirebase(id string) error {
+	ret := _m.Called(id)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(id)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // UpdateEntity provides a mock function with given fields: origionalContent, e

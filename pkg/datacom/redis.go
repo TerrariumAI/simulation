@@ -357,7 +357,7 @@ func (dc *Datacom) GetEntitiesInSpace(x0 uint32, y0 uint32, x1 uint32, y1 uint32
 	for _, content := range contentArray {
 		entity, _ := parseEntityContent(content)
 		// Ignore entities outside space
-		if entity.X < x0 || entity.X > x1 || entity.X < y0 || entity.X > y1 {
+		if entity.X < x0 || entity.X > x1 || entity.Y < y0 || entity.Y > y1 {
 			continue
 		}
 		entities = append(entities, &entity)
@@ -376,7 +376,6 @@ func (dc *Datacom) CreateEffect(effect envApi.Effect) error {
 		effect.Timestamp = time.Now().Unix()
 	}
 	content, err := serializeEffect(effect)
-	fmt.Println(content)
 	if err != nil {
 		log.Println("ERROR: ", err)
 		return err
