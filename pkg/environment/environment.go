@@ -264,18 +264,6 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		return nil, err
 	}
 
-	var targetX, targetY = entity.X, entity.Y
-	switch req.Direction {
-	case envApi.ExecuteAgentActionRequest_UP: // UP
-		targetY++
-	case envApi.ExecuteAgentActionRequest_DOWN: // DOWN
-		targetY--
-	case envApi.ExecuteAgentActionRequest_LEFT: // LEFT
-		targetX--
-	case envApi.ExecuteAgentActionRequest_RIGHT: // RIGHT
-		targetX++
-	}
-
 	// Living energy cost
 	// Note: we will handle negative energy as overflow later
 	if entity.Energy >= agentLivingEnergyCost {
@@ -294,21 +282,64 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		}
 	}
 
-	switch req.Action {
-	case 0: // REST
-	case 1: // MOVE
-		if targetX < minPosition || targetY < minPosition {
+	var targetX, targetY = entity.X, entity.Y
+	switch req.Direction {
+	case envApi.ExecuteAgentActionRequest_UP: // UP
+		targetY++
+	case envApi.ExecuteAgentActionRequest_DOWN: // DOWN
+		if entity.Y == minPosition {
+			// Update the entity
+			err = s.datacomDAL.UpdateEntity(origionalContent, *entity)
+			if err != nil {
+				log.Printf("ERROR: %v\n", err)
+			}
 			return &envApi.ExecuteAgentActionResponse{
 				Value: envApi.ExecuteAgentActionResponse_ERR_INVALID_TARGET,
 			}, nil
+		}
+		targetY--
+	case envApi.ExecuteAgentActionRequest_LEFT: // LEFT
+		if entity.X == minPosition {
+			// Update the entity
+			err = s.datacomDAL.UpdateEntity(origionalContent, *entity)
+			if err != nil {
+				log.Printf("ERROR: %v\n", err)
+			}
+			return &envApi.ExecuteAgentActionResponse{
+				Value: envApi.ExecuteAgentActionResponse_ERR_INVALID_TARGET,
+			}, nil
+		}
+		targetX--
+	case envApi.ExecuteAgentActionRequest_RIGHT: // RIGHT
+		targetX++
+	}
+
+	// Create the response object
+	var resp *envApi.ExecuteAgentActionResponse
+	var respErr error
+
+	switch req.Action {
+	case 0: // REST
+		// Set response to ok
+		resp = &envApi.ExecuteAgentActionResponse{
+			Value: envApi.ExecuteAgentActionResponse_OK,
+		}
+		break
+	case 1: // MOVE
+		if targetX > maxPosition || targetY > maxPosition {
+			resp = &envApi.ExecuteAgentActionResponse{
+				Value: envApi.ExecuteAgentActionResponse_ERR_INVALID_TARGET,
+			}
+			break
 		}
 		// Check if cell is occupied
 		isCellOccupied, _, _, err := s.datacomDAL.IsCellOccupied(targetX, targetY)
 		if isCellOccupied || err != nil {
 			// Return unsuccessful
-			return &envApi.ExecuteAgentActionResponse{
+			resp = &envApi.ExecuteAgentActionResponse{
 				Value: envApi.ExecuteAgentActionResponse_ERR_INVALID_TARGET,
-			}, nil
+			}
+			break
 		}
 		// Adjust energy
 		if entity.Energy >= agentMoveEnergyCost {
@@ -321,9 +352,10 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 				// KILL
 				s.datacomDAL.DeleteEntity(entity.Id)
 				s.datacomDAL.RemoveEntityMetadataFromFirebase(entity.Id)
-				return &envApi.ExecuteAgentActionResponse{
+				resp = &envApi.ExecuteAgentActionResponse{
 					Value: envApi.ExecuteAgentActionResponse_ERR_DIED,
-				}, nil
+				}
+				return resp, nil
 			}
 		}
 
@@ -357,19 +389,26 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 		// Finally, adjust the position
 		entity.X = targetX
 		entity.Y = targetY
+		// Set response to ok
+		resp = &envApi.ExecuteAgentActionResponse{
+			Value: envApi.ExecuteAgentActionResponse_OK,
+		}
+		break
 	case 2: // EAT
 		// Check if cell is occupied
 		isCellOccupied, other, _, err := s.datacomDAL.IsCellOccupied(targetX, targetY)
 		if !isCellOccupied || err != nil {
 			// Return unsuccessful
-			return &envApi.ExecuteAgentActionResponse{
+			resp = &envApi.ExecuteAgentActionResponse{
 				Value: envApi.ExecuteAgentActionResponse_ERR_INVALID_TARGET,
-			}, nil
+			}
+			break
 		}
 		if other.ClassID != envApi.Entity_FOOD { // FOOD
-			return &envApi.ExecuteAgentActionResponse{
+			resp = &envApi.ExecuteAgentActionResponse{
 				Value: envApi.ExecuteAgentActionResponse_ERR_INVALID_TARGET,
-			}, nil
+			}
+			break
 		}
 		// Update entity
 		entity.Energy += agentEnergyGainOnEat
@@ -383,7 +422,8 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 			if err != nil {
 				err := errors.New("Error generating id")
 				log.Printf("ERROR CreateEntity(): %v\n", err)
-				return nil, err
+				respErr = err
+				break
 			}
 			entityID := newUUID.String()
 			// Create entity
@@ -400,20 +440,26 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 				break
 			}
 		}
+		resp = &envApi.ExecuteAgentActionResponse{
+			Value: envApi.ExecuteAgentActionResponse_OK,
+		}
+		break
 	case 3: // ATTACK
 		// Check if cell is occupied
 		isCellOccupied, other, otherOrigionalContent, err := s.datacomDAL.IsCellOccupied(targetX, targetY)
 		if !isCellOccupied || err != nil {
 			// Return unsuccessful
-			return &envApi.ExecuteAgentActionResponse{
+			resp = &envApi.ExecuteAgentActionResponse{
 				Value: envApi.ExecuteAgentActionResponse_ERR_INVALID_TARGET,
-			}, nil
+			}
+			break
 		}
 		// Make sure the other entity is an agent
 		if other.ClassID != 1 { // AGENT
-			return &envApi.ExecuteAgentActionResponse{
+			resp = &envApi.ExecuteAgentActionResponse{
 				Value: envApi.ExecuteAgentActionResponse_ERR_INVALID_TARGET,
-			}, nil
+			}
+			break
 		}
 		// Update this entity's energy
 		if entity.Energy >= agentAttackEnergyCost {
@@ -426,9 +472,10 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 				// KILL
 				s.datacomDAL.DeleteEntity(entity.Id)
 				s.datacomDAL.RemoveEntityMetadataFromFirebase(entity.Id)
-				return &envApi.ExecuteAgentActionResponse{
+				resp = &envApi.ExecuteAgentActionResponse{
 					Value: envApi.ExecuteAgentActionResponse_ERR_DIED,
-				}, nil
+				}
+				return resp, nil
 			}
 		}
 		// Update other entity's health
@@ -444,23 +491,29 @@ func (s *environmentServer) ExecuteAgentAction(ctx context.Context, req *envApi.
 			s.datacomDAL.DeleteEntity(other.Id)
 			s.datacomDAL.RemoveEntityMetadataFromFirebase(other.Id)
 		}
-
+		resp = &envApi.ExecuteAgentActionResponse{
+			Value: envApi.ExecuteAgentActionResponse_OK,
+		}
+		break
 	default: // INVALID
-		return &envApi.ExecuteAgentActionResponse{
+		resp = &envApi.ExecuteAgentActionResponse{
 			Value: envApi.ExecuteAgentActionResponse_ERR_INVALID_TARGET,
-		}, nil
+		}
+		break
+	}
+
+	if respErr != nil {
+		return nil, respErr
 	}
 
 	// Update the entity
 	err = s.datacomDAL.UpdateEntity(origionalContent, *entity)
 	if err != nil {
-		return nil, err
+		log.Printf("ERROR: %v\n", err)
 	}
 
 	// Return the data for the agent
-	return &envApi.ExecuteAgentActionResponse{
-		Value: envApi.ExecuteAgentActionResponse_OK,
-	}, nil
+	return resp, nil
 }
 
 func (s *environmentServer) ResetWorld(ctx context.Context, req *empty.Empty) (*empty.Empty, error) {
