@@ -26,6 +26,7 @@ build-training-linux: check-version-env-var
 
 build-training-releases: build-training-mac build-training-windows build-training-linux
 
+build: build-training-releases build-collective build-environment
 ## ----------------------
 ## ------ Run
 ## ----------------------
@@ -104,7 +105,7 @@ docker-push-collective: check-version-env-var ## push the docker image
 
 dockerize-environment: build-environment docker-build-environment docker-push-environment ## build and push dev proxy
 dockerize-collective: build-collective docker-build-collective docker-push-collective ## build and push dev proxy
-
+dockerize: dockerize-environment dockerize-collective
 	
 build:
 	echo test
